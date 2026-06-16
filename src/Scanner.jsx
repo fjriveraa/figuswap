@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 
 const ALBUM = {
   FWC:{name:"FIFA World Cup",emoji:"🏆",total:20},MEX:{name:"México",emoji:"🇲🇽",total:20},
@@ -50,15 +50,17 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
   const [error,setError]=useState(null);
   const [loading,setLoading]=useState(false);
   const [applied,setApplied]=useState({});
-  const cameraRef=useRef();
-  const galleryRef=useRef();
 
   const handleFile=(file)=>{
     if(!file)return;
     setMediaType(file.type||"image/jpeg");
-    setImage(URL.createObjectURL(file));
+    const url=URL.createObjectURL(file);
+    setImage(url);
     const reader=new FileReader();
-    reader.onload=(e)=>setImageBase64(e.target.result.split(",")[1]);
+    reader.onload=(e)=>{
+      const base64=e.target.result.split(",")[1];
+      setImageBase64(base64);
+    };
     reader.readAsDataURL(file);
   };
 
@@ -71,7 +73,7 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({image:imageBase64,mediaType})
       });
-      if(!res.ok)throw new Error(`HTTP ${res.status}`);
+      if(!res.ok)throw new Error(`Error ${res.status}`);
       const data=await res.json();
       const codes=data.stickers||[];
       const parsed=codes.map(c=>{
@@ -87,7 +89,7 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
       setDetected(parsed);
       setStep("results");
     }catch(e){
-      setError(`Error: ${e.message}`);
+      setError(`Error al escanear: ${e.message}`);
     }
     setLoading(false);
   };
@@ -97,80 +99,136 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
     if(onUpdateAlbum)onUpdateAlbum(code,num,action);
   };
 
-  const reset=()=>{setStep("upload");setImage(null);setImageBase64(null);setDetected([]);setError(null);setApplied({});};
+  const reset=()=>{
+    setStep("upload");setImage(null);
+    setImageBase64(null);setDetected([]);
+    setError(null);setApplied({});
+  };
 
   const needed=detected.filter(s=>s.isNeeded);
   const repeated=detected.filter(s=>!s.isNeeded&&s.teamExists);
   const totalApplied=Object.keys(applied).length;
 
-  // ── UPLOAD ──
+  // ── UPLOAD STEP ──
   if(step==="upload") return (
     <div style={{padding:16,maxWidth:480,margin:"0 auto"}}>
       <h2 style={{fontWeight:900,fontSize:20,color:"#ffd700",margin:"0 0 4px"}}>📸 Escáner IA</h2>
-      <p style={{color:"#6b7280",fontSize:13,marginBottom:20}}>Sube una foto o toma una y la IA detecta tus figuritas automáticamente.</p>
+      <p style={{color:"#6b7280",fontSize:13,marginBottom:20}}>
+        Sube una foto y la IA detecta automáticamente qué figuritas tienes.
+      </p>
 
       <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:14,padding:16,marginBottom:20}}>
         {[
-          ["📸","Toma foto o elige de tu galería"],
-          ["🤖","La IA lee todos los códigos automáticamente"],
-          ["💡","Te dice qué pegar, vender o cambiar"],
+          ["1️⃣","Elige una foto o toma una nueva"],
+          ["2️⃣","Toca Escanear con IA"],
+          ["3️⃣","La app te dice qué pegar, vender o cambiar"],
         ].map(([ic,txt],i)=>(
-          <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:i<2?12:0}}>
-            <span style={{fontSize:22,flexShrink:0}}>{ic}</span>
-            <span style={{color:"#9ca3af",fontSize:13,lineHeight:1.5}}>{txt}</span>
+          <div key={i} style={{display:"flex",gap:10,alignItems:"center",marginBottom:i<2?10:0}}>
+            <span style={{fontSize:20,flexShrink:0}}>{ic}</span>
+            <span style={{color:"#9ca3af",fontSize:13}}>{txt}</span>
           </div>
         ))}
       </div>
 
-      {/* FIX 1: Two buttons — camera + gallery */}
-      {!image ? (
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-          {/* Camera */}
-          <button onClick={()=>cameraRef.current?.click()} style={{padding:"20px 10px",background:"#0f172a",border:"2px solid #3b82f6",borderRadius:14,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
-            <span style={{fontSize:32}}>📷</span>
-            <span style={{fontWeight:700,color:"#60a5fa",fontSize:14}}>Tomar foto</span>
-            <span style={{fontSize:11,color:"#4a5568"}}>Cámara</span>
-          </button>
-          <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
-
-          {/* Gallery */}
-          <button onClick={()=>galleryRef.current?.click()} style={{padding:"20px 10px",background:"#0f172a",border:"2px solid #ffd700",borderRadius:14,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
-            <span style={{fontSize:32}}>🖼️</span>
-            <span style={{fontWeight:700,color:"#ffd700",fontSize:14}}>Mi galería</span>
-            <span style={{fontSize:11,color:"#4a5568"}}>Fotos guardadas</span>
-          </button>
-          <input ref={galleryRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
-        </div>
-      ) : (
+      {/* Preview */}
+      {image && (
         <div style={{marginBottom:16,position:"relative"}}>
-          <img src={image} alt="preview" style={{width:"100%",borderRadius:16,border:"2px solid #1e3a5f",display:"block",maxHeight:300,objectFit:"cover"}}/>
-          <button onClick={reset} style={{position:"absolute",top:10,right:10,background:"#ef4444",border:"none",borderRadius:20,color:"#fff",padding:"6px 12px",fontWeight:700,fontSize:12,cursor:"pointer"}}>✕ Cambiar</button>
+          <img src={image} alt="preview" style={{width:"100%",borderRadius:16,border:"2px solid #3b82f6",display:"block",maxHeight:280,objectFit:"cover"}}/>
+          <button
+            onClick={reset}
+            style={{position:"absolute",top:10,right:10,background:"rgba(0,0,0,0.7)",border:"none",borderRadius:20,color:"#fff",padding:"6px 12px",fontWeight:700,fontSize:12,cursor:"pointer"}}
+          >
+            ✕ Cambiar
+          </button>
         </div>
       )}
 
-      {error&&<div style={{background:"#1e0a0a",border:"1px solid #ef4444",borderRadius:10,padding:12,marginBottom:16,color:"#ef4444",fontSize:13}}>⚠️ {error}</div>}
+      {/* FILE INPUTS — using label trick for iOS Safari */}
+      {!image && (
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
 
-      {image && (
-        <button onClick={scan} disabled={loading} style={{width:"100%",padding:16,background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:14,color:"#0a0f1e",fontWeight:900,fontSize:16,cursor:"pointer",opacity:loading?0.7:1}}>
-          {loading?"🤖 Analizando...":"🤖 Escanear con IA →"}
+          {/* Cámara */}
+          <label style={{display:"block",cursor:"pointer"}}>
+            <div style={{padding:"24px 10px",background:"#0f172a",border:"2px solid #3b82f6",borderRadius:14,display:"flex",flexDirection:"column",alignItems:"center",gap:8,cursor:"pointer"}}>
+              <span style={{fontSize:36}}>📷</span>
+              <span style={{fontWeight:700,color:"#60a5fa",fontSize:14}}>Tomar foto</span>
+              <span style={{fontSize:11,color:"#4a5568"}}>Abre la cámara</span>
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              style={{display:"none"}}
+              onChange={e=>{
+                const f=e.target.files?.[0];
+                if(f)handleFile(f);
+              }}
+            />
+          </label>
+
+          {/* Galería */}
+          <label style={{display:"block",cursor:"pointer"}}>
+            <div style={{padding:"24px 10px",background:"#0f172a",border:"2px solid #ffd700",borderRadius:14,display:"flex",flexDirection:"column",alignItems:"center",gap:8,cursor:"pointer"}}>
+              <span style={{fontSize:36}}>🖼️</span>
+              <span style={{fontWeight:700,color:"#ffd700",fontSize:14}}>Mi galería</span>
+              <span style={{fontSize:11,color:"#4a5568"}}>Fotos guardadas</span>
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              style={{display:"none"}}
+              onChange={e=>{
+                const f=e.target.files?.[0];
+                if(f)handleFile(f);
+              }}
+            />
+          </label>
+
+        </div>
+      )}
+
+      {error&&(
+        <div style={{background:"#1e0a0a",border:"1px solid #ef4444",borderRadius:10,padding:12,marginBottom:16,color:"#ef4444",fontSize:13}}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      {/* Scan button */}
+      {image&&(
+        <button
+          onClick={scan}
+          disabled={loading}
+          style={{width:"100%",padding:16,background:loading?"#1e2a3a":"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:14,color:loading?"#6b7280":"#0a0f1e",fontWeight:900,fontSize:16,cursor:loading?"not-allowed":"pointer"}}
+        >
+          {loading?"🤖 Analizando tu foto...":"🤖 Escanear con IA →"}
         </button>
       )}
-      {loading&&<div style={{textAlign:"center",marginTop:12,color:"#6b7280",fontSize:13}}>Leyendo códigos... ~5 segundos</div>}
+
+      {loading&&(
+        <div style={{textAlign:"center",marginTop:16,color:"#6b7280",fontSize:13}}>
+          La IA está leyendo los códigos... ~5-10 segundos
+        </div>
+      )}
     </div>
   );
 
-  // ── RESULTS ──
+  // ── RESULTS STEP ──
   return (
     <div style={{padding:16,maxWidth:480,margin:"0 auto"}}>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-        <button onClick={reset} style={{background:"none",border:"none",color:"#6b7280",fontSize:20,cursor:"pointer",padding:0}}>←</button>
-        <h2 style={{fontWeight:900,fontSize:18,color:"#ffd700",margin:0}}>Resultado</h2>
+        <button onClick={reset} style={{background:"none",border:"none",color:"#6b7280",fontSize:22,cursor:"pointer",padding:0,lineHeight:1}}>←</button>
+        <h2 style={{fontWeight:900,fontSize:18,color:"#ffd700",margin:0}}>Resultado del escaneo</h2>
         <span style={{marginLeft:"auto",fontSize:12,color:"#6b7280"}}>{detected.length} detectadas</span>
       </div>
 
+      {/* Summary */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
-        {[["✅",needed.length,"#22c55e","Pegar"],["🔁",repeated.length,"#f97316","Repetidas"],["📦",detected.length,"#60a5fa","Total"]].map(([ic,val,color,label])=>(
-          <div key={label} style={{background:"#111827",border:`1px solid ${color}22`,borderRadius:12,padding:14,textAlign:"center"}}>
+        {[
+          ["✅",needed.length,"#22c55e","Pegar"],
+          ["🔁",repeated.length,"#f97316","Repetidas"],
+          ["📦",detected.length,"#60a5fa","Total"],
+        ].map(([ic,val,color,label])=>(
+          <div key={label} style={{background:"#111827",border:`1px solid ${color}33`,borderRadius:12,padding:14,textAlign:"center"}}>
             <div style={{fontSize:22}}>{ic}</div>
             <div style={{fontWeight:900,fontSize:26,color}}>{val}</div>
             <div style={{fontSize:11,color:"#6b7280",textTransform:"uppercase"}}>{label}</div>
@@ -178,73 +236,93 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
         ))}
       </div>
 
-      {image&&<img src={image} alt="" style={{width:"100%",borderRadius:12,border:"1px solid #1e2a3a",maxHeight:180,objectFit:"cover",marginBottom:16}}/>}
+      {/* Thumbnail */}
+      {image&&(
+        <img src={image} alt="" style={{width:"100%",borderRadius:12,border:"1px solid #1e2a3a",maxHeight:160,objectFit:"cover",marginBottom:16}}/>
+      )}
 
+      {/* Applied counter */}
       {totalApplied>0&&(
         <div style={{background:"#052e16",border:"1px solid #22c55e",borderRadius:12,padding:12,marginBottom:16,display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:20}}>✅</span>
-          <span style={{color:"#86efac",fontWeight:700,fontSize:14}}>{totalApplied} figurita{totalApplied>1?"s":""} actualizada{totalApplied>1?"s":""}</span>
+          <span style={{color:"#86efac",fontWeight:700,fontSize:14}}>
+            {totalApplied} figurita{totalApplied>1?"s":""} actualizada{totalApplied>1?"s":""} en tu álbum
+          </span>
         </div>
       )}
 
-      {/* NEEDED */}
+      {/* NEEDED — para pegar */}
       {needed.length>0&&(
         <div style={{marginBottom:20}}>
-          <div style={{fontWeight:800,fontSize:15,color:"#22c55e",marginBottom:10}}>✅ ¡Las que puedes PEGAR! ({needed.length})</div>
+          <div style={{fontWeight:800,fontSize:15,color:"#22c55e",marginBottom:10}}>
+            ✅ ¡Las que puedes PEGAR! ({needed.length})
+          </div>
           {needed.map((s,i)=>{
             const team=ALBUM[s.code];
             const key=`${s.code}-${s.num}`;
             const done=applied[key];
-            return(
+            return (
               <div key={i} style={{background:"#052e16",border:"1px solid #22c55e",borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:10}}>
                 <span style={{fontSize:26}}>{team?.emoji||"🃏"}</span>
                 <div style={{flex:1}}>
                   <div style={{fontWeight:800,color:"#86efac"}}>{team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span></div>
                   <div style={{fontSize:12,color:"#4ade80"}}>¡Estaba en tu lista de faltantes!</div>
                 </div>
-                {done?<span style={{fontSize:20}}>✅</span>:(
-                  <button onClick={()=>applyAction(s.code,s.num,"have")} style={{padding:"8px 14px",background:"#22c55e",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>📌 Pegar</button>
-                )}
+                {done
+                  ? <span style={{fontSize:22}}>✅</span>
+                  : <button onClick={()=>applyAction(s.code,s.num,"have")} style={{padding:"8px 14px",background:"#22c55e",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>📌 Pegar</button>
+                }
               </div>
             );
           })}
         </div>
       )}
 
-      {/* REPEATED with suggestions */}
+      {/* REPEATED — con sugerencias */}
       {repeated.length>0&&(
         <div style={{marginBottom:20}}>
-          <div style={{fontWeight:800,fontSize:15,color:"#f97316",marginBottom:10}}>🔁 Repetidas — ¿Qué haces? ({repeated.length})</div>
+          <div style={{fontWeight:800,fontSize:15,color:"#f97316",marginBottom:10}}>
+            🔁 Repetidas — ¿Qué haces con ellas? ({repeated.length})
+          </div>
           {repeated.map((s,i)=>{
             const team=ALBUM[s.code];
             const key=`${s.code}-${s.num}`;
             const done=applied[key];
             const{price,label,color}=s.suggestion;
-            return(
+            return (
               <div key={i} style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:12,padding:14,marginBottom:10}}>
-                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
                   <span style={{fontSize:24}}>{team?.emoji||"🃏"}</span>
                   <div style={{flex:1}}>
                     <div style={{fontWeight:800,color:"#e8eaf6"}}>{team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span></div>
-                    <div style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"#1e1500",color,border:`1px solid ${color}`,display:"inline-block",marginTop:3,fontWeight:700}}>
-                      {label} · Precio sugerido ${price.toFixed(2)}
-                    </div>
+                    <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"#0a0f1e",color,border:`1px solid ${color}`,fontWeight:700}}>
+                      {label} · ${price.toFixed(2)} sugerido
+                    </span>
                   </div>
-                  {done&&<span style={{fontSize:11,color:"#22c55e",fontWeight:700,background:"#052e16",padding:"4px 8px",borderRadius:8}}>✅ {done}</span>}
+                  {done&&<span style={{fontSize:11,color:"#22c55e",fontWeight:700,background:"#052e16",padding:"4px 8px",borderRadius:8}}>✅</span>}
                 </div>
-                <div style={{background:"#0a0f1e",borderRadius:8,padding:"8px 10px",marginBottom:10,fontSize:12,color:"#9ca3af"}}>
-                  💡 <span style={{color,fontWeight:700}}>IA sugiere:</span> {price>=3?"Escasa — subástala para el mejor precio.":price>=2?"Demandada — véndela o cámbiala pronto.":"Ofrécela en cambio con alguien de tu red."}
+
+                <div style={{background:"#0a0f1e",borderRadius:8,padding:"8px 10px",marginBottom:8,fontSize:12,color:"#9ca3af"}}>
+                  💡 <span style={{color,fontWeight:700}}>Sugerencia:</span>{" "}
+                  {price>=3?"Escasa — subástala para el mejor precio.":price>=2?"Demandada — véndela o cámbiala pronto.":"Ofrécela en cambio con tu red."}
                 </div>
+
                 {!done&&(
                   <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
-                    <button onClick={()=>applyAction(s.code,s.num,"sell")} style={{padding:"9px 6px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                      <span>💰</span><span>Vender</span><span style={{fontSize:10,color:"#4ade80"}}>${price.toFixed(2)}</span>
+                    <button onClick={()=>applyAction(s.code,s.num,"sell")} style={{padding:"10px 6px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                      <span style={{fontSize:18}}>💰</span>
+                      <span>Vender</span>
+                      <span style={{fontSize:10,color:"#4ade80"}}>${price.toFixed(2)}</span>
                     </button>
-                    <button onClick={()=>applyAction(s.code,s.num,"trade")} style={{padding:"9px 6px",background:"#1e3a5f",border:"1px solid #3b82f6",borderRadius:8,color:"#60a5fa",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                      <span>🔄</span><span>Cambiar</span><span style={{fontSize:10,color:"#93c5fd"}}>Con red</span>
+                    <button onClick={()=>applyAction(s.code,s.num,"trade")} style={{padding:"10px 6px",background:"#1e3a5f",border:"1px solid #3b82f6",borderRadius:8,color:"#60a5fa",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                      <span style={{fontSize:18}}>🔄</span>
+                      <span>Cambiar</span>
+                      <span style={{fontSize:10,color:"#93c5fd"}}>Con red</span>
                     </button>
-                    <button onClick={()=>applyAction(s.code,s.num,"auction")} style={{padding:"9px 6px",background:"#1e1040",border:"1px solid #a78bfa",borderRadius:8,color:"#a78bfa",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                      <span>🔨</span><span>Subastar</span><span style={{fontSize:10,color:"#c4b5fd"}}>Mejor precio</span>
+                    <button onClick={()=>applyAction(s.code,s.num,"auction")} style={{padding:"10px 6px",background:"#1e1040",border:"1px solid #a78bfa",borderRadius:8,color:"#a78bfa",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                      <span style={{fontSize:18}}>🔨</span>
+                      <span>Subastar</span>
+                      <span style={{fontSize:10,color:"#c4b5fd"}}>Mejor precio</span>
                     </button>
                   </div>
                 )}
@@ -254,20 +332,24 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
         </div>
       )}
 
+      {/* Empty */}
       {detected.length===0&&(
         <div style={{textAlign:"center",padding:40}}>
           <div style={{fontSize:48,marginBottom:12}}>🔍</div>
           <div style={{fontWeight:700,color:"#e8eaf6",marginBottom:6}}>No se detectaron figuritas</div>
-          <div style={{color:"#6b7280",fontSize:13}}>Asegúrate que los códigos sean legibles</div>
+          <div style={{color:"#6b7280",fontSize:13,marginBottom:20}}>Asegúrate que los códigos sean visibles y la foto esté clara</div>
+          <button onClick={reset} style={{padding:"12px 24px",background:"#ffd700",border:"none",borderRadius:10,fontWeight:800,fontSize:14,cursor:"pointer",color:"#0a0f1e"}}>
+            Intentar de nuevo
+          </button>
         </div>
       )}
 
-      <div style={{display:"flex",gap:10,marginTop:8}}>
+      {/* Bottom actions */}
+      <div style={{display:"flex",gap:10,marginTop:8,paddingBottom:20}}>
         <button onClick={reset} style={{flex:1,padding:14,background:"transparent",border:"1px solid #1e2a3a",borderRadius:12,color:"#6b7280",fontWeight:700,fontSize:14,cursor:"pointer"}}>
           📸 Escanear más
         </button>
       </div>
-      <div style={{height:20}}/>
     </div>
   );
 }
