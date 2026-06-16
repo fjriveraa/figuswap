@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
+import Scanner from "./Scanner.jsx";
+
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://fythsgiofvodukjzutat.supabase.co";
@@ -495,7 +497,8 @@ export default function FiguSwap() {
     });
   }, [stickers, search, filter]);
 
-  const NAV = [["album","📋","Mi Álbum"],["marketplace","🏪","Market"],["profile","👤","Perfil"]];
+  const NAV = [["album","📋","Álbum"],["scanner","📸","Escanear"],["marketplace","🏪","Market"],["profile","👤","Perfil"]];
+
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0f1e", color: "#e8eaf6", fontFamily: "'Segoe UI',system-ui,sans-serif", paddingBottom: 72 }}>
@@ -543,6 +546,7 @@ export default function FiguSwap() {
         )}
 
         {/* MARKETPLACE */}
+        {page === "scanner" && <Scanner/>}
         {page === "marketplace" && (
           <div>
             <h2 style={{ fontWeight: 900, fontSize: 20, color: "#ffd700", margin: "0 0 4px" }}>🏪 Marketplace</h2>
