@@ -56,7 +56,7 @@ const MOCK_CHATS = {
   FWC:[{user:"Kenji T.",emoji:"🇯🇵",msg:"FWC 4 es muy difícil!",time:"08:45"}],
 };
 
-const WORLD_OPEN = new Date("2026-06-11T16:00:00Z");
+const WORLD_OPEN = new Date("2026-07-19T20:00:00Z");
 function useCountdown() {
   const [t,setT]=useState({d:0,h:0,m:0,s:0});
   useEffect(()=>{
