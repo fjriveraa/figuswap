@@ -68,61 +68,85 @@ function useCountdown() {
 
 // ─── SUPABASE DB ──────────────────────────────────────────────────────────────
 const db = {
-  headers: {
+  h: {
     apikey: SUPABASE_KEY,
     Authorization: `Bearer ${SUPABASE_KEY}`,
     "Content-Type": "application/json",
-    Prefer: "return=representation"
   },
 
   async saveAlbum(email, stickers, username) {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums`, {
+      await fetch(`${SUPABASE_URL}/rest/v1/albums`, {
         method: "POST",
-        headers: { ...this.headers, Prefer: "resolution=merge-duplicates,return=minimal" },
-        body: JSON.stringify({
-          user_email: email,
-          username: username || email.split("@")[0],
-          stickers,
-          updated_at: new Date().toISOString()
-        })
+        headers: { ...this.h, Prefer: "resolution=merge-duplicates,return=minimal" },
+        body: JSON.stringify({ user_email: email, username: username||email.split("@")[0], stickers, updated_at: new Date().toISOString() })
       });
-      return res.ok;
-    } catch { return false; }
+    } catch {}
   },
 
   async getAlbum(email) {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?user_email=eq.${encodeURIComponent(email)}&select=*`, {
-        headers: this.headers
-      });
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?user_email=eq.${encodeURIComponent(email)}&select=*`, { headers: this.h });
       const data = await res.json();
       return data?.[0] || null;
     } catch { return null; }
   },
 
-  async addContact(myEmail, friendEmail) {
+  // Send friend request (one direction, pending)
+  async sendRequest(fromEmail, toEmail) {
     try {
-      // Add both directions
       await fetch(`${SUPABASE_URL}/rest/v1/contacts`, {
         method: "POST",
-        headers: { ...this.headers, Prefer: "resolution=ignore-duplicates,return=minimal" },
-        body: JSON.stringify({ user_email: myEmail, contact_email: friendEmail })
-      });
-      await fetch(`${SUPABASE_URL}/rest/v1/contacts`, {
-        method: "POST",
-        headers: { ...this.headers, Prefer: "resolution=ignore-duplicates,return=minimal" },
-        body: JSON.stringify({ user_email: friendEmail, contact_email: myEmail })
+        headers: { ...this.h, Prefer: "resolution=ignore-duplicates,return=minimal" },
+        body: JSON.stringify({ user_email: fromEmail, contact_email: toEmail, status: "pending" })
       });
       return true;
     } catch { return false; }
   },
 
-  async getContacts(email) {
+  // Accept request — update to accepted + create reverse
+  async acceptRequest(myEmail, requesterEmail) {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(email)}&select=contact_email`, {
-        headers: this.headers
+      // Update existing request to accepted
+      await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(requesterEmail)}&contact_email=eq.${encodeURIComponent(myEmail)}`, {
+        method: "PATCH",
+        headers: { ...this.h, Prefer: "return=minimal" },
+        body: JSON.stringify({ status: "accepted" })
       });
+      // Create reverse accepted connection
+      await fetch(`${SUPABASE_URL}/rest/v1/contacts`, {
+        method: "POST",
+        headers: { ...this.h, Prefer: "resolution=merge-duplicates,return=minimal" },
+        body: JSON.stringify({ user_email: myEmail, contact_email: requesterEmail, status: "accepted" })
+      });
+      return true;
+    } catch { return false; }
+  },
+
+  // Reject request
+  async rejectRequest(myEmail, requesterEmail) {
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(requesterEmail)}&contact_email=eq.${encodeURIComponent(myEmail)}`, {
+        method: "PATCH",
+        headers: { ...this.h, Prefer: "return=minimal" },
+        body: JSON.stringify({ status: "rejected" })
+      });
+      return true;
+    } catch { return false; }
+  },
+
+  // Get pending requests sent TO me
+  async getPendingRequests(myEmail) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?contact_email=eq.${encodeURIComponent(myEmail)}&status=eq.pending&select=user_email,created_at`, { headers: this.h });
+      return await res.json() || [];
+    } catch { return []; }
+  },
+
+  // Get accepted contacts
+  async getAcceptedContacts(myEmail) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(myEmail)}&status=eq.accepted&select=contact_email`, { headers: this.h });
       const data = await res.json();
       return data?.map(d => d.contact_email) || [];
     } catch { return []; }
@@ -132,9 +156,15 @@ const db = {
     if(!contacts.length) return [];
     try {
       const emails = contacts.map(e => `"${e}"`).join(",");
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?user_email=in.(${emails})&select=user_email,username,stickers,updated_at`, {
-        headers: this.headers
-      });
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?user_email=in.(${emails})&select=user_email,username,stickers,updated_at`, { headers: this.h });
+      return await res.json() || [];
+    } catch { return []; }
+  },
+
+  // Check if I already sent request
+  async getMyRequests(myEmail) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(myEmail)}&select=contact_email,status`, { headers: this.h });
       return await res.json() || [];
     } catch { return []; }
   }
@@ -176,7 +206,7 @@ function AuthPage({onAuth}) {
   const [pass,setPass]=useState("");
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
-
+  const inp={width:"100%",boxSizing:"border-box",padding:"12px 14px",borderRadius:10,border:"1px solid #1e2a3a",background:"#0a0f1e",color:"#e8eaf6",fontSize:14,outline:"none",marginBottom:10};
   const handleEmail=async()=>{
     setLoading(true);setError("");
     try{
@@ -192,9 +222,6 @@ function AuthPage({onAuth}) {
     }catch{setError("Error de conexión");}
     setLoading(false);
   };
-
-  const inp={width:"100%",boxSizing:"border-box",padding:"12px 14px",borderRadius:10,border:"1px solid #1e2a3a",background:"#0a0f1e",color:"#e8eaf6",fontSize:14,outline:"none",marginBottom:10};
-
   return (
     <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{fontSize:52,marginBottom:8}}>⚽</div>
@@ -298,13 +325,11 @@ function TeamSection({code,stickers,tab,onAction,onChat}) {
           <div style={{fontSize:12,color:"#6b7280",marginTop:2}}>
             {tab==="missing"&&`❌ ${visibleNums.length} faltantes`}
             {tab==="repeated"&&`🔁 ${visibleNums.length} repetidas`}
-            {tab==="all"&&`${have}/${team.total} · ${allNums.filter(n=>stickers[n].state==="missing").length} faltan · ${allNums.filter(n=>stickers[n].state==="repeated").length} repetidas`}
-            {complete&&" · ✅ Completo!"}
+            {tab==="all"&&`${have}/${team.total} · ${allNums.filter(n=>stickers[n].state==="missing").length} faltan`}
+            {complete&&" ✅"}
           </div>
         </div>
-        <div style={{textAlign:"right"}}>
-          <div style={{fontWeight:800,fontSize:15,color:complete?"#22c55e":pct>=75?"#84cc16":pct>=50?"#eab308":"#ef4444"}}>{pct}%</div>
-        </div>
+        <div style={{fontWeight:800,fontSize:15,color:complete?"#22c55e":pct>=75?"#84cc16":pct>=50?"#eab308":"#ef4444"}}>{pct}%</div>
         <span style={{color:"#4a5568",fontSize:12}}>{expanded?"▲":"▼"}</span>
       </button>
       <div style={{height:3,background:"#1e2a3a",margin:"0 16px"}}>
@@ -356,15 +381,7 @@ function ChatModal({code,userEmail,onClose}) {
         })}
       </div>
       <div style={{background:"#111827",borderTop:"1px solid #1e2a3a",padding:"12px 16px",display:"flex",gap:8}}>
-        <input
-          value={input}
-          onChange={e=>setInput(e.target.value)}
-          onKeyDown={e=>e.key==="Enter"&&send()}
-          placeholder="Escribe un mensaje..."
-          inputMode="text"
-          enterKeyHint="send"
-          style={{flex:1,background:"#0a0f1e",border:"1px solid #1e2a3a",borderRadius:20,padding:"10px 16px",color:"#e8eaf6",fontSize:14,outline:"none"}}
-        />
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Escribe un mensaje..." inputMode="text" enterKeyHint="send" style={{flex:1,background:"#0a0f1e",border:"1px solid #1e2a3a",borderRadius:20,padding:"10px 16px",color:"#e8eaf6",fontSize:14,outline:"none"}}/>
         <button onClick={send} style={{padding:"10px 18px",background:"linear-gradient(135deg,#3b82f6,#1d4ed8)",border:"none",borderRadius:20,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:16}}>➤</button>
       </div>
     </div>
@@ -373,8 +390,10 @@ function ChatModal({code,userEmail,onClose}) {
 
 // ─── CONTACTS PAGE ────────────────────────────────────────────────────────────
 function ContactsPage({myEmail,myStickers,onClose}) {
+  const [pending,setPending]=useState([]);
   const [contacts,setContacts]=useState([]);
   const [contactAlbums,setContactAlbums]=useState([]);
+  const [myRequests,setMyRequests]=useState([]);
   const [loading,setLoading]=useState(true);
   const [addEmail,setAddEmail]=useState("");
   const [adding,setAdding]=useState(false);
@@ -383,35 +402,48 @@ function ContactsPage({myEmail,myStickers,onClose}) {
 
   const myLink=`${window.location.origin}?invite=${encodeURIComponent(myEmail)}`;
 
-  const loadContacts=useCallback(async()=>{
+  const load=useCallback(async()=>{
     setLoading(true);
-    const list=await db.getContacts(myEmail);
-    setContacts(list);
-    if(list.length>0){
-      const albums=await db.getContactAlbums(list);
+    const [pend,accepted,myReqs]=await Promise.all([
+      db.getPendingRequests(myEmail),
+      db.getAcceptedContacts(myEmail),
+      db.getMyRequests(myEmail),
+    ]);
+    setPending(pend);
+    setContacts(accepted);
+    setMyRequests(myReqs);
+    if(accepted.length>0){
+      const albums=await db.getContactAlbums(accepted);
       setContactAlbums(albums);
     }
     setLoading(false);
   },[myEmail]);
 
-  useEffect(()=>{loadContacts();},[loadContacts]);
+  useEffect(()=>{load();},[load]);
 
-  const copyLink=()=>{
-    navigator.clipboard.writeText(myLink).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);});
-  };
-
+  const copyLink=()=>{navigator.clipboard.writeText(myLink).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);});};
   const shareWhatsApp=()=>{
     const text=`¡Únete a mi red en FiguSwap para intercambiar figuritas del Mundial 2026! ⚽🎴\n\n${myLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
   };
 
-  const addContact=async()=>{
+  const sendRequest=async()=>{
     if(!addEmail.trim()||addEmail===myEmail)return;
     setAdding(true);
-    await db.addContact(myEmail,addEmail.trim());
+    await db.sendRequest(myEmail,addEmail.trim());
     setAddEmail("");
-    await loadContacts();
+    await load();
     setAdding(false);
+  };
+
+  const acceptReq=async(requesterEmail)=>{
+    await db.acceptRequest(myEmail,requesterEmail);
+    await load();
+  };
+
+  const rejectReq=async(requesterEmail)=>{
+    await db.rejectRequest(myEmail,requesterEmail);
+    await load();
   };
 
   const getMatches=(friendStickers)=>{
@@ -427,23 +459,82 @@ function ContactsPage({myEmail,myStickers,onClose}) {
     return{iHave,theyHave};
   };
 
+  // Get repeated count from stickers
+  const getRepeatedCount=(stickers)=>{
+    if(!stickers)return 0;
+    return Object.values(stickers).reduce((s,team)=>s+Object.values(team).filter(x=>x.state==="repeated").length,0);
+  };
+
   return (
     <div style={{position:"fixed",inset:0,background:"#0a0f1e",zIndex:500,display:"flex",flexDirection:"column"}}>
       <div style={{background:"#111827",borderBottom:"1px solid #1e2a3a",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
         <button onClick={onClose} style={{background:"none",border:"none",color:"#6b7280",fontSize:20,cursor:"pointer"}}>←</button>
         <span style={{fontWeight:900,fontSize:16,color:"#ffd700"}}>👥 Mi Red</span>
-        <span style={{marginLeft:"auto",fontSize:12,color:"#6b7280"}}>{contacts.length} contactos</span>
+        {pending.length>0&&<span style={{background:"#ef4444",color:"#fff",fontSize:11,fontWeight:800,borderRadius:20,padding:"2px 8px"}}>{pending.length} nueva{pending.length>1?"s":""}</span>}
+        <span style={{marginLeft:"auto",fontSize:12,color:"#6b7280"}}>{contacts.length} amigos</span>
       </div>
 
       <div style={{flex:1,overflowY:"auto",padding:16}}>
-        {/* Mi link */}
-        <div style={{background:"#111827",border:"1px solid #ffd700",borderRadius:14,padding:16,marginBottom:16}}>
-          <div style={{fontWeight:800,color:"#ffd700",marginBottom:4}}>🔗 Tu link de invitación</div>
-          <div style={{fontSize:12,color:"#6b7280",marginBottom:10}}>Compártelo — quien lo abra quedará conectado contigo automáticamente</div>
-          <div style={{background:"#0a0f1e",borderRadius:8,padding:"8px 12px",fontSize:11,color:"#60a5fa",fontFamily:"monospace",marginBottom:10,wordBreak:"break-all"}}>{myLink}</div>
+
+        {/* SOLICITUDES PENDIENTES */}
+        {pending.length>0&&(
+          <div style={{marginBottom:20}}>
+            <div style={{fontWeight:800,color:"#ffd700",fontSize:15,marginBottom:12}}>
+              🔔 Solicitudes pendientes ({pending.length})
+            </div>
+            {pending.map((req,i)=>{
+              const requesterAlbum=contactAlbums.find(a=>a.user_email===req.user_email);
+              const repeatedCount=getRepeatedCount(requesterAlbum?.stickers);
+              const matches=requesterAlbum?getMatches(requesterAlbum.stickers):{iHave:[],theyHave:[]};
+              return (
+                <div key={i} style={{background:"#111827",border:"2px solid #ffd700",borderRadius:14,padding:16,marginBottom:10}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                    <div style={{width:44,height:44,borderRadius:"50%",background:"linear-gradient(135deg,#ffd700,#f59e0b)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,color:"#0a0f1e",fontSize:20,flexShrink:0}}>
+                      {req.user_email[0].toUpperCase()}
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:800,color:"#ffd700",fontSize:15}}>{req.user_email.split("@")[0]}</div>
+                      <div style={{fontSize:12,color:"#6b7280"}}>{req.user_email}</div>
+                      <div style={{fontSize:12,color:"#f97316",marginTop:2}}>
+                        🔁 Tiene {repeatedCount} repetidas
+                        {matches.theyHave.length>0&&` · ${matches.theyHave.length} coinciden con lo que te falta`}
+                      </div>
+                    </div>
+                  </div>
+
+                  {matches.theyHave.length>0&&(
+                    <div style={{background:"#1e0f00",borderRadius:8,padding:"8px 10px",marginBottom:12}}>
+                      <div style={{fontSize:11,color:"#fb923c",marginBottom:4,fontWeight:700}}>🎯 Tiene estas que tú necesitas:</div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                        {matches.theyHave.slice(0,8).map((s,j)=>(
+                          <span key={j} style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"#0a0f1e",color:"#f97316",border:"1px solid #f97316"}}>{s.code} #{s.num}</span>
+                        ))}
+                        {matches.theyHave.length>8&&<span style={{fontSize:11,color:"#6b7280"}}>+{matches.theyHave.length-8} más</span>}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                    <button onClick={()=>rejectReq(req.user_email)} style={{padding:"12px",background:"transparent",border:"1px solid #ef4444",borderRadius:10,color:"#ef4444",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+                      ❌ Rechazar
+                    </button>
+                    <button onClick={()=>acceptReq(req.user_email)} style={{padding:"12px",background:"linear-gradient(135deg,#22c55e,#16a34a)",border:"none",borderRadius:10,color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+                      ✅ Aceptar
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* MI LINK */}
+        <div style={{background:"#111827",border:"1px solid #1e3a5f",borderRadius:14,padding:16,marginBottom:16}}>
+          <div style={{fontWeight:800,color:"#60a5fa",marginBottom:4}}>🔗 Invitar amigos</div>
+          <div style={{fontSize:12,color:"#6b7280",marginBottom:10}}>Comparte tu link — verán tus repetidas y podrán conectarse contigo</div>
           <div style={{display:"flex",gap:8}}>
             <button onClick={copyLink} style={{flex:1,padding:"10px",background:copied?"#22c55e":"#1e2a3a",border:"1px solid",borderColor:copied?"#22c55e":"#374151",borderRadius:8,color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-              {copied?"✅ Copiado!":"📋 Copiar"}
+              {copied?"✅ Copiado!":"📋 Copiar link"}
             </button>
             <button onClick={shareWhatsApp} style={{flex:1,padding:"10px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:13,cursor:"pointer"}}>
               💬 WhatsApp
@@ -451,41 +542,34 @@ function ContactsPage({myEmail,myStickers,onClose}) {
           </div>
         </div>
 
-        {/* Agregar manualmente */}
+        {/* AGREGAR POR EMAIL */}
         <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:14,padding:16,marginBottom:16}}>
-          <div style={{fontWeight:700,color:"#e8eaf6",marginBottom:10}}>➕ Agregar por email</div>
+          <div style={{fontWeight:700,color:"#e8eaf6",marginBottom:10}}>➕ Enviar solicitud por email</div>
           <div style={{display:"flex",gap:8}}>
-            <input
-              value={addEmail}
-              onChange={e=>setAddEmail(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&addContact()}
-              placeholder="email@ejemplo.com"
-              inputMode="email"
-              style={{flex:1,padding:"10px 14px",borderRadius:8,border:"1px solid #1e2a3a",background:"#0a0f1e",color:"#e8eaf6",fontSize:13,outline:"none"}}
-            />
-            <button onClick={addContact} disabled={adding} style={{padding:"10px 16px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:8,color:"#0a0f1e",fontWeight:800,cursor:"pointer",fontSize:16}}>
-              {adding?"⏳":"+"}
+            <input value={addEmail} onChange={e=>setAddEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendRequest()} placeholder="email@ejemplo.com" inputMode="email" style={{flex:1,padding:"10px 14px",borderRadius:8,border:"1px solid #1e2a3a",background:"#0a0f1e",color:"#e8eaf6",fontSize:13,outline:"none"}}/>
+            <button onClick={sendRequest} disabled={adding} style={{padding:"10px 16px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:8,color:"#0a0f1e",fontWeight:800,cursor:"pointer",fontSize:16,opacity:adding?0.7:1}}>
+              {adding?"⏳":"→"}
             </button>
           </div>
+          {myRequests.filter(r=>r.status==="pending").length>0&&(
+            <div style={{marginTop:10,fontSize:12,color:"#6b7280"}}>
+              📤 Solicitudes enviadas: {myRequests.filter(r=>r.status==="pending").map(r=>r.contact_email.split("@")[0]).join(", ")}
+            </div>
+          )}
         </div>
 
-        {/* Lista de contactos */}
+        {/* AMIGOS ACEPTADOS */}
         <div style={{fontWeight:800,color:"#e8eaf6",fontSize:15,marginBottom:12}}>
-          👤 Contactos ({contacts.length})
+          ✅ Mis amigos ({contacts.length})
         </div>
 
-        {loading&&(
-          <div style={{textAlign:"center",padding:32,color:"#6b7280"}}>
-            <div style={{fontSize:32,marginBottom:8}}>⏳</div>
-            Cargando contactos...
-          </div>
-        )}
+        {loading&&<div style={{textAlign:"center",padding:32,color:"#6b7280"}}>⏳ Cargando...</div>}
 
-        {!loading&&contacts.length===0&&(
+        {!loading&&contacts.length===0&&pending.length===0&&(
           <div style={{textAlign:"center",padding:32,color:"#4a5568"}}>
             <div style={{fontSize:40,marginBottom:12}}>👥</div>
-            <div style={{fontWeight:700,marginBottom:6,color:"#6b7280"}}>Sin contactos aún</div>
-            <div style={{fontSize:13}}>Comparte tu link para conectarte con amigos</div>
+            <div style={{fontWeight:700,marginBottom:6,color:"#6b7280"}}>Sin amigos aún</div>
+            <div style={{fontSize:13}}>Comparte tu link o envía una solicitud</div>
           </div>
         )}
 
@@ -494,41 +578,39 @@ function ContactsPage({myEmail,myStickers,onClose}) {
           const matches=album?getMatches(album.stickers):{iHave:[],theyHave:[]};
           const totalMatches=matches.iHave.length+matches.theyHave.length;
           return (
-            <div key={i} style={{background:"#111827",border:`1px solid ${totalMatches>0?"#ffd700":"#1e2a3a"}`,borderRadius:14,padding:16,marginBottom:10}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:album?10:0}}>
-                <div style={{width:42,height:42,borderRadius:"50%",background:"linear-gradient(135deg,#ffd700,#f59e0b)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,color:"#0a0f1e",fontSize:18,flexShrink:0}}>
+            <div key={i} style={{background:"#111827",border:`1px solid ${totalMatches>0?"#22c55e":"#1e2a3a"}`,borderRadius:14,padding:16,marginBottom:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                <div style={{width:42,height:42,borderRadius:"50%",background:"linear-gradient(135deg,#22c55e,#16a34a)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,color:"#fff",fontSize:18,flexShrink:0}}>
                   {email[0].toUpperCase()}
                 </div>
                 <div style={{flex:1}}>
                   <div style={{fontWeight:700,color:"#e8eaf6"}}>{album?.username||email.split("@")[0]}</div>
                   <div style={{fontSize:11,color:"#4a5568"}}>{email}</div>
+                  {album&&<div style={{fontSize:11,color:"#6b7280",marginTop:2}}>🔁 {getRepeatedCount(album.stickers)} repetidas · actualizado {new Date(album.updated_at).toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"})}</div>}
                 </div>
-                {!album&&<span style={{fontSize:11,color:"#6b7280",background:"#1e2a3a",padding:"3px 8px",borderRadius:8}}>Sin datos</span>}
-                {totalMatches>0&&<span style={{fontSize:11,color:"#ffd700",background:"#1e1500",padding:"3px 8px",borderRadius:8,fontWeight:700}}>🎯 {totalMatches}</span>}
+                {totalMatches>0&&<span style={{fontSize:12,color:"#ffd700",background:"#1e1500",padding:"4px 10px",borderRadius:20,fontWeight:800}}>🎯 {totalMatches}</span>}
               </div>
 
               {album&&(
                 <>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-                    <div style={{background:"#052e16",borderRadius:8,padding:"10px"}}>
-                      <div style={{fontSize:10,color:"#4ade80",marginBottom:2}}>Tú tienes para ellos</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                    <div style={{background:"#052e16",borderRadius:8,padding:"10px",textAlign:"center"}}>
+                      <div style={{fontSize:10,color:"#4ade80",marginBottom:2}}>Yo tengo para ellos</div>
                       <div style={{fontWeight:900,color:"#22c55e",fontSize:22}}>{matches.iHave.length}</div>
-                      <div style={{fontSize:10,color:"#6b7280"}}>de sus faltantes</div>
                     </div>
-                    <div style={{background:"#1e0f00",borderRadius:8,padding:"10px"}}>
-                      <div style={{fontSize:10,color:"#fb923c",marginBottom:2}}>Ellos tienen para ti</div>
+                    <div style={{background:"#1e0f00",borderRadius:8,padding:"10px",textAlign:"center"}}>
+                      <div style={{fontSize:10,color:"#fb923c",marginBottom:2}}>Ellos tienen para mí</div>
                       <div style={{fontWeight:900,color:"#f97316",fontSize:22}}>{matches.theyHave.length}</div>
-                      <div style={{fontSize:10,color:"#6b7280"}}>de tus faltantes</div>
                     </div>
                   </div>
 
                   {totalMatches>0&&(
-                    <button onClick={()=>setSelected(selected===email?null:email)} style={{width:"100%",padding:"10px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:8,color:"#0a0f1e",fontWeight:800,fontSize:13,cursor:"pointer",marginBottom:8}}>
+                    <button onClick={()=>setSelected(selected===email?null:email)} style={{width:"100%",padding:"9px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:8,color:"#0a0f1e",fontWeight:800,fontSize:13,cursor:"pointer",marginBottom:8}}>
                       🎯 {selected===email?"Ocultar":"Ver"} matches ({totalMatches})
                     </button>
                   )}
 
-                  {selected===email&&totalMatches>0&&(
+                  {selected===email&&(
                     <div style={{background:"#0a0f1e",borderRadius:10,padding:12}}>
                       {matches.theyHave.length>0&&(
                         <div style={{marginBottom:10}}>
@@ -542,7 +624,7 @@ function ContactsPage({myEmail,myStickers,onClose}) {
                         </div>
                       )}
                       {matches.iHave.length>0&&(
-                        <div>
+                        <div style={{marginBottom:10}}>
                           <div style={{fontSize:12,color:"#22c55e",fontWeight:700,marginBottom:6}}>✅ Tú tienes lo que ellos necesitan:</div>
                           <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
                             {matches.iHave.slice(0,12).map((s,j)=>(
@@ -552,13 +634,10 @@ function ContactsPage({myEmail,myStickers,onClose}) {
                           </div>
                         </div>
                       )}
-                      <button
-                        onClick={()=>{
-                          const text=`Hola! Vi en FiguSwap que tenemos matches:\n✅ Yo tengo ${matches.iHave.length} que tú necesitas\n🔁 Tú tienes ${matches.theyHave.length} que yo necesito\n¿Coordinamos un cambio? 🎴⚽`;
-                          window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
-                        }}
-                        style={{width:"100%",marginTop:12,padding:"10px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:13,cursor:"pointer"}}
-                      >
+                      <button onClick={()=>{
+                        const text=`Hola ${album?.username||email.split("@")[0]}! Vi en FiguSwap que tenemos matches:\n✅ Yo tengo ${matches.iHave.length} que tú necesitas\n🔁 Tú tienes ${matches.theyHave.length} que yo necesito\n¿Coordinamos? ⚽🎴`;
+                        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
+                      }} style={{width:"100%",padding:"10px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:13,cursor:"pointer"}}>
                         💬 Coordinar por WhatsApp
                       </button>
                     </div>
@@ -585,7 +664,7 @@ export default function FiguSwap() {
   const [showOnboarding,setShowOnboarding]=useState(false);
   const [showImporter,setShowImporter]=useState(false);
   const [showShare,setShowShare]=useState(false);
-  const [showContacts,setShowContacts]=useState(false);
+  const [pendingCount,setPendingCount]=useState(0);
   const [saving,setSaving]=useState(false);
   const countdown=useCountdown();
 
@@ -604,33 +683,28 @@ export default function FiguSwap() {
     // Process pending invite
     const pending=localStorage.getItem("figuswap_pending_invite");
     if(pending&&pending!==session.email){
-      db.addContact(session.email,pending).then(()=>{
+      db.sendRequest(pending,session.email).then(()=>{
         localStorage.removeItem("figuswap_pending_invite");
-        showToastMsg(`✅ ¡Conectado con ${pending.split("@")[0]}!`);
+        showToastMsg(`✅ Solicitud enviada a ${pending.split("@")[0]}`);
       });
     }
-    // Load album from Supabase
+    // Load album
     db.getAlbum(session.email).then(data=>{
       if(data?.stickers&&Object.keys(data.stickers).length>0){
         setStickers(data.stickers);
       } else {
-        // Try localStorage as fallback
         try{
           const local=localStorage.getItem(`figuswap_stickers_${session.email}`);
-          if(local){
-            const parsed=JSON.parse(local);
-            setStickers(parsed);
-            // Migrate to Supabase
-            db.saveAlbum(session.email,parsed,session.email.split("@")[0]);
-          } else {
-            setShowOnboarding(true);
-          }
+          if(local){const parsed=JSON.parse(local);setStickers(parsed);db.saveAlbum(session.email,parsed,session.email.split("@")[0]);}
+          else setShowOnboarding(true);
         }catch{setShowOnboarding(true);}
       }
     });
+    // Check pending requests
+    db.getPendingRequests(session.email).then(reqs=>setPendingCount(reqs.length));
   },[session]);
 
-  // Save to Supabase with debounce
+  // Auto-save to Supabase
   useEffect(()=>{
     if(!session)return;
     const timer=setTimeout(async()=>{
@@ -652,11 +726,6 @@ export default function FiguSwap() {
     setShowOnboarding(false);
     if(choice==="import")setShowImporter(true);
     else if(choice==="scan")setPage("scanner");
-  };
-
-  const handleImport=(album)=>{
-    setStickers(album);
-    showToastMsg("✅ ¡Álbum importado!");
   };
 
   const filtered=useMemo(()=>Object.entries(stickers).filter(([code])=>{
@@ -687,12 +756,11 @@ export default function FiguSwap() {
 
   return (
     <div style={{minHeight:"100vh",background:"#0a0f1e",color:"#e8eaf6",fontFamily:"'Segoe UI',system-ui,sans-serif",paddingBottom:72}}>
-      {/* Header */}
       <div style={{background:"linear-gradient(135deg,#0a0f1e,#111827)",borderBottom:"1px solid #1e2a3a",padding:"12px 16px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:720,margin:"0 auto",display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:22}}>⚽</span>
           <span style={{fontWeight:900,fontSize:18,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>FiguSwap</span>
-          {saving&&<span style={{fontSize:10,color:"#4a5568",marginLeft:4}}>💾</span>}
+          {saving&&<span style={{fontSize:10,color:"#4a5568"}}>💾</span>}
           <div style={{marginLeft:"auto",display:"flex",gap:12}}>
             {[["d","días"],["h","h"],["m","m"]].map(([k,l])=>(
               <div key={k} style={{textAlign:"center"}}>
@@ -705,7 +773,6 @@ export default function FiguSwap() {
       </div>
 
       <div style={{maxWidth:720,margin:"0 auto",padding:16}}>
-        {/* ALBUM */}
         {page==="album"&&(
           <>
             <div style={{background:"#0d1117",border:"1px solid #1e2a3a",borderRadius:14,padding:14,marginBottom:12}}>
@@ -727,12 +794,11 @@ export default function FiguSwap() {
               </div>
             </div>
 
-            {/* TABS */}
             <div style={{display:"flex",background:"#111827",borderRadius:12,padding:4,marginBottom:12,border:"1px solid #1e2a3a"}}>
               {[["all","Todas"],["missing","Me faltan"],["repeated","Repetidas"]].map(([v,l])=>(
-                <button key={v} onClick={()=>setAlbumTab(v)} style={{flex:1,padding:"10px 4px",borderRadius:9,border:"none",background:albumTab===v?"#ffd700":"transparent",color:albumTab===v?"#0a0f1e":"#6b7280",fontWeight:albumTab===v?800:600,fontSize:13,cursor:"pointer",transition:"all 0.15s",position:"relative"}}>
+                <button key={v} onClick={()=>setAlbumTab(v)} style={{flex:1,padding:"10px 4px",borderRadius:9,border:"none",background:albumTab===v?"#ffd700":"transparent",color:albumTab===v?"#0a0f1e":"#6b7280",fontWeight:albumTab===v?800:600,fontSize:13,cursor:"pointer"}}>
                   {l}
-                  {v==="missing"&&albumStats.missing>0&&<span style={{fontSize:9,marginLeft:3,background:albumTab===v?"#ef4444":"#ef4444",color:"#fff",borderRadius:10,padding:"1px 4px"}}>{albumStats.missing}</span>}
+                  {v==="missing"&&albumStats.missing>0&&<span style={{fontSize:9,marginLeft:3,background:"#ef4444",color:"#fff",borderRadius:10,padding:"1px 4px"}}>{albumStats.missing}</span>}
                   {v==="repeated"&&albumStats.repeated>0&&<span style={{fontSize:9,marginLeft:3,background:"#f97316",color:"#fff",borderRadius:10,padding:"1px 4px"}}>{albumStats.repeated}</span>}
                 </button>
               ))}
@@ -746,7 +812,7 @@ export default function FiguSwap() {
 
         {page==="scanner"&&<Scanner userNeeded={userNeeded} onUpdateAlbum={(code,num,state)=>handleAction(code,num,state)}/>}
 
-        {page==="contacts"&&<ContactsPage myEmail={session.email} myStickers={stickers} onClose={()=>setPage("album")}/>}
+        {page==="contacts"&&<ContactsPage myEmail={session.email} myStickers={stickers} onClose={()=>{setPage("album");db.getPendingRequests(session.email).then(r=>setPendingCount(r.length));}}/>}
 
         {page==="profile"&&(
           <div>
@@ -764,8 +830,8 @@ export default function FiguSwap() {
               <button onClick={()=>setShowShare(true)} style={{flex:1,padding:"13px",background:"#14532d",border:"1px solid #22c55e",borderRadius:12,color:"#86efac",fontWeight:700,cursor:"pointer"}}>📤 Compartir</button>
               <button onClick={()=>setShowImporter(true)} style={{flex:1,padding:"13px",background:"#1e2a3a",border:"1px solid #374151",borderRadius:12,color:"#9ca3af",fontWeight:700,cursor:"pointer"}}>📋 Importar</button>
             </div>
-            <button onClick={()=>setPage("contacts")} style={{width:"100%",padding:"13px",background:"#0a1a2e",border:"1px solid #3b82f6",borderRadius:12,color:"#60a5fa",fontWeight:700,cursor:"pointer",marginBottom:12}}>
-              👥 Mi Red de contactos
+            <button onClick={()=>setPage("contacts")} style={{width:"100%",padding:"13px",background:"#0a1a2e",border:"1px solid #3b82f6",borderRadius:12,color:"#60a5fa",fontWeight:700,cursor:"pointer",marginBottom:12,position:"relative"}}>
+              👥 Mi Red {pendingCount>0&&<span style={{background:"#ef4444",color:"#fff",fontSize:11,fontWeight:800,borderRadius:20,padding:"2px 8px",marginLeft:8}}>{pendingCount}</span>}
             </button>
             <button onClick={async()=>{await sbAuth.signOut(session.token);sbAuth.clearSession();setSession(null);setStickers(buildEmpty());}} style={{width:"100%",padding:"12px",background:"transparent",border:"1px solid #ef4444",borderRadius:10,color:"#ef4444",fontWeight:700,cursor:"pointer"}}>
               Cerrar sesión
@@ -774,18 +840,18 @@ export default function FiguSwap() {
         )}
       </div>
 
-      {/* Bottom nav */}
       <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#0a0f1e",borderTop:"1px solid #1e2a3a",display:"flex",zIndex:100}}>
         {NAV.map(([p,ic,l])=>(
-          <button key={p} onClick={()=>setPage(p)} style={{flex:1,padding:"10px 0",background:"none",border:"none",color:page===p?"#ffd700":"#4a5568",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+          <button key={p} onClick={()=>setPage(p)} style={{flex:1,padding:"10px 0",background:"none",border:"none",color:page===p?"#ffd700":"#4a5568",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,position:"relative"}}>
             <span style={{fontSize:20}}>{ic}</span>
             <span style={{fontSize:9,fontWeight:700,textTransform:"uppercase"}}>{l}</span>
+            {p==="contacts"&&pendingCount>0&&<span style={{position:"absolute",top:4,right:"18%",background:"#ef4444",color:"#fff",fontSize:9,fontWeight:800,borderRadius:10,padding:"1px 5px"}}>{pendingCount}</span>}
           </button>
         ))}
       </div>
 
       {showOnboarding&&<Onboarding onChoice={handleOnboardingChoice}/>}
-      {showImporter&&<Importer onImport={handleImport} onClose={()=>setShowImporter(false)}/>}
+      {showImporter&&<Importer onImport={s=>{setStickers(s);showToastMsg("✅ ¡Álbum importado!");}} onClose={()=>setShowImporter(false)}/>}
       {showShare&&<ShareModal stickers={stickers} username={session.email?.split("@")[0]} onClose={()=>setShowShare(false)}/>}
       {chat&&<ChatModal code={chat} userEmail={session.email} onClose={()=>setChat(null)}/>}
       {toast&&<div style={{position:"fixed",bottom:80,left:"50%",transform:"translateX(-50%)",background:"#111827",border:"1px solid #1e2a3a",color:"#e8eaf6",padding:"10px 20px",borderRadius:24,fontWeight:700,fontSize:13,zIndex:9999,whiteSpace:"nowrap",boxShadow:"0 4px 20px #0008"}}>{toast}</div>}
