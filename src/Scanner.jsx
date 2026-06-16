@@ -70,47 +70,15 @@ const MY_NEEDED = {
 
 // ─── AI SCANNER ───────────────────────────────────────────────────────────────
 async function scanStickersWithAI(base64Image, mediaType) {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch("/api/scan", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      messages: [{
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: { type: "base64", media_type: mediaType, data: base64Image }
-          },
-          {
-            type: "text",
-            text: `Analyze this image of FIFA World Cup 2026 Panini stickers. 
-            Each sticker has a code like "RSA 1", "ARG 20", "FWC 4", "CAN 18" etc.
-            The code format is: COUNTRY_CODE followed by a space and NUMBER.
-            
-            List ALL sticker codes you can see in the image.
-            
-            Respond ONLY with a JSON array of strings, no explanation, no markdown, no backticks.
-            Example: ["RSA 1", "ARG 20", "FWC 4", "CAN 18"]
-            
-            If you cannot see any stickers, return: []`
-          }
-        ]
-      }]
-    })
+    body: JSON.stringify({ image: base64Image, mediaType })
   });
   const data = await response.json();
-  const text = data.content?.[0]?.text || "[]";
-  try {
-    const clean = text.replace(/```json|```/g, "").trim();
-    return JSON.parse(clean);
-  } catch {
-    // Try to extract codes manually
-    const matches = text.match(/[A-Z]{2,3}\s+\d{1,2}/g) || [];
-    return [...new Set(matches)];
-  }
+  return data.stickers || [];
 }
+
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function FiguSwapScanner() {
