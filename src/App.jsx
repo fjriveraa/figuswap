@@ -816,19 +816,22 @@ export default function FiguSwap() {
   },[stickers,session]);
 
 
-  const handleAction=(code,num,state,qty,price)=>{
-    setStickers(prev=>({
-      ...prev,
-      [code]:{
-        ...prev[code],
-        [num]:{
-          state,
-          qty:qty!==undefined?qty:prev[code][num].qty,
-          price:price!==undefined?price:prev[code][num].price
+const handleAction=(code,num,state,qty,price)=>{
+    setStickers(prev=>{
+      const existing = prev[code]?.[num] || {qty:1,price:0};
+      return {
+        ...prev,
+        [code]:{
+          ...prev[code],
+          [num]:{
+            state,
+            qty:qty!==undefined?qty:existing.qty,
+            price:price!==undefined?price:existing.price
+          }
         }
-      }
-    }));
-    showToastMsg(`${STATE[state].emoji} ${ALBUM[code].name} #${num} → ${STATE[state].label}${state==="repeated"&&qty>1?` ×${qty}`:""}`);
+      };
+    });
+    showToastMsg(`${STATE[state].emoji} ${ALBUM[code]?.name||code} #${num} → ${STATE[state].label}${state==="repeated"&&qty>1?` ×${qty}`:""}`);
   };
 
   // Fix: filter considers tab when checking if team has visible stickers
