@@ -238,6 +238,7 @@ function AuthPage({onAuth}) {
 function StickerCell({code,num,data,onAction}) {
   const pressTimer = useRef(null);
   const [pressing,setPressing]=useState(false);
+  const [open,setOpen]=useState(false);
 
   const handleTap = () => {
     if(pressing) return;
@@ -277,7 +278,6 @@ function StickerCell({code,num,data,onAction}) {
     if(pressTimer.current) clearTimeout(pressTimer.current);
   };
 
-  const [open,setOpen]=useState(false);
   const st=STATE[data.state];
 
   return (
@@ -676,6 +676,8 @@ export default function FiguSwap() {
   const [saving,setSaving]=useState(false);
   const countdown=useCountdown();
 
+  const showToastMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),2500);};
+
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
     const inviter=params.get("invite");
@@ -685,6 +687,7 @@ export default function FiguSwap() {
     const stored=sbAuth.getStoredSession();
     if(stored)setSession(stored);
   },[]);
+
 
   useEffect(()=>{
     if(!session)return;
@@ -726,7 +729,6 @@ export default function FiguSwap() {
     return()=>clearTimeout(timer);
   },[stickers,session]);
 
-  const showToastMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),2500);};
 
   const handleAction=(code,num,state,qty,price)=>{
     setStickers(prev=>({
