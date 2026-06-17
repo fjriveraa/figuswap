@@ -930,7 +930,7 @@ export default function FiguSwap() {
           </>
         )}
 
-        {page==="scanner"&&<Scanner userNeeded={userNeeded} onUpdateAlbum={(code,num,state)=>handleAction(code,num,state)}/>}
+        {page==="scanner"&&<Scanner userNeeded={userNeeded} myStickers={stickers} onUpdateAlbum={(code,num,state)=>handleAction(code,num,state)}/>}
 
         {page==="contacts"&&<ContactsPage myEmail={session.email} myStickers={stickers} onClose={()=>{setPage("album");db.getPendingRequests(session.email).then(r=>setPendingCount(r.length));}}/>}
 
