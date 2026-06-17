@@ -15,31 +15,116 @@ const STATE = {
   auction:  { color:"#a78bfa", bg:"#0f0a1e", label:"Subasta",   emoji:"🔨" },
 };
 
+// Orden oficial álbum Panini FIFA WC 2026
+const ALBUM_ORDER = [
+  // Especiales
+  "FWC","CC",
+  // Grupo A
+  "MEX","RSA","KOR","CZE",
+  // Grupo B
+  "CAN","BIH","QAT","SUI",
+  // Grupo C
+  "BRA","MAR","HAI","SCO",
+  // Grupo D
+  "USA","PAR","AUS","TUR",
+  // Grupo E
+  "GER","CUW","CIV","ECU",
+  // Grupo F
+  "NED","JPN","SWE","TUN",
+  // Grupo G
+  "BEL","EGY","IRN","NZL",
+  // Grupo H
+  "ESP","CPV","KSA","URU",
+  // Grupo I
+  "FRA","SEN","IRQ","NOR",
+  // Grupo J
+  "ARG","ALG","AUT","JOR",
+  // Grupo K
+  "POR","COD","UZB","COL",
+  // Grupo L
+  "ENG","CRO","GHA","PAN",
+];
+
+const GROUPS = {
+  FWC:"Especiales", CC:"Especiales",
+  MEX:"Grupo A", RSA:"Grupo A", KOR:"Grupo A", CZE:"Grupo A",
+  CAN:"Grupo B", BIH:"Grupo B", QAT:"Grupo B", SUI:"Grupo B",
+  BRA:"Grupo C", MAR:"Grupo C", HAI:"Grupo C", SCO:"Grupo C",
+  USA:"Grupo D", PAR:"Grupo D", AUS:"Grupo D", TUR:"Grupo D",
+  GER:"Grupo E", CUW:"Grupo E", CIV:"Grupo E", ECU:"Grupo E",
+  NED:"Grupo F", JPN:"Grupo F", SWE:"Grupo F", TUN:"Grupo F",
+  BEL:"Grupo G", EGY:"Grupo G", IRN:"Grupo G", NZL:"Grupo G",
+  ESP:"Grupo H", CPV:"Grupo H", KSA:"Grupo H", URU:"Grupo H",
+  FRA:"Grupo I", SEN:"Grupo I", IRQ:"Grupo I", NOR:"Grupo I",
+  ARG:"Grupo J", ALG:"Grupo J", AUT:"Grupo J", JOR:"Grupo J",
+  POR:"Grupo K", COD:"Grupo K", UZB:"Grupo K", COL:"Grupo K",
+  ENG:"Grupo L", CRO:"Grupo L", GHA:"Grupo L", PAN:"Grupo L",
+};
+
 const ALBUM = {
-  FWC:{name:"FIFA World Cup",emoji:"🏆",total:20},MEX:{name:"México",emoji:"🇲🇽",total:20},
-  RSA:{name:"South Africa",emoji:"🇿🇦",total:20},KOR:{name:"Korea Republic",emoji:"🇰🇷",total:20},
-  CZE:{name:"Czechia",emoji:"🇨🇿",total:20},CAN:{name:"Canada",emoji:"🇨🇦",total:20},
-  BIH:{name:"Bosnia-Herzegovina",emoji:"🇧🇦",total:20},QAT:{name:"Qatar",emoji:"🇶🇦",total:20},
-  SUI:{name:"Switzerland",emoji:"🇨🇭",total:20},MAR:{name:"Morocco",emoji:"🇲🇦",total:20},
-  HAI:{name:"Haiti",emoji:"🇭🇹",total:20},SCO:{name:"Scotland",emoji:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",total:20},
-  USA:{name:"USA",emoji:"🇺🇸",total:20},PAR:{name:"Paraguay",emoji:"🇵🇾",total:20},
-  AUS:{name:"Australia",emoji:"🇦🇺",total:20},TUR:{name:"Türkiye",emoji:"🇹🇷",total:20},
-  GER:{name:"Germany",emoji:"🇩🇪",total:20},CUW:{name:"Curaçao",emoji:"🇨🇼",total:20},
-  CIV:{name:"Côte d'Ivoire",emoji:"🇨🇮",total:20},ECU:{name:"Ecuador",emoji:"🇪🇨",total:20},
-  NED:{name:"Netherlands",emoji:"🇳🇱",total:20},JPN:{name:"Japan",emoji:"🇯🇵",total:20},
-  SWE:{name:"Sweden",emoji:"🇸🇪",total:20},TUN:{name:"Tunisia",emoji:"🇹🇳",total:20},
-  BEL:{name:"Belgium",emoji:"🇧🇪",total:20},EGY:{name:"Egypt",emoji:"🇪🇬",total:20},
-  IRN:{name:"IR Iran",emoji:"🇮🇷",total:20},NZL:{name:"New Zealand",emoji:"🇳🇿",total:20},
-  ESP:{name:"Spain",emoji:"🇪🇸",total:20},CPV:{name:"Cabo Verde",emoji:"🇨🇻",total:20},
-  KSA:{name:"Saudi Arabia",emoji:"🇸🇦",total:20},URU:{name:"Uruguay",emoji:"🇺🇾",total:20},
-  FRA:{name:"France",emoji:"🇫🇷",total:20},SEN:{name:"Senegal",emoji:"🇸🇳",total:20},
-  IRQ:{name:"Iraq",emoji:"🇮🇶",total:20},NOR:{name:"Norway",emoji:"🇳🇴",total:20},
-  ARG:{name:"Argentina",emoji:"🇦🇷",total:20},AUT:{name:"Austria",emoji:"🇦🇹",total:20},
-  JOR:{name:"Jordan",emoji:"🇯🇴",total:20},POR:{name:"Portugal",emoji:"🇵🇹",total:20},
-  COD:{name:"Congo DR",emoji:"🇨🇩",total:20},UZB:{name:"Uzbekistan",emoji:"🇺🇿",total:20},
-  COL:{name:"Colombia",emoji:"🇨🇴",total:20},ENG:{name:"England",emoji:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",total:20},
-  CRO:{name:"Croatia",emoji:"🇭🇷",total:20},GHA:{name:"Ghana",emoji:"🇬🇭",total:20},
-  PAN:{name:"Panama",emoji:"🇵🇦",total:20},CC:{name:"Coca-Cola",emoji:"🥤",total:14},
+  // Especiales
+  FWC:{name:"FIFA World Cup",emoji:"🏆",total:20,page:1},
+  CC:{name:"Coca-Cola",emoji:"🥤",total:14,page:6},
+  // Grupo A (pág. 8)
+  MEX:{name:"México",emoji:"🇲🇽",total:20,page:8},
+  RSA:{name:"South Africa",emoji:"🇿🇦",total:20,page:10},
+  KOR:{name:"Korea Republic",emoji:"🇰🇷",total:20,page:12},
+  CZE:{name:"Czechia",emoji:"🇨🇿",total:20,page:14},
+  // Grupo B (pág. 16)
+  CAN:{name:"Canada",emoji:"🇨🇦",total:20,page:16},
+  BIH:{name:"Bosnia-Herzegovina",emoji:"🇧🇦",total:20,page:18},
+  QAT:{name:"Qatar",emoji:"🇶🇦",total:20,page:20},
+  SUI:{name:"Switzerland",emoji:"🇨🇭",total:20,page:22},
+  // Grupo C (pág. 24)
+  BRA:{name:"Brazil",emoji:"🇧🇷",total:20,page:24},
+  MAR:{name:"Morocco",emoji:"🇲🇦",total:20,page:26},
+  HAI:{name:"Haiti",emoji:"🇭🇹",total:20,page:28},
+  SCO:{name:"Scotland",emoji:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",total:20,page:30},
+  // Grupo D (pág. 32)
+  USA:{name:"USA",emoji:"🇺🇸",total:20,page:32},
+  PAR:{name:"Paraguay",emoji:"🇵🇾",total:20,page:34},
+  AUS:{name:"Australia",emoji:"🇦🇺",total:20,page:36},
+  TUR:{name:"Türkiye",emoji:"🇹🇷",total:20,page:38},
+  // Grupo E (pág. 40)
+  GER:{name:"Germany",emoji:"🇩🇪",total:20,page:40},
+  CUW:{name:"Curaçao",emoji:"🇨🇼",total:20,page:42},
+  CIV:{name:"Côte d'Ivoire",emoji:"🇨🇮",total:20,page:44},
+  ECU:{name:"Ecuador",emoji:"🇪🇨",total:20,page:46},
+  // Grupo F (pág. 48)
+  NED:{name:"Netherlands",emoji:"🇳🇱",total:20,page:48},
+  JPN:{name:"Japan",emoji:"🇯🇵",total:20,page:50},
+  SWE:{name:"Sweden",emoji:"🇸🇪",total:20,page:52},
+  TUN:{name:"Tunisia",emoji:"🇹🇳",total:20,page:54},
+  // Grupo G (pág. 58)
+  BEL:{name:"Belgium",emoji:"🇧🇪",total:20,page:58},
+  EGY:{name:"Egypt",emoji:"🇪🇬",total:20,page:60},
+  IRN:{name:"IR Iran",emoji:"🇮🇷",total:20,page:62},
+  NZL:{name:"New Zealand",emoji:"🇳🇿",total:20,page:64},
+  // Grupo H (pág. 66)
+  ESP:{name:"Spain",emoji:"🇪🇸",total:20,page:66},
+  CPV:{name:"Cabo Verde",emoji:"🇨🇻",total:20,page:68},
+  KSA:{name:"Saudi Arabia",emoji:"🇸🇦",total:20,page:70},
+  URU:{name:"Uruguay",emoji:"🇺🇾",total:20,page:72},
+  // Grupo I (pág. 74)
+  FRA:{name:"France",emoji:"🇫🇷",total:20,page:74},
+  SEN:{name:"Senegal",emoji:"🇸🇳",total:20,page:76},
+  IRQ:{name:"Iraq",emoji:"🇮🇶",total:20,page:78},
+  NOR:{name:"Norway",emoji:"🇳🇴",total:20,page:80},
+  // Grupo J (pág. 82)
+  ARG:{name:"Argentina",emoji:"🇦🇷",total:20,page:82},
+  ALG:{name:"Algeria",emoji:"🇩🇿",total:20,page:84},
+  AUT:{name:"Austria",emoji:"🇦🇹",total:20,page:86},
+  JOR:{name:"Jordan",emoji:"🇯🇴",total:20,page:88},
+  // Grupo K (pág. 90)
+  POR:{name:"Portugal",emoji:"🇵🇹",total:20,page:90},
+  COD:{name:"Congo DR",emoji:"🇨🇩",total:20,page:92},
+  UZB:{name:"Uzbekistan",emoji:"🇺🇿",total:20,page:94},
+  COL:{name:"Colombia",emoji:"🇨🇴",total:20,page:96},
+  // Grupo L (pág. 98)
+  ENG:{name:"England",emoji:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",total:20,page:98},
+  CRO:{name:"Croatia",emoji:"🇭🇷",total:20,page:100},
+  GHA:{name:"Ghana",emoji:"🇬🇭",total:20,page:102},
+  PAN:{name:"Panama",emoji:"🇵🇦",total:20,page:104},
 };
 
 const buildEmpty = () => {
@@ -351,6 +436,7 @@ function TeamSection({code,stickers,tab,onAction,onChat}) {
         <span style={{fontSize:26}}>{team.emoji}</span>
         <div style={{flex:1,textAlign:"left"}}>
           <div style={{fontWeight:800,fontSize:15,color:complete?"#86efac":"#e8eaf6"}}>{team.name}</div>
+          <div style={{fontSize:11,color:"#4a5568",marginTop:1}}>{GROUPS[code]||""}{team.page?` · pág. ${team.page}`:""}</div>
           <div style={{fontSize:12,color:"#6b7280",marginTop:2}}>
             {tab==="missing"&&`❌ ${visibleNums.length} faltantes`}
             {tab==="repeated"&&`🔁 ${visibleNums.length} repetidas`}
@@ -746,14 +832,17 @@ export default function FiguSwap() {
   };
 
   // Fix: filter considers tab when checking if team has visible stickers
-  const filtered=useMemo(()=>Object.entries(stickers).filter(([code,ts])=>{
+  const filtered=useMemo(()=>ALBUM_ORDER.filter(code=>{
+    const ts=stickers[code];
+    if(!ts)return false;
     const team=ALBUM[code];
+    if(!team)return false;
     const matchSearch=search===""||team.name.toLowerCase().includes(search.toLowerCase())||code.toLowerCase().includes(search.toLowerCase());
     if(!matchSearch)return false;
     if(albumTab==="missing")return Object.values(ts).some(s=>s.state==="missing");
     if(albumTab==="repeated")return Object.values(ts).some(s=>s.state==="repeated");
     return true;
-  }),[stickers,search,albumTab]);
+  }).map(code=>[code,stickers[code]]),[stickers,search,albumTab]);
 
   const albumStats=useMemo(()=>{
     const counts={missing:0,have:0,repeated:0,sell:0,trade:0,auction:0};
