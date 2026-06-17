@@ -41,7 +41,7 @@ function getSuggestedPrice(code, num) {
   return {price:1.00,label:"📦 Normal",color:"#60a5fa"};
 }
 
-export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
+export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum }) {
   const [step,setStep]=useState("upload");
   const [image,setImage]=useState(null);
   const [imageBase64,setImageBase64]=useState(null);
@@ -88,11 +88,13 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
         const code=parts[0]?.toUpperCase();
         const num=parseInt(parts[1]);
         if(!code||isNaN(num))return null;
-        const isNeeded=userNeeded[code]?.includes(num)||false;
+        const currentState=myStickers?.[code]?.[num]?.state;
+        const alreadyHave=currentState==="have"||currentState==="repeated"||currentState==="sell"||currentState==="trade"||currentState==="auction";
+        const isNeeded=!alreadyHave&&(currentState==="missing"||currentState===undefined);
         const teamExists=!!ALBUM[code];
         const suggestion=getSuggestedPrice(code,num);
         const quantity=counts[c];
-        return{code,num,isNeeded,teamExists,suggestion,quantity};
+        return{code,num,isNeeded,teamExists,suggestion,quantity,alreadyHave};
       }).filter(Boolean);
 
       setDetected(parsed);
@@ -109,6 +111,7 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
   };
 
   const reset=()=>{
+    if(image) URL.revokeObjectURL(image);
     setStep("upload");setImage(null);
     setImageBase64(null);setDetected([]);
     setError(null);setApplied({});
@@ -118,7 +121,6 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
   const repeated=detected.filter(s=>!s.isNeeded&&s.teamExists);
   const totalApplied=Object.keys(applied).length;
 
-  // ── UPLOAD STEP ──
   if(step==="upload") return (
     <div style={{padding:16,maxWidth:480,margin:"0 auto"}}>
       <h2 style={{fontWeight:900,fontSize:20,color:"#ffd700",margin:"0 0 4px"}}>📸 Escáner IA</h2>
@@ -168,6 +170,7 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
               onChange={e=>{
                 const f=e.target.files?.[0];
                 if(f)handleFile(f);
+                e.target.value="";
               }}
             />
           </label>
@@ -185,6 +188,7 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
               onChange={e=>{
                 const f=e.target.files?.[0];
                 if(f)handleFile(f);
+                e.target.value="";
               }}
             />
           </label>
@@ -216,7 +220,6 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
     </div>
   );
 
-  // ── RESULTS STEP ──
   return (
     <div style={{padding:16,maxWidth:480,margin:"0 auto"}}>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
@@ -307,6 +310,9 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
                         <span style={{marginLeft:8,fontSize:11,background:"#f97316",color:"#fff",padding:"2px 8px",borderRadius:10,fontWeight:700}}>
                           x{s.quantity}
                         </span>
+                      )}
+                      {s.alreadyHave&&(
+                        <span style={{marginLeft:6,fontSize:10,color:"#6b7280"}}>(ya la tenías)</span>
                       )}
                     </div>
                     <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"#0a0f1e",color,border:`1px solid ${color}`,fontWeight:700}}>
