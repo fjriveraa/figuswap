@@ -76,16 +76,25 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
       if(!res.ok)throw new Error(`Error ${res.status}`);
       const data=await res.json();
       const codes=data.stickers||[];
-      const parsed=codes.map(c=>{
-        const parts=String(c).trim().split(/\s+/);
+
+      const counts={};
+      codes.forEach(c=>{
+        const key=String(c).trim().toUpperCase();
+        counts[key]=(counts[key]||0)+1;
+      });
+
+      const parsed=Object.keys(counts).map(c=>{
+        const parts=c.split(/\s+/);
         const code=parts[0]?.toUpperCase();
         const num=parseInt(parts[1]);
         if(!code||isNaN(num))return null;
         const isNeeded=userNeeded[code]?.includes(num)||false;
         const teamExists=!!ALBUM[code];
         const suggestion=getSuggestedPrice(code,num);
-        return{code,num,isNeeded,teamExists,suggestion};
+        const quantity=counts[c];
+        return{code,num,isNeeded,teamExists,suggestion,quantity};
       }).filter(Boolean);
+
       setDetected(parsed);
       setStep("results");
     }catch(e){
@@ -130,7 +139,6 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
         ))}
       </div>
 
-      {/* Preview */}
       {image && (
         <div style={{marginBottom:16,position:"relative"}}>
           <img src={image} alt="preview" style={{width:"100%",borderRadius:16,border:"2px solid #3b82f6",display:"block",maxHeight:280,objectFit:"cover"}}/>
@@ -143,11 +151,9 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
         </div>
       )}
 
-      {/* FILE INPUTS — using label trick for iOS Safari */}
       {!image && (
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
 
-          {/* Cámara */}
           <label style={{display:"block",cursor:"pointer"}}>
             <div style={{padding:"24px 10px",background:"#0f172a",border:"2px solid #3b82f6",borderRadius:14,display:"flex",flexDirection:"column",alignItems:"center",gap:8,cursor:"pointer"}}>
               <span style={{fontSize:36}}>📷</span>
@@ -166,7 +172,6 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
             />
           </label>
 
-          {/* Galería */}
           <label style={{display:"block",cursor:"pointer"}}>
             <div style={{padding:"24px 10px",background:"#0f172a",border:"2px solid #ffd700",borderRadius:14,display:"flex",flexDirection:"column",alignItems:"center",gap:8,cursor:"pointer"}}>
               <span style={{fontSize:36}}>🖼️</span>
@@ -193,7 +198,6 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
         </div>
       )}
 
-      {/* Scan button */}
       {image&&(
         <button
           onClick={scan}
@@ -218,15 +222,14 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
         <button onClick={reset} style={{background:"none",border:"none",color:"#6b7280",fontSize:22,cursor:"pointer",padding:0,lineHeight:1}}>←</button>
         <h2 style={{fontWeight:900,fontSize:18,color:"#ffd700",margin:0}}>Resultado del escaneo</h2>
-        <span style={{marginLeft:"auto",fontSize:12,color:"#6b7280"}}>{detected.length} detectadas</span>
+        <span style={{marginLeft:"auto",fontSize:12,color:"#6b7280"}}>{detected.length} códigos únicos</span>
       </div>
 
-      {/* Summary */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
         {[
-          ["✅",needed.length,"#22c55e","Pegar"],
-          ["🔁",repeated.length,"#f97316","Repetidas"],
-          ["📦",detected.length,"#60a5fa","Total"],
+          ["✅",needed.reduce((sum,s)=>sum+s.quantity,0),"#22c55e","Pegar"],
+          ["🔁",repeated.reduce((sum,s)=>sum+s.quantity,0),"#f97316","Repetidas"],
+          ["📦",detected.reduce((sum,s)=>sum+s.quantity,0),"#60a5fa","Total"],
         ].map(([ic,val,color,label])=>(
           <div key={label} style={{background:"#111827",border:`1px solid ${color}33`,borderRadius:12,padding:14,textAlign:"center"}}>
             <div style={{fontSize:22}}>{ic}</div>
@@ -236,12 +239,10 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
         ))}
       </div>
 
-      {/* Thumbnail */}
       {image&&(
         <img src={image} alt="" style={{width:"100%",borderRadius:12,border:"1px solid #1e2a3a",maxHeight:160,objectFit:"cover",marginBottom:16}}/>
       )}
 
-      {/* Applied counter */}
       {totalApplied>0&&(
         <div style={{background:"#052e16",border:"1px solid #22c55e",borderRadius:12,padding:12,marginBottom:16,display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:20}}>✅</span>
@@ -251,7 +252,6 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
         </div>
       )}
 
-      {/* NEEDED — para pegar */}
       {needed.length>0&&(
         <div style={{marginBottom:20}}>
           <div style={{fontWeight:800,fontSize:15,color:"#22c55e",marginBottom:10}}>
@@ -265,7 +265,14 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
               <div key={i} style={{background:"#052e16",border:"1px solid #22c55e",borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:10}}>
                 <span style={{fontSize:26}}>{team?.emoji||"🃏"}</span>
                 <div style={{flex:1}}>
-                  <div style={{fontWeight:800,color:"#86efac"}}>{team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span></div>
+                  <div style={{fontWeight:800,color:"#86efac"}}>
+                    {team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span>
+                    {s.quantity>1&&(
+                      <span style={{marginLeft:8,fontSize:11,background:"#22c55e",color:"#0a0f1e",padding:"2px 8px",borderRadius:10,fontWeight:700}}>
+                        x{s.quantity}
+                      </span>
+                    )}
+                  </div>
                   <div style={{fontSize:12,color:"#4ade80"}}>¡Estaba en tu lista de faltantes!</div>
                 </div>
                 {done
@@ -278,7 +285,6 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
         </div>
       )}
 
-      {/* REPEATED — con sugerencias */}
       {repeated.length>0&&(
         <div style={{marginBottom:20}}>
           <div style={{fontWeight:800,fontSize:15,color:"#f97316",marginBottom:10}}>
@@ -289,14 +295,22 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
             const key=`${s.code}-${s.num}`;
             const done=applied[key];
             const{price,label,color}=s.suggestion;
+            const totalValue=(price*s.quantity).toFixed(2);
             return (
               <div key={i} style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:12,padding:14,marginBottom:10}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
                   <span style={{fontSize:24}}>{team?.emoji||"🃏"}</span>
                   <div style={{flex:1}}>
-                    <div style={{fontWeight:800,color:"#e8eaf6"}}>{team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span></div>
+                    <div style={{fontWeight:800,color:"#e8eaf6"}}>
+                      {team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span>
+                      {s.quantity>1&&(
+                        <span style={{marginLeft:8,fontSize:11,background:"#f97316",color:"#fff",padding:"2px 8px",borderRadius:10,fontWeight:700}}>
+                          x{s.quantity}
+                        </span>
+                      )}
+                    </div>
                     <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"#0a0f1e",color,border:`1px solid ${color}`,fontWeight:700}}>
-                      {label} · ${price.toFixed(2)} sugerido
+                      {label} · ${price.toFixed(2)} c/u {s.quantity>1?`· $${totalValue} total`:""}
                     </span>
                   </div>
                   {done&&<span style={{fontSize:11,color:"#22c55e",fontWeight:700,background:"#052e16",padding:"4px 8px",borderRadius:8}}>✅</span>}
@@ -304,15 +318,15 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
 
                 <div style={{background:"#0a0f1e",borderRadius:8,padding:"8px 10px",marginBottom:8,fontSize:12,color:"#9ca3af"}}>
                   💡 <span style={{color,fontWeight:700}}>Sugerencia:</span>{" "}
-                  {price>=3?"Escasa — subástala para el mejor precio.":price>=2?"Demandada — véndela o cámbiala pronto.":"Ofrécela en cambio con tu red."}
+                  {price>=3?`Escasa — subasta ${s.quantity>1?"todas":""} para el mejor precio.`:price>=2?"Demandada — véndela o cámbiala pronto.":"Ofrécela en cambio con tu red."}
                 </div>
 
                 {!done&&(
                   <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
                     <button onClick={()=>applyAction(s.code,s.num,"sell")} style={{padding:"10px 6px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
                       <span style={{fontSize:18}}>💰</span>
-                      <span>Vender</span>
-                      <span style={{fontSize:10,color:"#4ade80"}}>${price.toFixed(2)}</span>
+                      <span>Vender {s.quantity>1?`(${s.quantity})`:""}</span>
+                      <span style={{fontSize:10,color:"#4ade80"}}>${totalValue}</span>
                     </button>
                     <button onClick={()=>applyAction(s.code,s.num,"trade")} style={{padding:"10px 6px",background:"#1e3a5f",border:"1px solid #3b82f6",borderRadius:8,color:"#60a5fa",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
                       <span style={{fontSize:18}}>🔄</span>
@@ -332,7 +346,6 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
         </div>
       )}
 
-      {/* Empty */}
       {detected.length===0&&(
         <div style={{textAlign:"center",padding:40}}>
           <div style={{fontSize:48,marginBottom:12}}>🔍</div>
@@ -344,7 +357,6 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
         </div>
       )}
 
-      {/* Bottom actions */}
       <div style={{display:"flex",gap:10,marginTop:8,paddingBottom:20}}>
         <button onClick={reset} style={{flex:1,padding:14,background:"transparent",border:"1px solid #1e2a3a",borderRadius:12,color:"#6b7280",fontWeight:700,fontSize:14,cursor:"pointer"}}>
           📸 Escanear más
