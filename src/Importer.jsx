@@ -1,82 +1,164 @@
 import { useState } from "react";
 
 const ALBUM = {
-  FWC:{name:"FIFA World Cup",emoji:"🏆",total:20},MEX:{name:"México",emoji:"🇲🇽",total:20},
-  RSA:{name:"South Africa",emoji:"🇿🇦",total:20},KOR:{name:"Korea Republic",emoji:"🇰🇷",total:20},
-  CZE:{name:"Czechia",emoji:"🇨🇿",total:20},CAN:{name:"Canada",emoji:"🇨🇦",total:20},
-  BIH:{name:"Bosnia-Herzegovina",emoji:"🇧🇦",total:20},QAT:{name:"Qatar",emoji:"🇶🇦",total:20},
-  SUI:{name:"Switzerland",emoji:"🇨🇭",total:20},MAR:{name:"Morocco",emoji:"🇲🇦",total:20},
-  HAI:{name:"Haiti",emoji:"🇭🇹",total:20},SCO:{name:"Scotland",emoji:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",total:20},
-  USA:{name:"USA",emoji:"🇺🇸",total:20},PAR:{name:"Paraguay",emoji:"🇵🇾",total:20},
-  AUS:{name:"Australia",emoji:"🇦🇺",total:20},TUR:{name:"Türkiye",emoji:"🇹🇷",total:20},
-  GER:{name:"Germany",emoji:"🇩🇪",total:20},CUW:{name:"Curaçao",emoji:"🇨🇼",total:20},
-  CIV:{name:"Côte d'Ivoire",emoji:"🇨🇮",total:20},ECU:{name:"Ecuador",emoji:"🇪🇨",total:20},
-  NED:{name:"Netherlands",emoji:"🇳🇱",total:20},JPN:{name:"Japan",emoji:"🇯🇵",total:20},
-  SWE:{name:"Sweden",emoji:"🇸🇪",total:20},TUN:{name:"Tunisia",emoji:"🇹🇳",total:20},
-  BEL:{name:"Belgium",emoji:"🇧🇪",total:20},EGY:{name:"Egypt",emoji:"🇪🇬",total:20},
-  IRN:{name:"IR Iran",emoji:"🇮🇷",total:20},NZL:{name:"New Zealand",emoji:"🇳🇿",total:20},
-  ESP:{name:"Spain",emoji:"🇪🇸",total:20},CPV:{name:"Cabo Verde",emoji:"🇨🇻",total:20},
-  KSA:{name:"Saudi Arabia",emoji:"🇸🇦",total:20},URU:{name:"Uruguay",emoji:"🇺🇾",total:20},
-  FRA:{name:"France",emoji:"🇫🇷",total:20},SEN:{name:"Senegal",emoji:"🇸🇳",total:20},
-  IRQ:{name:"Iraq",emoji:"🇮🇶",total:20},NOR:{name:"Norway",emoji:"🇳🇴",total:20},
-  ARG:{name:"Argentina",emoji:"🇦🇷",total:20},AUT:{name:"Austria",emoji:"🇦🇹",total:20},
-  JOR:{name:"Jordan",emoji:"🇯🇴",total:20},POR:{name:"Portugal",emoji:"🇵🇹",total:20},
-  COD:{name:"Congo DR",emoji:"🇨🇩",total:20},UZB:{name:"Uzbekistan",emoji:"🇺🇿",total:20},
-  COL:{name:"Colombia",emoji:"🇨🇴",total:20},ENG:{name:"England",emoji:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",total:20},
-  CRO:{name:"Croatia",emoji:"🇭🇷",total:20},GHA:{name:"Ghana",emoji:"🇬🇭",total:20},
-  PAN:{name:"Panama",emoji:"🇵🇦",total:20},CC:{name:"Coca-Cola",emoji:"🥤",total:14},
+  FWC:{name:"FIFA World Cup",emoji:"🏆",total:20},
+  CC:{name:"Coca-Cola",emoji:"🥤",total:14},
+  MEX:{name:"México",emoji:"🇲🇽",total:20},
+  RSA:{name:"South Africa",emoji:"🇿🇦",total:20},
+  KOR:{name:"Korea Republic",emoji:"🇰🇷",total:20},
+  CZE:{name:"Czechia",emoji:"🇨🇿",total:20},
+  CAN:{name:"Canada",emoji:"🇨🇦",total:20},
+  BIH:{name:"Bosnia-Herzegovina",emoji:"🇧🇦",total:20},
+  QAT:{name:"Qatar",emoji:"🇶🇦",total:20},
+  SUI:{name:"Switzerland",emoji:"🇨🇭",total:20},
+  BRA:{name:"Brazil",emoji:"🇧🇷",total:20},
+  MAR:{name:"Morocco",emoji:"🇲🇦",total:20},
+  HAI:{name:"Haiti",emoji:"🇭🇹",total:20},
+  SCO:{name:"Scotland",emoji:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",total:20},
+  USA:{name:"USA",emoji:"🇺🇸",total:20},
+  PAR:{name:"Paraguay",emoji:"🇵🇾",total:20},
+  AUS:{name:"Australia",emoji:"🇦🇺",total:20},
+  TUR:{name:"Türkiye",emoji:"🇹🇷",total:20},
+  GER:{name:"Germany",emoji:"🇩🇪",total:20},
+  CUW:{name:"Curaçao",emoji:"🇨🇼",total:20},
+  CIV:{name:"Côte d'Ivoire",emoji:"🇨🇮",total:20},
+  ECU:{name:"Ecuador",emoji:"🇪🇨",total:20},
+  NED:{name:"Netherlands",emoji:"🇳🇱",total:20},
+  JPN:{name:"Japan",emoji:"🇯🇵",total:20},
+  SWE:{name:"Sweden",emoji:"🇸🇪",total:20},
+  TUN:{name:"Tunisia",emoji:"🇹🇳",total:20},
+  BEL:{name:"Belgium",emoji:"🇧🇪",total:20},
+  EGY:{name:"Egypt",emoji:"🇪🇬",total:20},
+  IRN:{name:"IR Iran",emoji:"🇮🇷",total:20},
+  NZL:{name:"New Zealand",emoji:"🇳🇿",total:20},
+  ESP:{name:"Spain",emoji:"🇪🇸",total:20},
+  CPV:{name:"Cabo Verde",emoji:"🇨🇻",total:20},
+  KSA:{name:"Saudi Arabia",emoji:"🇸🇦",total:20},
+  URU:{name:"Uruguay",emoji:"🇺🇾",total:20},
+  FRA:{name:"France",emoji:"🇫🇷",total:20},
+  SEN:{name:"Senegal",emoji:"🇸🇳",total:20},
+  IRQ:{name:"Iraq",emoji:"🇮🇶",total:20},
+  NOR:{name:"Norway",emoji:"🇳🇴",total:20},
+  ARG:{name:"Argentina",emoji:"🇦🇷",total:20},
+  ALG:{name:"Algeria",emoji:"🇩🇿",total:20},
+  AUT:{name:"Austria",emoji:"🇦🇹",total:20},
+  JOR:{name:"Jordan",emoji:"🇯🇴",total:20},
+  POR:{name:"Portugal",emoji:"🇵🇹",total:20},
+  COD:{name:"Congo DR",emoji:"🇨🇩",total:20},
+  UZB:{name:"Uzbekistan",emoji:"🇺🇿",total:20},
+  COL:{name:"Colombia",emoji:"🇨🇴",total:20},
+  ENG:{name:"England",emoji:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",total:20},
+  CRO:{name:"Croatia",emoji:"🇭🇷",total:20},
+  GHA:{name:"Ghana",emoji:"🇬🇭",total:20},
+  PAN:{name:"Panama",emoji:"🇵🇦",total:20},
 };
 
 // ─── PARSER ───────────────────────────────────────────────────────────────────
+// Expande "8-12" a [8,9,10,11,12]. Si no es un rango válido, devuelve el número solo si es válido.
+function expandRange(token) {
+  const rangeMatch = token.match(/^(\d+)\s*-\s*(\d+)$/);
+  if (rangeMatch) {
+    const start = parseInt(rangeMatch[1]);
+    const end = parseInt(rangeMatch[2]);
+    if (!isNaN(start) && !isNaN(end) && start <= end && end - start < 100) {
+      const nums = [];
+      for (let i = start; i <= end; i++) nums.push(i);
+      return nums;
+    }
+    return [];
+  }
+  const n = parseInt(token);
+  return isNaN(n) ? [] : [n];
+}
+
 function parseList(text) {
   const result = { missing: {}, repeated: {} };
-  let currentSection = null;
+  const ignored = []; // líneas que no se pudieron interpretar
+  const outOfRange = []; // números fuera del rango válido de su selección
+  let currentSection = "missing"; // si no hay encabezado explícito, asume faltantes por defecto
 
   const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
 
   for (const line of lines) {
     const lower = line.toLowerCase();
 
-    // Detect section
+    // Detectar encabezado de sección
     if (lower.includes("me falt") || lower.includes("faltantes") || lower.includes("needed") || lower.includes("missing")) {
       currentSection = "missing";
       continue;
     }
-    if (lower.includes("repetida") || lower.includes("repeated") || lower.includes("doubles") || lower.includes("tengo de más")) {
+    if (lower.includes("repetida") || lower.includes("repeated") || lower.includes("doubles") || lower.includes("tengo de más") || lower.includes("disponible")) {
       currentSection = "repeated";
       continue;
     }
-    if (lower.includes("descarga") || lower.includes("download") || lower.includes("http") || lower.includes("app")) {
+    if (lower.includes("descarga") || lower.includes("download") || lower.includes("http") || lower.includes("únete") || lower.includes("join") || lower.startsWith("🎴") || lower.startsWith("👤")) {
       continue;
     }
 
-    // Parse sticker line: "MEX 🇲🇽: 6, 18, 19" or "MEX: 6, 18, 19" or "FWC 📜: 10, 19"
-    const match = line.match(/^([A-Z]{2,3})[^:]*:\s*(.+)$/);
-    if (match && currentSection) {
-      const code = match[1].toUpperCase();
-      const numbersStr = match[2];
-      const numbers = numbersStr.split(/[,\s]+/).map(n => parseInt(n.trim())).filter(n => !isNaN(n) && n > 0);
-      if (numbers.length > 0 && (ALBUM[code] || code === "FWC")) {
-        if (!result[currentSection][code]) result[currentSection][code] = [];
-        result[currentSection][code].push(...numbers);
-      }
+    // Acepta: "MEX: 6, 18, 19" | "🇲🇽 MEX: 6, 18, 19" (emoji antes) | "MEX 8 15 16" (sin dos puntos) | "UZB-8" (guion) | "MEX: 8-12" (rango)
+    const validCodes = Object.keys(ALBUM).join("|");
+    const match = line.match(new RegExp(`\\b(${validCodes})\\b\\s*[:\\-–]?\\s*(.*)`, "i"));
+    if (!match) {
+      ignored.push(line);
+      continue;
+    }
+
+    const code = match[1].toUpperCase();
+    const team = ALBUM[code];
+
+    // Extrae números y rangos directamente del resto de la línea, sin importar el separador usado
+    const rawNums = match[2] || "";
+    const tokens = rawNums.match(/\d+\s*[-–]\s*\d+|\d+/g) || [];
+    const numbers = [];
+    for (const token of tokens) {
+      const expanded = expandRange(token.replace(/\s+/g, ""));
+      numbers.push(...expanded);
+    }
+
+    if (numbers.length === 0) {
+      ignored.push(line);
+      continue;
+    }
+
+    // Validar contra el total real de esa selección
+    const validNumbers = [];
+    for (const n of numbers) {
+      if (n > 0 && n <= team.total) validNumbers.push(n);
+      else outOfRange.push(`${code} ${n}`);
+    }
+
+    if (validNumbers.length > 0) {
+      if (!result[currentSection][code]) result[currentSection][code] = [];
+      result[currentSection][code].push(...validNumbers);
     }
   }
 
-  return result;
+  // Deduplicar números por selección
+  ["missing", "repeated"].forEach(section => {
+    Object.keys(result[section]).forEach(code => {
+      result[section][code] = [...new Set(result[section][code])].sort((a,b)=>a-b);
+    });
+  });
+
+  return { ...result, ignored, outOfRange };
 }
 
-function buildAlbumFromParsed(parsed) {
+function buildAlbumFromParsed(parsed, baseAlbum) {
   const album = {};
   Object.entries(ALBUM).forEach(([code, team]) => {
     album[code] = {};
     for (let i = 1; i <= team.total; i++) {
       const isMissing = parsed.missing[code]?.includes(i);
       const isRepeated = parsed.repeated[code]?.includes(i);
-      album[code][i] = {
-        state: isMissing ? "missing" : isRepeated ? "repeated" : "have",
-        qty: 1, price: 0
-      };
+      if (isMissing || isRepeated) {
+        album[code][i] = { state: isMissing ? "missing" : "repeated", qty: 1, price: 0 };
+      } else if (baseAlbum?.[code]?.[i]) {
+        // Modo fusionar: lo no mencionado conserva el estado actual del usuario
+        album[code][i] = baseAlbum[code][i];
+      } else {
+        // Modo reemplazar (o sin álbum base): comportamiento original
+        album[code][i] = { state: "have", qty: 1, price: 0 };
+      }
     }
   });
   return album;
@@ -175,11 +257,12 @@ export function ShareModal({ stickers, username, onClose }) {
 }
 
 // ─── IMPORTER MAIN ────────────────────────────────────────────────────────────
-export default function Importer({ onImport, onClose }) {
+export default function Importer({ onImport, onClose, currentAlbum }) {
   const [step, setStep] = useState("paste"); // paste | preview | done
   const [text, setText] = useState("");
   const [parsed, setParsed] = useState(null);
   const [error, setError] = useState("");
+  const [mergeMode, setMergeMode] = useState("merge"); // merge (seguro, default) | replace
 
   const handleParse = () => {
     if (!text.trim()) { setError("Pega tu lista primero"); return; }
@@ -195,7 +278,7 @@ export default function Importer({ onImport, onClose }) {
   };
 
   const handleImport = () => {
-    const album = buildAlbumFromParsed(parsed);
+    const album = buildAlbumFromParsed(parsed, mergeMode === "merge" ? currentAlbum : null);
     onImport(album);
     setStep("done");
   };
@@ -324,9 +407,43 @@ MAR 🇲🇦: 3`;
           </div>
         )}
 
-        <div style={{background:"#0a1a2e",border:"1px solid #1e3a5f",borderRadius:12,padding:14,fontSize:13,color:"#60a5fa"}}>
-          ⚠️ Esto reemplazará tu álbum actual. Las figuritas no mencionadas se marcarán como "tengo".
+        {/* Líneas no reconocidas o números fuera de rango */}
+        {(parsed.ignored?.length > 0 || parsed.outOfRange?.length > 0) && (
+          <div style={{background:"#1e1500",border:"1px solid #fbbf24",borderRadius:12,padding:14,marginBottom:16}}>
+            <div style={{fontWeight:700,color:"#fbbf24",fontSize:13,marginBottom:8}}>⚠️ Esto no se pudo importar:</div>
+            {parsed.ignored?.length > 0 && (
+              <div style={{fontSize:12,color:"#fde68a",marginBottom:parsed.outOfRange?.length>0?8:0}}>
+                Líneas no reconocidas ({parsed.ignored.length}): {parsed.ignored.slice(0,5).join(" · ")}{parsed.ignored.length>5?"...":""}
+              </div>
+            )}
+            {parsed.outOfRange?.length > 0 && (
+              <div style={{fontSize:12,color:"#fde68a"}}>
+                Números fuera de rango ({parsed.outOfRange.length}): {parsed.outOfRange.slice(0,8).join(", ")}{parsed.outOfRange.length>8?"...":""}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Selector de modo: evita borrar el álbum entero por accidente con una lista parcial */}
+        <div style={{marginBottom:16}}>
+          <div style={{fontWeight:700,color:"#e8eaf6",fontSize:13,marginBottom:8}}>¿Cómo aplicar esta lista?</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <button onClick={()=>setMergeMode("merge")} style={{textAlign:"left",padding:"12px 14px",borderRadius:10,border:"1px solid",borderColor:mergeMode==="merge"?"#22c55e":"#1e2a3a",background:mergeMode==="merge"?"#0a1e0a":"#111827",cursor:"pointer"}}>
+              <div style={{fontWeight:700,color:mergeMode==="merge"?"#22c55e":"#e8eaf6",fontSize:13}}>✅ Fusionar con mi álbum actual (recomendado)</div>
+              <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>Solo actualiza las figuritas mencionadas en esta lista; el resto de tu álbum no cambia</div>
+            </button>
+            <button onClick={()=>setMergeMode("replace")} style={{textAlign:"left",padding:"12px 14px",borderRadius:10,border:"1px solid",borderColor:mergeMode==="replace"?"#ef4444":"#1e2a3a",background:mergeMode==="replace"?"#1e0a0a":"#111827",cursor:"pointer"}}>
+              <div style={{fontWeight:700,color:mergeMode==="replace"?"#ef4444":"#e8eaf6",fontSize:13}}>🔄 Reemplazar todo mi álbum</div>
+              <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>Lo no mencionado en la lista se marcará como "tengo" — usa esto solo si la lista es completa</div>
+            </button>
+          </div>
         </div>
+
+        {mergeMode==="replace"&&(
+          <div style={{background:"#0a1a2e",border:"1px solid #1e3a5f",borderRadius:12,padding:14,fontSize:13,color:"#60a5fa"}}>
+            ⚠️ Esto reemplazará tu álbum actual. Las figuritas no mencionadas se marcarán como "tengo".
+          </div>
+        )}
       </div>
 
       <div style={{padding:"12px 16px",borderTop:"1px solid #1e2a3a",background:"#111827",display:"flex",gap:10}}>
