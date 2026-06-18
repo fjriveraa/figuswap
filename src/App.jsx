@@ -146,18 +146,24 @@ function useCountdown() {
   return t;
 }
 
+// Normaliza emails en TODOS los puntos de entrada: evita que Test@Email.com y test@email.com se traten como usuarios distintos
+function normalizeEmail(email) {
+  return (email || "").trim().toLowerCase();
+}
+
 // ─── SUPABASE DB ──────────────────────────────────────────────────────────────
 const db = {
   h: { apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, "Content-Type":"application/json" },
 
   async saveAlbum(email, stickers, username) {
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/albums`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums`, {
         method:"POST",
         headers:{...this.h, Prefer:"resolution=merge-duplicates,return=minimal"},
         body:JSON.stringify({user_email:email, username:username||email.split("@")[0], stickers, updated_at:new Date().toISOString()})
       });
-    } catch {}
+      return res.ok;
+    } catch { return false; }
   },
 
   async getAlbum(email) {
@@ -168,7 +174,24 @@ const db = {
     } catch { return null; }
   },
 
+  isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  },
+
+  async getRelation(emailA, emailB) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?or=(and(user_email.eq.${encodeURIComponent(emailA)},contact_email.eq.${encodeURIComponent(emailB)}),and(user_email.eq.${encodeURIComponent(emailB)},contact_email.eq.${encodeURIComponent(emailA)}))&select=*`, {headers:this.h});
+      const data = await res.json();
+      return data?.[0]||null;
+    } catch { return null; }
+  },
+
   async sendRequest(fromEmail, toEmail) {
+    if(!this.isValidEmail(fromEmail)||!this.isValidEmail(toEmail)) return false;
+    if(fromEmail===toEmail) return false;
+    // Bug 5 fix: don't create a new pending request if any relation already exists in either direction
+    const existing = await this.getRelation(fromEmail, toEmail);
+    if(existing) return existing.status==="accepted";
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts`, {
         method:"POST",
@@ -252,13 +275,20 @@ const sbAuth = {
   async signOut(token) {
     await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:"POST",headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${token}`}});
   },
-  getSessionFromHash() {
+  getTokenFromHash() {
     const hash=window.location.hash;
     if(!hash||!hash.includes("access_token"))return null;
     const p=new URLSearchParams(hash.substring(1));
     const token=p.get("access_token");
-    if(token){window.location.hash="";return{token,email:p.get("email")||""};}
+    if(token){window.location.hash="";return token;}
     return null;
+  },
+  async getUserFromToken(token) {
+    try{
+      const res=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${token}`}});
+      const data=await res.json();
+      return data?.email||null;
+    }catch{return null;}
   },
   getStoredSession() { try{const s=localStorage.getItem("figuswap_session");return s?JSON.parse(s):null;}catch{return null;} },
   storeSession(s) { try{localStorage.setItem("figuswap_session",JSON.stringify(s));}catch{} },
@@ -275,13 +305,14 @@ function AuthPage({onAuth}) {
   const inp={width:"100%",boxSizing:"border-box",padding:"12px 14px",borderRadius:10,border:"1px solid #1e2a3a",background:"#0a0f1e",color:"#e8eaf6",fontSize:14,outline:"none",marginBottom:10};
   const handleEmail=async()=>{
     setLoading(true);setError("");
+    const normEmail=normalizeEmail(email);
     try{
       if(mode==="login"){
-        const r=await sbAuth.signInWithEmail(email,pass);
-        if(r.access_token){const s={token:r.access_token,email:r.user?.email||email};sbAuth.storeSession(s);onAuth(s);}
+        const r=await sbAuth.signInWithEmail(normEmail,pass);
+        if(r.access_token){const s={token:r.access_token,email:normalizeEmail(r.user?.email||normEmail)};sbAuth.storeSession(s);onAuth(s);}
         else setError(r.error_description||"Email o contraseña incorrectos");
       }else{
-        const r=await sbAuth.signUp(email,pass);
+        const r=await sbAuth.signUp(normEmail,pass);
         if(r.id||r.user?.id){setMode("login");setError("✅ Cuenta creada. Ya puedes entrar.");}
         else setError(r.error_description||"Error al registrarse");
       }
@@ -322,11 +353,12 @@ function AuthPage({onAuth}) {
 // ─── STICKER CELL — TAP TO CYCLE ─────────────────────────────────────────────
 function StickerCell({code,num,data,onAction}) {
   const pressTimer = useRef(null);
+  const longPressed = useRef(false);
   const [pressing,setPressing]=useState(false);
   const [open,setOpen]=useState(false);
 
   const handleTap = () => {
-    if(pressing) return;
+    if(longPressed.current) { longPressed.current = false; return; }
     // Cycle: missing → have → repeated(+1) → repeated(+1)...
     if(data.state === "missing") {
       onAction(code, num, "have", 1, 0);
@@ -352,7 +384,9 @@ function StickerCell({code,num,data,onAction}) {
   };
 
   const onPressStart = () => {
+    longPressed.current = false;
     pressTimer.current = setTimeout(() => {
+      longPressed.current = true;
       setPressing(true);
       handleLongPress();
       setTimeout(() => setPressing(false), 300);
@@ -514,11 +548,14 @@ function ContactsPage({myEmail,myStickers,onClose}) {
   };
 
   const sendRequest=async()=>{
-    if(!addEmail.trim()||addEmail===myEmail)return;
+    const email=normalizeEmail(addEmail);
+    if(!email)return;
+    if(!db.isValidEmail(email)){showMsg("⚠️ Ese no es un email válido");return;}
+    if(email===myEmail){showMsg("⚠️ No puedes agregarte a ti mismo");return;}
     setAdding(true);
-    const ok=await db.sendRequest(myEmail,addEmail.trim());
-    if(ok)showMsg(`✅ Solicitud enviada a ${addEmail.split("@")[0]}`);
-    else showMsg("⚠️ Error al enviar solicitud");
+    const ok=await db.sendRequest(myEmail,email);
+    if(ok)showMsg(`✅ Solicitud enviada a ${email.split("@")[0]}`);
+    else showMsg("ℹ️ Ya existe una conexión o solicitud con ese contacto");
     setAddEmail("");
     await load();
     setAdding(false);
@@ -760,6 +797,7 @@ export default function FiguSwap() {
   const [showShare,setShowShare]=useState(false);
   const [pendingCount,setPendingCount]=useState(0);
   const [saving,setSaving]=useState(false);
+  const [loadedAlbum,setLoadedAlbum]=useState(false);
   const countdown=useCountdown();
 
   const showToastMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),2500);};
@@ -767,9 +805,19 @@ export default function FiguSwap() {
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
     const inviter=params.get("invite");
-    if(inviter)localStorage.setItem("figuswap_pending_invite",inviter);
-    const fromHash=sbAuth.getSessionFromHash();
-    if(fromHash){sbAuth.storeSession(fromHash);setSession(fromHash);return;}
+    if(inviter)localStorage.setItem("figuswap_pending_invite",normalizeEmail(inviter));
+
+    const token=sbAuth.getTokenFromHash();
+    if(token){
+      sbAuth.getUserFromToken(token).then(email=>{
+        if(email){
+          const s={token,email:normalizeEmail(email)};
+          sbAuth.storeSession(s);
+          setSession(s);
+        }
+      });
+      return;
+    }
     const stored=sbAuth.getStoredSession();
     if(stored)setSession(stored);
   },[]);
@@ -777,9 +825,11 @@ export default function FiguSwap() {
 
   useEffect(()=>{
     if(!session)return;
+    setLoadedAlbum(false);
     const pending=localStorage.getItem("figuswap_pending_invite");
     if(pending&&pending!==session.email){
-      db.sendRequest(pending,session.email).then(()=>{
+      // Fix bug 1: el dueño del link (pending) es quien envía la solicitud al visitante (session.email)
+      db.sendRequest(session.email,pending).then(()=>{
         localStorage.removeItem("figuswap_pending_invite");
         showToastMsg(`✅ Solicitud enviada a ${pending.split("@")[0]}`);
       });
@@ -800,38 +850,36 @@ export default function FiguSwap() {
           }
         }catch{setShowOnboarding(true);}
       }
-    });
+    }).finally(()=>setLoadedAlbum(true));
     db.getPendingRequests(session.email).then(r=>setPendingCount(r.length));
   },[session]);
 
-  // Auto-save to Supabase
+  // Auto-save to Supabase — fix bug 3: never save until initial album load finished
   useEffect(()=>{
-    if(!session)return;
+    if(!session||!loadedAlbum)return;
     const timer=setTimeout(async()=>{
       setSaving(true);
-      await db.saveAlbum(session.email,stickers,session.email.split("@")[0]);
+      const ok=await db.saveAlbum(session.email,stickers,session.email.split("@")[0]);
       setSaving(false);
+      if(!ok)showToastMsg("⚠️ No se pudo guardar — revisa tu conexión");
     },1500);
     return()=>clearTimeout(timer);
-  },[stickers,session]);
+  },[stickers,session,loadedAlbum]);
 
 
-const handleAction=(code,num,state,qty,price)=>{
-    setStickers(prev=>{
-      const existing = prev[code]?.[num] || {qty:1,price:0};
-      return {
-        ...prev,
-        [code]:{
-          ...prev[code],
-          [num]:{
-            state,
-            qty:qty!==undefined?qty:existing.qty,
-            price:price!==undefined?price:existing.price
-          }
+  const handleAction=(code,num,state,qty,price)=>{
+    setStickers(prev=>({
+      ...prev,
+      [code]:{
+        ...prev[code],
+        [num]:{
+          state,
+          qty:qty!==undefined?qty:prev[code][num].qty,
+          price:price!==undefined?price:prev[code][num].price
         }
-      };
-    });
-    showToastMsg(`${STATE[state].emoji} ${ALBUM[code]?.name||code} #${num} → ${STATE[state].label}${state==="repeated"&&qty>1?` ×${qty}`:""}`);
+      }
+    }));
+    showToastMsg(`${STATE[state].emoji} ${ALBUM[code].name} #${num} → ${STATE[state].label}${state==="repeated"&&qty>1?` ×${qty}`:""}`);
   };
 
   // Fix: filter considers tab when checking if team has visible stickers
@@ -849,10 +897,14 @@ const handleAction=(code,num,state,qty,price)=>{
 
   const albumStats=useMemo(()=>{
     const counts={missing:0,have:0,repeated:0,sell:0,trade:0,auction:0};
-    Object.values(stickers).forEach(team=>{Object.values(team).forEach(s=>{counts[s.state]=(counts[s.state]||0)+1;});});
+    let repeatedUnits=0;
+    Object.values(stickers).forEach(team=>{Object.values(team).forEach(s=>{
+      counts[s.state]=(counts[s.state]||0)+1;
+      if(s.state==="repeated")repeatedUnits+=(s.qty||1);
+    });});
     const total=Object.values(ALBUM).reduce((s,t)=>s+t.total,0);
     const pct=Math.round((counts.have+counts.repeated+counts.sell+counts.trade+counts.auction)/total*100);
-    return{...counts,total,pct};
+    return{...counts,repeatedUnits,total,pct};
   },[stickers]);
 
   const userNeeded=useMemo(()=>{
@@ -900,7 +952,7 @@ const handleAction=(code,num,state,qty,price)=>{
               <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#6b7280",marginBottom:12}}>
                 <span>❌ {albumStats.missing} faltan</span>
                 <span>✅ {albumStats.have} tengo</span>
-                <span>🔁 {albumStats.repeated} repetidas</span>
+                <span>🔁 {albumStats.repeated} repetidas ({albumStats.repeatedUnits} unidades)</span>
               </div>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={()=>setShowShare(true)} style={{flex:1,padding:"8px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:12,cursor:"pointer"}}>📤 Compartir</button>
@@ -933,7 +985,7 @@ const handleAction=(code,num,state,qty,price)=>{
           </>
         )}
 
-        {page==="scanner"&&<Scanner userNeeded={userNeeded} myStickers={stickers} onUpdateAlbum={(code,num,state)=>handleAction(code,num,state)}/>}
+        {page==="scanner"&&<Scanner userNeeded={userNeeded} onUpdateAlbum={(code,num,state)=>handleAction(code,num,state)}/>}
 
         {page==="contacts"&&<ContactsPage myEmail={session.email} myStickers={stickers} onClose={()=>{setPage("album");db.getPendingRequests(session.email).then(r=>setPendingCount(r.length));}}/>}
 
