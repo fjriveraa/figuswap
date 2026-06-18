@@ -1058,7 +1058,7 @@ export default function FiguSwap() {
       </div>
 
       {showOnboarding&&<Onboarding onChoice={choice=>{setShowOnboarding(false);if(choice==="import")setShowImporter(true);else if(choice==="scan")setPage("scanner");}}/>}
-      {showImporter&&<Importer onImport={s=>{setStickers(s);showToastMsg("✅ ¡Álbum importado!");}} onClose={()=>setShowImporter(false)}/>}
+      {showImporter&&<Importer currentAlbum={stickers} onImport={s=>{setStickers(s);showToastMsg("✅ ¡Álbum importado!");}} onClose={()=>setShowImporter(false)}/>}
       {showShare&&<ShareModal stickers={stickers} username={session.email?.split("@")[0]} onClose={()=>setShowShare(false)}/>}
       {chat&&(
         <div style={{position:"fixed",inset:0,background:"#000c",zIndex:300,display:"flex",flexDirection:"column"}}>
