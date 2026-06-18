@@ -138,6 +138,21 @@ const buildEmpty = () => {
   return r;
 };
 
+// Detecta si un álbum está completamente vacío (todo en "missing").
+// Se usa para BLOQUEAR el auto-guardado en ese caso: nunca se debe sobreescribir
+// un álbum real en la nube con uno vacío por timing/carga fallida.
+const isEmptyAlbum = (stickers) => {
+  let total = 0;
+  let useful = 0;
+  Object.values(stickers || {}).forEach(team => {
+    Object.values(team || {}).forEach(s => {
+      total++;
+      if (s.state !== "missing") useful++;
+    });
+  });
+  return total > 0 && useful === 0;
+};
+
 const WORLD_FINAL = new Date("2026-07-19T20:00:00Z");
 function useCountdown() {
   const [t,setT]=useState({d:0,h:0,m:0,s:0});
@@ -159,7 +174,10 @@ const db = {
 
   async saveAlbum(email, stickers, username) {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums`, {
+      // on_conflict=user_email explícito: la tabla tiene dos restricciones únicas (id, user_email).
+      // Sin especificar la columna, PostgREST puede no resolver el merge-duplicates correctamente
+      // contra user_email y devolver 409 en vez de hacer upsert. Esto fue la causa real del 409.
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?on_conflict=user_email`, {
         method:"POST",
         headers:{...this.h, Prefer:"resolution=merge-duplicates,return=minimal"},
         body:JSON.stringify({user_email:email, username:username||email.split("@")[0], stickers, updated_at:new Date().toISOString()})
@@ -191,7 +209,7 @@ const db = {
   async sendRequest(fromEmail, toEmail) {
     if(!this.isValidEmail(fromEmail)||!this.isValidEmail(toEmail)) return false;
     if(fromEmail===toEmail) return false;
-    // Bug 5 fix: don't create a new pending request if any relation already exists in either direction
+    // No crear una nueva solicitud pendiente si ya existe cualquier relación en cualquier dirección
     const existing = await this.getRelation(fromEmail, toEmail);
     if(existing) return existing.status==="accepted";
     try {
@@ -824,10 +842,15 @@ export default function FiguSwap() {
     }
     const stored=sbAuth.getStoredSession();
     if(stored){
-      // Bug 38-40 fix: no confiar ciegamente en la sesión guardada — verificar que el token siga vivo en Supabase
+      // No confiar ciegamente en la sesión guardada — verificar que el token siga vivo en Supabase
       sbAuth.getUserFromToken(stored.token).then(email=>{
         if(email){
-          setSession(stored);
+          // Fix: usar el email recién confirmado por Supabase, NUNCA el stored.email tal cual.
+          // Si localStorage quedó con un email vacío/viejo/corrupto, esto lo corrige en cada carga
+          // en vez de propagar el dato corrupto hacia adelante.
+          const s={token:stored.token, email:normalizeEmail(email)};
+          sbAuth.storeSession(s);
+          setSession(s);
         } else {
           // Token expirado o rechazado — limpiar localStorage para no quedar "logueado" sin estarlo
           sbAuth.clearSession();
@@ -842,7 +865,8 @@ export default function FiguSwap() {
 
 
   useEffect(()=>{
-    if(!session)return;
+    // Fix: nunca proceder con un email vacío o inválido — ni cargar ni dejar que se dispare auto-save después
+    if(!session?.email || !db.isValidEmail(session.email))return;
     setLoadedAlbum(false);
     const pending=localStorage.getItem("figuswap_pending_invite");
     if(pending&&pending!==session.email){
@@ -862,7 +886,11 @@ export default function FiguSwap() {
           if(local){
             const parsed=JSON.parse(local);
             setStickers(parsed);
-            db.saveAlbum(session.email,parsed,session.email.split("@")[0]);
+            // Fix: el mismo riesgo de sobreescribir la nube con un álbum vacío aplica aquí.
+            // Si el localStorage de este dispositivo está vacío/corrupto, no lo subimos a Supabase.
+            if(!isEmptyAlbum(parsed)){
+              db.saveAlbum(session.email,parsed,session.email.split("@")[0]);
+            }
           } else {
             setShowOnboarding(true);
           }
@@ -872,10 +900,17 @@ export default function FiguSwap() {
     db.getPendingRequests(session.email).then(r=>setPendingCount(r.length));
   },[session]);
 
-  // Auto-save to Supabase — fix bug 3: never save until initial album load finished
+  // Auto-save to Supabase
   useEffect(()=>{
-    if(!session||!loadedAlbum)return;
+    // Fix 1: nunca guardar con email vacío/inválido. Fix 2: nunca guardar antes de que termine la carga inicial.
+    if(!session?.email || !db.isValidEmail(session.email) || !loadedAlbum)return;
     const timer=setTimeout(async()=>{
+      // Fix 3: nunca guardar un álbum completamente vacío — eso solo puede pasar por timing/carga
+      // fallida, nunca debería sobreescribir un álbum real existente en la nube.
+      if(isEmptyAlbum(stickers)){
+        showToastMsg("⚠️ Guardado bloqueado: álbum vacío detectado");
+        return;
+      }
       setSaving(true);
       const ok=await db.saveAlbum(session.email,stickers,session.email.split("@")[0]);
       setSaving(false);
