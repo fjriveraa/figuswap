@@ -14,6 +14,8 @@ const STATE = {
   trade:    { color:"#60a5fa", bg:"#0a0f1e", label:"Cambio",    emoji:"🔄" },
   auction:  { color:"#a78bfa", bg:"#0f0a1e", label:"Subasta",   emoji:"🔨" },
 };
+// Estados que representan una figurita disponible para intercambio/venta (no la posesión única "have")
+const TRADEABLE_STATES = ["repeated","sell","trade","auction"];
 
 // Orden oficial álbum Panini FIFA WC 2026
 const ALBUM_ORDER = [
@@ -579,8 +581,8 @@ function ContactsPage({myEmail,myStickers,onClose}) {
     Object.entries(myStickers).forEach(([code,nums])=>{
       Object.entries(nums).forEach(([num,s])=>{
         const n=parseInt(num);
-        if((s.state==="repeated"||s.state==="sell"||s.state==="trade")&&friendStickers[code]?.[n]?.state==="missing") iHave.push({code,num:n,myState:s.state});
-        if(s.state==="missing"&&(friendStickers[code]?.[n]?.state==="repeated"||friendStickers[code]?.[n]?.state==="sell"||friendStickers[code]?.[n]?.state==="trade")) theyHave.push({code,num:n,theirState:friendStickers[code][n].state});
+        if(TRADEABLE_STATES.includes(s.state)&&friendStickers[code]?.[n]?.state==="missing") iHave.push({code,num:n,myState:s.state});
+        if(s.state==="missing"&&TRADEABLE_STATES.includes(friendStickers[code]?.[n]?.state)) theyHave.push({code,num:n,theirState:friendStickers[code][n].state});
       });
     });
     return{iHave,theyHave};
@@ -588,7 +590,7 @@ function ContactsPage({myEmail,myStickers,onClose}) {
 
   const getRepeatedCount=(st)=>{
     if(!st)return 0;
-    return Object.values(st).reduce((s,team)=>s+Object.values(team).filter(x=>["repeated","sell","trade"].includes(x.state)).length,0);
+    return Object.values(st).reduce((s,team)=>s+Object.values(team).filter(x=>TRADEABLE_STATES.includes(x.state)).length,0);
   };
 
   return (
@@ -786,6 +788,7 @@ function ContactsPage({myEmail,myStickers,onClose}) {
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function FiguSwap() {
   const [session,setSession]=useState(null);
+  const [checkingSession,setCheckingSession]=useState(true);
   const [page,setPage]=useState("album");
   const [albumTab,setAlbumTab]=useState("all");
   const [stickers,setStickers]=useState(buildEmpty);
@@ -815,11 +818,26 @@ export default function FiguSwap() {
           sbAuth.storeSession(s);
           setSession(s);
         }
+        setCheckingSession(false);
       });
       return;
     }
     const stored=sbAuth.getStoredSession();
-    if(stored)setSession(stored);
+    if(stored){
+      // Bug 38-40 fix: no confiar ciegamente en la sesión guardada — verificar que el token siga vivo en Supabase
+      sbAuth.getUserFromToken(stored.token).then(email=>{
+        if(email){
+          setSession(stored);
+        } else {
+          // Token expirado o rechazado — limpiar localStorage para no quedar "logueado" sin estarlo
+          sbAuth.clearSession();
+          setSession(null);
+        }
+        setCheckingSession(false);
+      });
+    } else {
+      setCheckingSession(false);
+    }
   },[]);
 
 
@@ -828,7 +846,7 @@ export default function FiguSwap() {
     setLoadedAlbum(false);
     const pending=localStorage.getItem("figuswap_pending_invite");
     if(pending&&pending!==session.email){
-      // Fix bug 1: el dueño del link (pending) es quien envía la solicitud al visitante (session.email)
+      // El visitante (session.email) envía la solicitud al dueño del link (pending)
       db.sendRequest(session.email,pending).then(()=>{
         localStorage.removeItem("figuswap_pending_invite");
         showToastMsg(`✅ Solicitud enviada a ${pending.split("@")[0]}`);
@@ -868,17 +886,24 @@ export default function FiguSwap() {
 
 
   const handleAction=(code,num,state,qty,price)=>{
-    setStickers(prev=>({
-      ...prev,
-      [code]:{
-        ...prev[code],
-        [num]:{
-          state,
-          qty:qty!==undefined?qty:prev[code][num].qty,
-          price:price!==undefined?price:prev[code][num].price
+    if(!ALBUM[code]||!STATE[state]){
+      showToastMsg("⚠️ Selección o estado no reconocido");
+      return;
+    }
+    setStickers(prev=>{
+      if(!prev[code]?.[num])return prev;
+      return {
+        ...prev,
+        [code]:{
+          ...prev[code],
+          [num]:{
+            state,
+            qty:qty!==undefined?qty:prev[code][num].qty,
+            price:price!==undefined?price:prev[code][num].price
+          }
         }
-      }
-    }));
+      };
+    });
     showToastMsg(`${STATE[state].emoji} ${ALBUM[code].name} #${num} → ${STATE[state].label}${state==="repeated"&&qty>1?` ×${qty}`:""}`);
   };
 
@@ -900,7 +925,7 @@ export default function FiguSwap() {
     let repeatedUnits=0;
     Object.values(stickers).forEach(team=>{Object.values(team).forEach(s=>{
       counts[s.state]=(counts[s.state]||0)+1;
-      if(s.state==="repeated")repeatedUnits+=(s.qty||1);
+      if(TRADEABLE_STATES.includes(s.state))repeatedUnits+=(s.qty||1);
     });});
     const total=Object.values(ALBUM).reduce((s,t)=>s+t.total,0);
     const pct=Math.round((counts.have+counts.repeated+counts.sell+counts.trade+counts.auction)/total*100);
@@ -916,6 +941,11 @@ export default function FiguSwap() {
     return r;
   },[stickers]);
 
+  if(checkingSession)return (
+    <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{fontSize:40}}>⚽</div>
+    </div>
+  );
   if(!session)return <AuthPage onAuth={s=>{setSession(s);sbAuth.storeSession(s);}}/>;
 
   const NAV=[["album","📋","Álbum"],["scanner","📸","Escanear"],["contacts","👥","Red"],["profile","👤","Perfil"]];
@@ -952,7 +982,7 @@ export default function FiguSwap() {
               <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#6b7280",marginBottom:12}}>
                 <span>❌ {albumStats.missing} faltan</span>
                 <span>✅ {albumStats.have} tengo</span>
-                <span>🔁 {albumStats.repeated} repetidas ({albumStats.repeatedUnits} unidades)</span>
+                <span>🔁 {albumStats.repeated} repetidas ({albumStats.repeatedUnits} disponibles)</span>
               </div>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={()=>setShowShare(true)} style={{flex:1,padding:"8px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:12,cursor:"pointer"}}>📤 Compartir</button>
@@ -985,7 +1015,7 @@ export default function FiguSwap() {
           </>
         )}
 
-        {page==="scanner"&&<Scanner userNeeded={userNeeded} onUpdateAlbum={(code,num,state)=>handleAction(code,num,state)}/>}
+        {page==="scanner"&&<Scanner userNeeded={userNeeded} onUpdateAlbum={(code,num,state,qty,price)=>handleAction(code,num,state,qty,price)}/>}
 
         {page==="contacts"&&<ContactsPage myEmail={session.email} myStickers={stickers} onClose={()=>{setPage("album");db.getPendingRequests(session.email).then(r=>setPendingCount(r.length));}}/>}
 
