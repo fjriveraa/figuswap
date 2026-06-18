@@ -153,10 +153,10 @@ function buildAlbumFromParsed(parsed, baseAlbum) {
       if (isMissing || isRepeated) {
         album[code][i] = { state: isMissing ? "missing" : "repeated", qty: 1, price: 0 };
       } else if (baseAlbum?.[code]?.[i]) {
-        // Lo no mencionado en la lista conserva el estado actual del usuario.
+        // Modo fusionar: lo no mencionado conserva el estado actual del usuario
         album[code][i] = baseAlbum[code][i];
       } else {
-        // Solo se usa si no hay álbum base disponible (caso excepcional, p.ej. primer import sin cuenta cargada aún).
+        // Modo reemplazar (o sin álbum base): comportamiento original
         album[code][i] = { state: "have", qty: 1, price: 0 };
       }
     }
@@ -262,6 +262,7 @@ export default function Importer({ onImport, onClose, currentAlbum }) {
   const [text, setText] = useState("");
   const [parsed, setParsed] = useState(null);
   const [error, setError] = useState("");
+  const [mergeMode, setMergeMode] = useState("merge"); // merge (seguro, default) | replace
 
   const handleParse = () => {
     if (!text.trim()) { setError("Pega tu lista primero"); return; }
@@ -269,7 +270,7 @@ export default function Importer({ onImport, onClose, currentAlbum }) {
     const totalMissing = Object.values(result.missing).reduce((s,a)=>s+a.length,0);
     const totalRepeated = Object.values(result.repeated).reduce((s,a)=>s+a.length,0);
     if (totalMissing === 0 && totalRepeated === 0) {
-      setError("No se detectaron figuritas. Verifica que la lista tenga una sección como 'Me faltan' o 'Repetidas'.");
+      setError("No se detectaron figuritas. Verifica el formato de tu lista.");
       return;
     }
     setParsed({ ...result, totalMissing, totalRepeated });
@@ -277,15 +278,7 @@ export default function Importer({ onImport, onClose, currentAlbum }) {
   };
 
   const handleImport = () => {
-    // Guarda de seguridad: si por alguna razón no llega un álbum base (currentAlbum undefined),
-    // nunca se debe caer al comportamiento de "reemplazar todo". Se avisa y se cancela en vez de
-    // arriesgar marcar como "tengo" todo lo no mencionado en la lista importada.
-    if (!currentAlbum) {
-      setError("No se pudo cargar tu álbum actual. Cierra y vuelve a abrir el importador para evitar perder datos.");
-      setStep("paste");
-      return;
-    }
-    const album = buildAlbumFromParsed(parsed, currentAlbum);
+    const album = buildAlbumFromParsed(parsed, mergeMode === "merge" ? currentAlbum : null);
     onImport(album);
     setStep("done");
   };
@@ -431,10 +424,26 @@ MAR 🇲🇦: 3`;
           </div>
         )}
 
-        {/* Confirmación de comportamiento: siempre fusiona, nunca reemplaza todo el álbum */}
-        <div style={{background:"#052e16",border:"1px solid #22c55e",borderRadius:12,padding:14,fontSize:13,color:"#86efac"}}>
-          ✅ La importación solo actualizará las figuritas detectadas. Lo demás de tu álbum no se tocará.
+        {/* Selector de modo: evita borrar el álbum entero por accidente con una lista parcial */}
+        <div style={{marginBottom:16}}>
+          <div style={{fontWeight:700,color:"#e8eaf6",fontSize:13,marginBottom:8}}>¿Cómo aplicar esta lista?</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <button onClick={()=>setMergeMode("merge")} style={{textAlign:"left",padding:"12px 14px",borderRadius:10,border:"1px solid",borderColor:mergeMode==="merge"?"#22c55e":"#1e2a3a",background:mergeMode==="merge"?"#0a1e0a":"#111827",cursor:"pointer"}}>
+              <div style={{fontWeight:700,color:mergeMode==="merge"?"#22c55e":"#e8eaf6",fontSize:13}}>✅ Fusionar con mi álbum actual (recomendado)</div>
+              <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>Solo actualiza las figuritas mencionadas en esta lista; el resto de tu álbum no cambia</div>
+            </button>
+            <button onClick={()=>setMergeMode("replace")} style={{textAlign:"left",padding:"12px 14px",borderRadius:10,border:"1px solid",borderColor:mergeMode==="replace"?"#ef4444":"#1e2a3a",background:mergeMode==="replace"?"#1e0a0a":"#111827",cursor:"pointer"}}>
+              <div style={{fontWeight:700,color:mergeMode==="replace"?"#ef4444":"#e8eaf6",fontSize:13}}>🔄 Reemplazar todo mi álbum</div>
+              <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>Lo no mencionado en la lista se marcará como "tengo" — usa esto solo si la lista es completa</div>
+            </button>
+          </div>
         </div>
+
+        {mergeMode==="replace"&&(
+          <div style={{background:"#0a1a2e",border:"1px solid #1e3a5f",borderRadius:12,padding:14,fontSize:13,color:"#60a5fa"}}>
+            ⚠️ Esto reemplazará tu álbum actual. Las figuritas no mencionadas se marcarán como "tengo".
+          </div>
+        )}
       </div>
 
       <div style={{padding:"12px 16px",borderTop:"1px solid #1e2a3a",background:"#111827",display:"flex",gap:10}}>
