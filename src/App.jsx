@@ -170,25 +170,40 @@ function normalizeEmail(email) {
 
 // ─── SUPABASE DB ──────────────────────────────────────────────────────────────
 const db = {
-  h: { apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, "Content-Type":"application/json" },
+  // Fix RLS: ya NO hay fallback silencioso a la anon key. Si no hay token de sesión real,
+  // h() devuelve null y cada método debe abortar explícitamente en vez de mandar una petición
+  // "autenticada" que en realidad viaja como anónima (lo cual rompería las políticas RLS por
+  // auth.email(), o peor, fallaría en silencio dando la falsa impresión de que funcionó).
+  h(token) {
+    if(!token) return null;
+    return {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    };
+  },
 
-  async saveAlbum(email, stickers, username) {
+  async saveAlbum(token, email, stickers, username) {
+    const headers=this.h(token);
+    if(!headers) return false;
     try {
       // on_conflict=user_email explícito: la tabla tiene dos restricciones únicas (id, user_email).
       // Sin especificar la columna, PostgREST puede no resolver el merge-duplicates correctamente
       // contra user_email y devolver 409 en vez de hacer upsert. Esto fue la causa real del 409.
       const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?on_conflict=user_email`, {
         method:"POST",
-        headers:{...this.h, Prefer:"resolution=merge-duplicates,return=minimal"},
+        headers:{...headers, Prefer:"resolution=merge-duplicates,return=minimal"},
         body:JSON.stringify({user_email:email, username:username||email.split("@")[0], stickers, updated_at:new Date().toISOString()})
       });
       return res.ok;
     } catch { return false; }
   },
 
-  async getAlbum(email) {
+  async getAlbum(token, email) {
+    const headers=this.h(token);
+    if(!headers) return null;
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?user_email=eq.${encodeURIComponent(email)}&select=*`, {headers:this.h});
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?user_email=eq.${encodeURIComponent(email)}&select=*`, {headers});
       const data = await res.json();
       return data?.[0]||null;
     } catch { return null; }
@@ -198,82 +213,98 @@ const db = {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   },
 
-  async getRelation(emailA, emailB) {
+  async getRelation(token, emailA, emailB) {
+    const headers=this.h(token);
+    if(!headers) return null;
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?or=(and(user_email.eq.${encodeURIComponent(emailA)},contact_email.eq.${encodeURIComponent(emailB)}),and(user_email.eq.${encodeURIComponent(emailB)},contact_email.eq.${encodeURIComponent(emailA)}))&select=*`, {headers:this.h});
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?or=(and(user_email.eq.${encodeURIComponent(emailA)},contact_email.eq.${encodeURIComponent(emailB)}),and(user_email.eq.${encodeURIComponent(emailB)},contact_email.eq.${encodeURIComponent(emailA)}))&select=*`, {headers});
       const data = await res.json();
       return data?.[0]||null;
     } catch { return null; }
   },
 
-  async sendRequest(fromEmail, toEmail) {
+  async sendRequest(token, fromEmail, toEmail) {
     if(!this.isValidEmail(fromEmail)||!this.isValidEmail(toEmail)) return false;
     if(fromEmail===toEmail) return false;
+    const headers=this.h(token);
+    if(!headers) return false;
     // No crear una nueva solicitud pendiente si ya existe cualquier relación en cualquier dirección
-    const existing = await this.getRelation(fromEmail, toEmail);
+    const existing = await this.getRelation(token, fromEmail, toEmail);
     if(existing) return existing.status==="accepted";
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts`, {
         method:"POST",
-        headers:{...this.h, Prefer:"resolution=ignore-duplicates,return=minimal"},
+        headers:{...headers, Prefer:"resolution=ignore-duplicates,return=minimal"},
         body:JSON.stringify({user_email:fromEmail, contact_email:toEmail, status:"pending"})
       });
       return res.ok;
     } catch { return false; }
   },
 
-  async acceptRequest(myEmail, requesterEmail) {
+  async acceptRequest(token, myEmail, requesterEmail) {
+    const headers=this.h(token);
+    if(!headers) return false;
     try {
       // Update their request to accepted
       await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(requesterEmail)}&contact_email=eq.${encodeURIComponent(myEmail)}`, {
-        method:"PATCH", headers:{...this.h, Prefer:"return=minimal"}, body:JSON.stringify({status:"accepted"})
+        method:"PATCH", headers:{...headers, Prefer:"return=minimal"}, body:JSON.stringify({status:"accepted"})
       });
       // Create my side accepted
       await fetch(`${SUPABASE_URL}/rest/v1/contacts`, {
         method:"POST",
-        headers:{...this.h, Prefer:"resolution=merge-duplicates,return=minimal"},
+        headers:{...headers, Prefer:"resolution=merge-duplicates,return=minimal"},
         body:JSON.stringify({user_email:myEmail, contact_email:requesterEmail, status:"accepted"})
       });
       return true;
     } catch { return false; }
   },
 
-  async rejectRequest(myEmail, requesterEmail) {
+  async rejectRequest(token, myEmail, requesterEmail) {
+    const headers=this.h(token);
+    if(!headers) return false;
     try {
       await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(requesterEmail)}&contact_email=eq.${encodeURIComponent(myEmail)}`, {
-        method:"PATCH", headers:{...this.h, Prefer:"return=minimal"}, body:JSON.stringify({status:"rejected"})
+        method:"PATCH", headers:{...headers, Prefer:"return=minimal"}, body:JSON.stringify({status:"rejected"})
       });
       return true;
     } catch { return false; }
   },
 
-  async getPendingRequests(myEmail) {
+  async getPendingRequests(token, myEmail) {
+    const headers=this.h(token);
+    if(!headers) return [];
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?contact_email=eq.${encodeURIComponent(myEmail)}&status=eq.pending&select=user_email,created_at`, {headers:this.h});
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?contact_email=eq.${encodeURIComponent(myEmail)}&status=eq.pending&select=user_email,created_at`, {headers});
       return await res.json()||[];
     } catch { return []; }
   },
 
-  async getAcceptedContacts(myEmail) {
+  async getAcceptedContacts(token, myEmail) {
+    const headers=this.h(token);
+    if(!headers) return [];
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(myEmail)}&status=eq.accepted&select=contact_email`, {headers:this.h});
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(myEmail)}&status=eq.accepted&select=contact_email`, {headers});
       const data = await res.json();
       return data?.map(d=>d.contact_email)||[];
     } catch { return []; }
   },
 
-  async getContactAlbums(contacts) {
+  async getContactAlbums(token, contacts) {
     if(!contacts.length) return [];
+    const headers=this.h(token);
+    if(!headers) return [];
     try {
       const emails = contacts.map(e=>`"${e}"`).join(",");
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?user_email=in.(${emails})&select=user_email,username,stickers,updated_at`, {headers:this.h});
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?user_email=in.(${emails})&select=user_email,username,stickers,updated_at`, {headers});
       return await res.json()||[];
     } catch { return []; }
   },
 
-  async getMyRequests(myEmail) {
+  async getMyRequests(token, myEmail) {
+    const headers=this.h(token);
+    if(!headers) return [];
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(myEmail)}&select=contact_email,status`, {headers:this.h});
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(myEmail)}&select=contact_email,status`, {headers});
       return await res.json()||[];
     } catch { return []; }
   }
@@ -479,7 +510,7 @@ function TeamSection({code,stickers,tab,onAction,onChat}) {
   const [expanded,setExpanded]=useState(false);
   const team=ALBUM[code];
   const allNums=Object.keys(stickers).map(Number);
-  const visibleNums=tab==="missing"?allNums.filter(n=>stickers[n].state==="missing"):tab==="repeated"?allNums.filter(n=>stickers[n].state==="repeated"):allNums;
+  const visibleNums=tab==="missing"?allNums.filter(n=>stickers[n].state==="missing"):tab==="repeated"?allNums.filter(n=>TRADEABLE_STATES.includes(stickers[n].state)):allNums;
   if(visibleNums.length===0)return null;
   const have=allNums.filter(n=>stickers[n].state!=="missing").length;
   const pct=Math.round(have/team.total*100);
@@ -494,7 +525,7 @@ function TeamSection({code,stickers,tab,onAction,onChat}) {
           <div style={{fontSize:12,color:"#6b7280",marginTop:2}}>
             {tab==="missing"&&`❌ ${visibleNums.length} faltantes`}
             {tab==="repeated"&&`🔁 ${visibleNums.length} repetidas`}
-            {tab==="all"&&`${have}/${team.total} · ❌${allNums.filter(n=>stickers[n].state==="missing").length} 🔁${allNums.filter(n=>stickers[n].state==="repeated").length}`}
+            {tab==="all"&&`${have}/${team.total} · ❌${allNums.filter(n=>stickers[n].state==="missing").length} 🔁${allNums.filter(n=>TRADEABLE_STATES.includes(stickers[n].state)).length}`}
             {complete&&" ✅ Completo"}
           </div>
         </div>
@@ -508,7 +539,7 @@ function TeamSection({code,stickers,tab,onAction,onChat}) {
         <div style={{padding:16}}>
           {(tab==="missing"||tab==="repeated")&&(
             <div style={{fontSize:11,color:"#4a5568",marginBottom:10}}>
-              {tab==="missing"?"👆 Toca para marcar como ✅ tengo":"👆 Toca para sumar repetidas · Mantén para restar"}
+              {tab==="missing"?"👆 Toca para marcar como ✅ tengo":"👆 Toca para editar · Mantén para restar si es repetida"}
             </div>
           )}
           {tab==="all"&&<div style={{fontSize:11,color:"#4a5568",marginBottom:10}}>👆 Toca para ciclar estado · Mantén para restar</div>}
@@ -525,7 +556,7 @@ function TeamSection({code,stickers,tab,onAction,onChat}) {
 }
 
 // ─── CONTACTS PAGE ────────────────────────────────────────────────────────────
-function ContactsPage({myEmail,myStickers,onClose}) {
+function ContactsPage({myEmail,myToken,myStickers,onClose}) {
   const [pending,setPending]=useState([]);
   const [contacts,setContacts]=useState([]);
   const [contactAlbums,setContactAlbums]=useState([]);
@@ -542,20 +573,20 @@ function ContactsPage({myEmail,myStickers,onClose}) {
   const load=useCallback(async()=>{
     setLoading(true);
     const [pend,accepted,myReqs]=await Promise.all([
-      db.getPendingRequests(myEmail),
-      db.getAcceptedContacts(myEmail),
-      db.getMyRequests(myEmail),
+      db.getPendingRequests(myToken,myEmail),
+      db.getAcceptedContacts(myToken,myEmail),
+      db.getMyRequests(myToken,myEmail),
     ]);
     setPending(pend);
     setContacts(accepted);
     setMyRequests(myReqs);
     if(accepted.length>0||pend.length>0){
       const allEmails=[...accepted,...pend.map(p=>p.user_email)];
-      const albums=await db.getContactAlbums(allEmails);
+      const albums=await db.getContactAlbums(myToken,allEmails);
       setContactAlbums(albums);
     }
     setLoading(false);
-  },[myEmail]);
+  },[myEmail,myToken]);
 
   useEffect(()=>{load();},[load]);
 
@@ -573,7 +604,7 @@ function ContactsPage({myEmail,myStickers,onClose}) {
     if(!db.isValidEmail(email)){showMsg("⚠️ Ese no es un email válido");return;}
     if(email===myEmail){showMsg("⚠️ No puedes agregarte a ti mismo");return;}
     setAdding(true);
-    const ok=await db.sendRequest(myEmail,email);
+    const ok=await db.sendRequest(myToken,myEmail,email);
     if(ok)showMsg(`✅ Solicitud enviada a ${email.split("@")[0]}`);
     else showMsg("ℹ️ Ya existe una conexión o solicitud con ese contacto");
     setAddEmail("");
@@ -582,13 +613,13 @@ function ContactsPage({myEmail,myStickers,onClose}) {
   };
 
   const acceptReq=async(requesterEmail)=>{
-    await db.acceptRequest(myEmail,requesterEmail);
+    await db.acceptRequest(myToken,myEmail,requesterEmail);
     showMsg(`✅ ¡Conectado con ${requesterEmail.split("@")[0]}!`);
     await load();
   };
 
   const rejectReq=async(requesterEmail)=>{
-    await db.rejectRequest(myEmail,requesterEmail);
+    await db.rejectRequest(myToken,myEmail,requesterEmail);
     showMsg("Solicitud rechazada");
     await load();
   };
@@ -871,13 +902,13 @@ export default function FiguSwap() {
     const pending=localStorage.getItem("figuswap_pending_invite");
     if(pending&&pending!==session.email){
       // El visitante (session.email) envía la solicitud al dueño del link (pending)
-      db.sendRequest(session.email,pending).then(()=>{
+      db.sendRequest(session.token,session.email,pending).then(()=>{
         localStorage.removeItem("figuswap_pending_invite");
         showToastMsg(`✅ Solicitud enviada a ${pending.split("@")[0]}`);
       });
     }
     // Load from Supabase (cloud first)
-    db.getAlbum(session.email).then(data=>{
+    db.getAlbum(session.token,session.email).then(data=>{
       if(data?.stickers&&Object.keys(data.stickers).length>0){
         setStickers(data.stickers);
       } else {
@@ -889,7 +920,7 @@ export default function FiguSwap() {
             // Fix: el mismo riesgo de sobreescribir la nube con un álbum vacío aplica aquí.
             // Si el localStorage de este dispositivo está vacío/corrupto, no lo subimos a Supabase.
             if(!isEmptyAlbum(parsed)){
-              db.saveAlbum(session.email,parsed,session.email.split("@")[0]);
+              db.saveAlbum(session.token,session.email,parsed,session.email.split("@")[0]);
             }
           } else {
             setShowOnboarding(true);
@@ -897,7 +928,7 @@ export default function FiguSwap() {
         }catch{setShowOnboarding(true);}
       }
     }).finally(()=>setLoadedAlbum(true));
-    db.getPendingRequests(session.email).then(r=>setPendingCount(r.length));
+    db.getPendingRequests(session.token,session.email).then(r=>setPendingCount(r.length));
   },[session]);
 
   // Auto-save to Supabase
@@ -912,7 +943,7 @@ export default function FiguSwap() {
         return;
       }
       setSaving(true);
-      const ok=await db.saveAlbum(session.email,stickers,session.email.split("@")[0]);
+      const ok=await db.saveAlbum(session.token,session.email,stickers,session.email.split("@")[0]);
       setSaving(false);
       if(!ok)showToastMsg("⚠️ No se pudo guardar — revisa tu conexión");
     },1500);
@@ -951,20 +982,21 @@ export default function FiguSwap() {
     const matchSearch=search===""||team.name.toLowerCase().includes(search.toLowerCase())||code.toLowerCase().includes(search.toLowerCase());
     if(!matchSearch)return false;
     if(albumTab==="missing")return Object.values(ts).some(s=>s.state==="missing");
-    if(albumTab==="repeated")return Object.values(ts).some(s=>s.state==="repeated");
+    if(albumTab==="repeated")return Object.values(ts).some(s=>TRADEABLE_STATES.includes(s.state));
     return true;
   }).map(code=>[code,stickers[code]]),[stickers,search,albumTab]);
 
   const albumStats=useMemo(()=>{
     const counts={missing:0,have:0,repeated:0,sell:0,trade:0,auction:0};
     let repeatedUnits=0;
+    let tradeableCount=0;
     Object.values(stickers).forEach(team=>{Object.values(team).forEach(s=>{
       counts[s.state]=(counts[s.state]||0)+1;
-      if(TRADEABLE_STATES.includes(s.state))repeatedUnits+=(s.qty||1);
+      if(TRADEABLE_STATES.includes(s.state)){repeatedUnits+=(s.qty||1);tradeableCount++;}
     });});
     const total=Object.values(ALBUM).reduce((s,t)=>s+t.total,0);
     const pct=Math.round((counts.have+counts.repeated+counts.sell+counts.trade+counts.auction)/total*100);
-    return{...counts,repeatedUnits,total,pct};
+    return{...counts,repeatedUnits,tradeableCount,total,pct};
   },[stickers]);
 
   const userNeeded=useMemo(()=>{
@@ -1017,7 +1049,7 @@ export default function FiguSwap() {
               <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#6b7280",marginBottom:12}}>
                 <span>❌ {albumStats.missing} faltan</span>
                 <span>✅ {albumStats.have} tengo</span>
-                <span>🔁 {albumStats.repeated} repetidas ({albumStats.repeatedUnits} disponibles)</span>
+                <span>🔁 {albumStats.tradeableCount} disponibles ({albumStats.repeatedUnits} unidades)</span>
               </div>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={()=>setShowShare(true)} style={{flex:1,padding:"8px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:12,cursor:"pointer"}}>📤 Compartir</button>
@@ -1030,7 +1062,7 @@ export default function FiguSwap() {
                 <button key={v} onClick={()=>{setAlbumTab(v);setSearch("");}} style={{flex:1,padding:"10px 4px",borderRadius:9,border:"none",background:albumTab===v?"#ffd700":"transparent",color:albumTab===v?"#0a0f1e":"#6b7280",fontWeight:albumTab===v?800:600,fontSize:13,cursor:"pointer"}}>
                   {l}
                   {v==="missing"&&albumStats.missing>0&&<span style={{fontSize:9,marginLeft:3,background:"#ef4444",color:"#fff",borderRadius:10,padding:"1px 4px"}}>{albumStats.missing}</span>}
-                  {v==="repeated"&&albumStats.repeated>0&&<span style={{fontSize:9,marginLeft:3,background:"#f97316",color:"#fff",borderRadius:10,padding:"1px 4px"}}>{albumStats.repeated}</span>}
+                  {v==="repeated"&&albumStats.tradeableCount>0&&<span style={{fontSize:9,marginLeft:3,background:"#f97316",color:"#fff",borderRadius:10,padding:"1px 4px"}}>{albumStats.tradeableCount}</span>}
                 </button>
               ))}
             </div>
@@ -1050,9 +1082,9 @@ export default function FiguSwap() {
           </>
         )}
 
-        {page==="scanner"&&<Scanner userNeeded={userNeeded} onUpdateAlbum={(code,num,state,qty,price)=>handleAction(code,num,state,qty,price)}/>}
+        {page==="scanner"&&<Scanner userNeeded={userNeeded} myStickers={stickers} onUpdateAlbum={(code,num,state,qty,price)=>handleAction(code,num,state,qty,price)}/>}
 
-        {page==="contacts"&&<ContactsPage myEmail={session.email} myStickers={stickers} onClose={()=>{setPage("album");db.getPendingRequests(session.email).then(r=>setPendingCount(r.length));}}/>}
+        {page==="contacts"&&<ContactsPage myEmail={session.email} myToken={session.token} myStickers={stickers} onClose={()=>{setPage("album");db.getPendingRequests(session.token,session.email).then(r=>setPendingCount(r.length));}}/>}
 
         {page==="profile"&&(
           <div>
@@ -1064,7 +1096,7 @@ export default function FiguSwap() {
                 <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#ffd700"}}>{albumStats.pct}%</div><div style={{fontSize:11,color:"#6b7280"}}>álbum</div></div>
                 <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#ef4444"}}>{albumStats.missing}</div><div style={{fontSize:11,color:"#6b7280"}}>faltan</div></div>
                 <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#22c55e"}}>{albumStats.have}</div><div style={{fontSize:11,color:"#6b7280"}}>tengo</div></div>
-                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#f97316"}}>{albumStats.repeated}</div><div style={{fontSize:11,color:"#6b7280"}}>repetidas</div></div>
+                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#f97316"}}>{albumStats.tradeableCount}</div><div style={{fontSize:11,color:"#6b7280"}}>disponibles</div></div>
               </div>
             </div>
             <div style={{display:"flex",gap:10,marginBottom:12}}>
@@ -1094,7 +1126,7 @@ export default function FiguSwap() {
 
       {showOnboarding&&<Onboarding onChoice={choice=>{setShowOnboarding(false);if(choice==="import")setShowImporter(true);else if(choice==="scan")setPage("scanner");}}/>}
       {showImporter&&<Importer currentAlbum={stickers} onImport={s=>{setStickers(s);showToastMsg("✅ ¡Álbum importado!");}} onClose={()=>setShowImporter(false)}/>}
-      {showShare&&<ShareModal stickers={stickers} username={session.email?.split("@")[0]} onClose={()=>setShowShare(false)}/>}
+      {showShare&&<ShareModal stickers={stickers} username={session.email?.split("@")[0]} inviteEmail={session.email} onClose={()=>setShowShare(false)}/>}
       {chat&&(
         <div style={{position:"fixed",inset:0,background:"#000c",zIndex:300,display:"flex",flexDirection:"column"}}>
           <div style={{background:"#111827",borderBottom:"1px solid #1e2a3a",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
