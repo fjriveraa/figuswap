@@ -1046,6 +1046,18 @@ function FiguSwapInner() {
   );
   if(!session)return <AuthPage onAuth={s=>{setSession(s);sbAuth.storeSession(s);}}/>;
 
+  // Fix condición de carrera (pérdida de datos al importar): antes de este fix, getAlbum() corría
+  // en paralelo a la primera interacción del usuario. Si alguien importaba una lista o tocaba una
+  // figurita ANTES de que getAlbum() resolviera, la respuesta tardía de la nube podía sobreescribir
+  // silenciosamente lo recién hecho. Bloqueamos toda la UI (incluyendo abrir Importador/Scanner)
+  // hasta que loadedAlbum sea true. La carga real toma ~200-500ms, así que esto es casi imperceptible.
+  if(!loadedAlbum)return (
+    <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10}}>
+      <div style={{fontSize:40}}>⚽</div>
+      <div style={{fontSize:13,color:"#6b7280"}}>Cargando tu álbum...</div>
+    </div>
+  );
+
   const NAV=[["album","📋","Álbum"],["scanner","📸","Escanear"],["contacts","👥","Red"],["profile","👤","Perfil"]];
 
   return (
