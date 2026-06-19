@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import Importer, { ShareModal } from "./Importer.jsx";
 import Onboarding from "./Onboarding.jsx";
 import Scanner from "./Scanner.jsx";
@@ -625,10 +625,10 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
   };
 
   const getMatches=(friendStickers)=>{
-    if(!friendStickers)return{iHave:[],theyHave:[]};
+    if(!friendStickers||!myStickers)return{iHave:[],theyHave:[]};
     const iHave=[],theyHave=[];
     Object.entries(myStickers).forEach(([code,nums])=>{
-      Object.entries(nums).forEach(([num,s])=>{
+      Object.entries(nums||{}).forEach(([num,s])=>{
         const n=parseInt(num);
         if(TRADEABLE_STATES.includes(s.state)&&friendStickers[code]?.[n]?.state==="missing") iHave.push({code,num:n,myState:s.state});
         if(s.state==="missing"&&TRADEABLE_STATES.includes(friendStickers[code]?.[n]?.state)) theyHave.push({code,num:n,theirState:friendStickers[code][n].state});
@@ -639,7 +639,7 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
 
   const getRepeatedCount=(st)=>{
     if(!st)return 0;
-    return Object.values(st).reduce((s,team)=>s+Object.values(team).filter(x=>TRADEABLE_STATES.includes(x.state)).length,0);
+    return Object.values(st).reduce((s,team)=>s+Object.values(team||{}).filter(x=>TRADEABLE_STATES.includes(x.state)).length,0);
   };
 
   return (
@@ -835,7 +835,38 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
 }
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
-export default function FiguSwap() {
+// Fix: ErrorBoundary para capturar crashes no previstos (token expirado, estado en transición,
+// etc.) y mostrar un mensaje de recuperación en vez de dejar la pantalla completamente en blanco.
+// React requiere que esto sea una clase, no se puede hacer con hooks.
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error, info) {
+    console.error("FiguSwap crash capturado:", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,textAlign:"center"}}>
+          <div style={{fontSize:48,marginBottom:16}}>⚠️</div>
+          <div style={{fontWeight:800,fontSize:18,color:"#e8eaf6",marginBottom:8}}>Algo salió mal</div>
+          <div style={{fontSize:13,color:"#6b7280",marginBottom:24}}>La app encontró un error inesperado. Tus datos están seguros en la nube.</div>
+          <button onClick={()=>window.location.reload()} style={{padding:"14px 28px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:12,color:"#0a0f1e",fontWeight:800,fontSize:15,cursor:"pointer"}}>
+            🔄 Recargar app
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function FiguSwapInner() {
   const [session,setSession]=useState(null);
   const [checkingSession,setCheckingSession]=useState(true);
   const [page,setPage]=useState("album");
@@ -1141,5 +1172,16 @@ export default function FiguSwap() {
       )}
       {toast&&<div style={{position:"fixed",bottom:80,left:"50%",transform:"translateX(-50%)",background:"#111827",border:"1px solid #1e2a3a",color:"#e8eaf6",padding:"10px 20px",borderRadius:24,fontWeight:700,fontSize:13,zIndex:9999,whiteSpace:"nowrap",boxShadow:"0 4px 20px #0008"}}>{toast}</div>}
     </div>
+  );
+}
+
+// Fix: el export default ahora envuelve toda la app en ErrorBoundary. Cualquier crash de React
+// (token expirado, estado en transición, lo que sea) muestra un mensaje de recuperación con
+// botón de recargar, en vez de dejar la pantalla completamente en blanco sin pista de qué pasó.
+export default function FiguSwap() {
+  return (
+    <ErrorBoundary>
+      <FiguSwapInner />
+    </ErrorBoundary>
   );
 }
