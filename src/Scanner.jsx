@@ -28,6 +28,8 @@ const ALBUM = {
   ALG:{name:"Algeria",emoji:"🇩🇿",total:20},BRA:{name:"Brazil",emoji:"🇧🇷",total:20},
 };
 
+const TRADEABLE_STATES = ["repeated","sell","trade","auction"];
+
 const RARITY = {
   FWC:{4:5},MAR:{1:4,13:4,20:4},ARG:{11:4},ENG:{19:3},
   CIV:{20:3},TUR:{20:3},CZE:{20:3},IRN:{15:3},
@@ -41,7 +43,7 @@ function getSuggestedPrice(code, num) {
   return {price:1.00,label:"📦 Normal",color:"#60a5fa"};
 }
 
-export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
+export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum }) {
   const [step,setStep]=useState("upload");
   const [image,setImage]=useState(null);
   const [imageBase64,setImageBase64]=useState(null);
@@ -88,11 +90,18 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
         const code=parts[0]?.toUpperCase();
         const num=parseInt(parts[1]);
         if(!code||isNaN(num))return null;
-        const isNeeded=userNeeded[code]?.includes(num)||false;
         const teamExists=!!ALBUM[code];
+        if(!teamExists)return null;
+
+        // Fix: usar myStickers para clasificar correctamente
+        const current=myStickers?.[code]?.[num];
+        const currentState=current?.state||"missing";
+        const isNeeded=currentState==="missing";
+        const isAlreadyTradeable=TRADEABLE_STATES.includes(currentState);
+
         const suggestion=getSuggestedPrice(code,num);
         const quantity=counts[c];
-        return{code,num,isNeeded,teamExists,suggestion,quantity};
+        return{code,num,isNeeded,isAlreadyTradeable,currentState,suggestion,quantity,teamExists};
       }).filter(Boolean);
 
       setDetected(parsed);
@@ -103,9 +112,19 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
     setLoading(false);
   };
 
-  const applyAction=(code,num,action)=>{
+  // Fix: applyAction ahora pasa qty y price correctamente a handleAction en App.jsx
+  const applyAction=(code,num,action,qty=1,price=0)=>{
     setApplied(prev=>({...prev,[`${code}-${num}`]:action}));
-    if(onUpdateAlbum)onUpdateAlbum(code,num,action);
+    if(onUpdateAlbum) onUpdateAlbum(code,num,action,qty,price);
+  };
+
+  // Fix: botón "Enviar a repetidas" — marca como repeated con qty correcta
+  const sendToRepeated=(s)=>{
+    const current=myStickers?.[s.code]?.[s.num];
+    const currentQty=current?.state==="repeated"?(current.qty||1):0;
+    // Si ya tiene unidades como repeated, suma las nuevas
+    const newQty=currentQty+s.quantity;
+    applyAction(s.code,s.num,"repeated",newQty,0);
   };
 
   const reset=()=>{
@@ -141,10 +160,7 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
       {image && (
         <div style={{marginBottom:16,position:"relative"}}>
           <img src={image} alt="preview" style={{width:"100%",borderRadius:16,border:"2px solid #3b82f6",display:"block",maxHeight:280,objectFit:"cover"}}/>
-          <button
-            onClick={reset}
-            style={{position:"absolute",top:10,right:10,background:"rgba(0,0,0,0.7)",border:"none",borderRadius:20,color:"#fff",padding:"6px 12px",fontWeight:700,fontSize:12,cursor:"pointer"}}
-          >
+          <button onClick={reset} style={{position:"absolute",top:10,right:10,background:"rgba(0,0,0,0.7)",border:"none",borderRadius:20,color:"#fff",padding:"6px 12px",fontWeight:700,fontSize:12,cursor:"pointer"}}>
             ✕ Cambiar
           </button>
         </div>
@@ -152,23 +168,13 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
 
       {!image && (
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-
           <label style={{display:"block",cursor:"pointer"}}>
             <div style={{padding:"24px 10px",background:"#0f172a",border:"2px solid #3b82f6",borderRadius:14,display:"flex",flexDirection:"column",alignItems:"center",gap:8,cursor:"pointer"}}>
               <span style={{fontSize:36}}>📷</span>
               <span style={{fontWeight:700,color:"#60a5fa",fontSize:14}}>Tomar foto</span>
               <span style={{fontSize:11,color:"#4a5568"}}>Abre la cámara</span>
             </div>
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              style={{display:"none"}}
-              onChange={e=>{
-                const f=e.target.files?.[0];
-                if(f)handleFile(f);
-              }}
-            />
+            <input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)handleFile(f);}}/>
           </label>
 
           <label style={{display:"block",cursor:"pointer"}}>
@@ -177,17 +183,8 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
               <span style={{fontWeight:700,color:"#ffd700",fontSize:14}}>Mi galería</span>
               <span style={{fontSize:11,color:"#4a5568"}}>Fotos guardadas</span>
             </div>
-            <input
-              type="file"
-              accept="image/*"
-              style={{display:"none"}}
-              onChange={e=>{
-                const f=e.target.files?.[0];
-                if(f)handleFile(f);
-              }}
-            />
+            <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)handleFile(f);}}/>
           </label>
-
         </div>
       )}
 
@@ -198,11 +195,7 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
       )}
 
       {image&&(
-        <button
-          onClick={scan}
-          disabled={loading}
-          style={{width:"100%",padding:16,background:loading?"#1e2a3a":"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:14,color:loading?"#6b7280":"#0a0f1e",fontWeight:900,fontSize:16,cursor:loading?"not-allowed":"pointer"}}
-        >
+        <button onClick={scan} disabled={loading} style={{width:"100%",padding:16,background:loading?"#1e2a3a":"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:14,color:loading?"#6b7280":"#0a0f1e",fontWeight:900,fontSize:16,cursor:loading?"not-allowed":"pointer"}}>
           {loading?"🤖 Analizando tu foto...":"🤖 Escanear con IA →"}
         </button>
       )}
@@ -265,17 +258,13 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
                 <div style={{flex:1}}>
                   <div style={{fontWeight:800,color:"#86efac"}}>
                     {team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span>
-                    {s.quantity>1&&(
-                      <span style={{marginLeft:8,fontSize:11,background:"#22c55e",color:"#0a0f1e",padding:"2px 8px",borderRadius:10,fontWeight:700}}>
-                        x{s.quantity}
-                      </span>
-                    )}
+                    {s.quantity>1&&<span style={{marginLeft:8,fontSize:11,background:"#22c55e",color:"#0a0f1e",padding:"2px 8px",borderRadius:10,fontWeight:700}}>x{s.quantity}</span>}
                   </div>
                   <div style={{fontSize:12,color:"#4ade80"}}>¡Estaba en tu lista de faltantes!</div>
                 </div>
                 {done
                   ? <span style={{fontSize:22}}>✅</span>
-                  : <button onClick={()=>applyAction(s.code,s.num,"have")} style={{padding:"8px 14px",background:"#22c55e",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>📌 Pegar</button>
+                  : <button onClick={()=>applyAction(s.code,s.num,"have",1,0)} style={{padding:"8px 14px",background:"#22c55e",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>📌 Pegar</button>
                 }
               </div>
             );
@@ -296,16 +285,12 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
             const totalValue=(price*s.quantity).toFixed(2);
             return (
               <div key={i} style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:12,padding:14,marginBottom:10}}>
-                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
                   <span style={{fontSize:24}}>{team?.emoji||"🃏"}</span>
                   <div style={{flex:1}}>
                     <div style={{fontWeight:800,color:"#e8eaf6"}}>
                       {team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span>
-                      {s.quantity>1&&(
-                        <span style={{marginLeft:8,fontSize:11,background:"#f97316",color:"#fff",padding:"2px 8px",borderRadius:10,fontWeight:700}}>
-                          x{s.quantity}
-                        </span>
-                      )}
+                      {s.quantity>1&&<span style={{marginLeft:8,fontSize:11,background:"#f97316",color:"#fff",padding:"2px 8px",borderRadius:10,fontWeight:700}}>x{s.quantity}</span>}
                     </div>
                     <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"#0a0f1e",color,border:`1px solid ${color}`,fontWeight:700}}>
                       {label} · ${price.toFixed(2)} c/u {s.quantity>1?`· $${totalValue} total`:""}
@@ -320,18 +305,27 @@ export default function Scanner({ userNeeded={}, onUpdateAlbum }) {
                 </div>
 
                 {!done&&(
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
-                    <button onClick={()=>applyAction(s.code,s.num,"sell")} style={{padding:"10px 6px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+                    {/* Fix: botón principal "Agregar a repetidas" antes de vender/cambiar/subastar */}
+                    <button
+                      onClick={()=>sendToRepeated(s)}
+                      style={{padding:"10px 6px",background:"#1e1500",border:"2px solid #f97316",borderRadius:8,color:"#f97316",fontWeight:800,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}
+                    >
+                      <span style={{fontSize:18}}>🔁</span>
+                      <span>Repetida</span>
+                      {s.quantity>1&&<span style={{fontSize:10,color:"#fb923c"}}>x{s.quantity}</span>}
+                    </button>
+                    <button onClick={()=>applyAction(s.code,s.num,"sell",s.quantity,price)} style={{padding:"10px 6px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
                       <span style={{fontSize:18}}>💰</span>
-                      <span>Vender {s.quantity>1?`(${s.quantity})`:""}</span>
+                      <span>Vender</span>
                       <span style={{fontSize:10,color:"#4ade80"}}>${totalValue}</span>
                     </button>
-                    <button onClick={()=>applyAction(s.code,s.num,"trade")} style={{padding:"10px 6px",background:"#1e3a5f",border:"1px solid #3b82f6",borderRadius:8,color:"#60a5fa",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                    <button onClick={()=>applyAction(s.code,s.num,"trade",s.quantity,0)} style={{padding:"10px 6px",background:"#1e3a5f",border:"1px solid #3b82f6",borderRadius:8,color:"#60a5fa",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
                       <span style={{fontSize:18}}>🔄</span>
                       <span>Cambiar</span>
                       <span style={{fontSize:10,color:"#93c5fd"}}>Con red</span>
                     </button>
-                    <button onClick={()=>applyAction(s.code,s.num,"auction")} style={{padding:"10px 6px",background:"#1e1040",border:"1px solid #a78bfa",borderRadius:8,color:"#a78bfa",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                    <button onClick={()=>applyAction(s.code,s.num,"auction",s.quantity,price)} style={{padding:"10px 6px",background:"#1e1040",border:"1px solid #a78bfa",borderRadius:8,color:"#a78bfa",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
                       <span style={{fontSize:18}}>🔨</span>
                       <span>Subastar</span>
                       <span style={{fontSize:10,color:"#c4b5fd"}}>Mejor precio</span>
