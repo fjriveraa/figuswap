@@ -207,16 +207,55 @@ export function generateShareText(stickers, mode = "both", username = "", invite
   return lines.join("\n");
 }
 
+// ─── TEXTO RESUMIDO PARA ESTADO DE WHATSAPP ──────────────────────────────────
+// El Estado de WhatsApp tiene un límite real de 700 caracteres para texto — la lista completa
+// por selección (generateShareText) lo supera fácilmente apenas el álbum tiene varias decenas
+// de repetidas. Esta versión usa solo totales + el link, así que siempre cabe sin importar
+// cuántas selecciones tenga el usuario.
+export function generateStatusText(stickers, username = "", inviteEmail = "") {
+  let missingTotal = 0, repeatedTotal = 0;
+  Object.values(stickers).forEach(nums => {
+    Object.values(nums).forEach(s => {
+      if (s.state === "missing") missingTotal++;
+      else if (["repeated","sell","trade","auction"].includes(s.state)) repeatedTotal++;
+    });
+  });
+  const link = inviteEmail
+    ? `https://figuswap-theta.vercel.app?invite=${encodeURIComponent(inviteEmail)}`
+    : `https://figuswap-theta.vercel.app`;
+  return [
+    "🎴 FiguSwap — FIFA World Cup 2026",
+    username ? `👤 ${username}` : "",
+    "",
+    `🔁 Tengo ${repeatedTotal} repetidas disponibles para cambio o venta`,
+    `❌ Me faltan ${missingTotal}`,
+    "",
+    "Mira mi lista completa y conéctate conmigo:",
+    link
+  ].filter(Boolean).join("\n");
+}
+
 // ─── SHARE MODAL ──────────────────────────────────────────────────────────────
 export function ShareModal({ stickers, username, inviteEmail, onClose }) {
   const [mode, setMode] = useState("both");
   const [copied, setCopied] = useState(false);
+  const [copiedStatus, setCopiedStatus] = useState(false);
   const text = generateShareText(stickers, mode, username, inviteEmail);
+  const statusText = generateStatusText(stickers, username, inviteEmail);
+  const STATUS_LIMIT = 700;
+  const tooLongForStatus = text.length > STATUS_LIMIT;
 
   const copy = () => {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const copyStatus = () => {
+    navigator.clipboard.writeText(statusText).then(() => {
+      setCopiedStatus(true);
+      setTimeout(() => setCopiedStatus(false), 2000);
     });
   };
 
@@ -242,8 +281,11 @@ export function ShareModal({ stickers, username, inviteEmail, onClose }) {
         </div>
 
         {/* Preview */}
-        <div style={{background:"#0a0f1e",borderRadius:10,padding:12,marginBottom:16,maxHeight:200,overflowY:"auto",fontSize:12,color:"#9ca3af",fontFamily:"monospace",lineHeight:1.6,whiteSpace:"pre-wrap"}}>
+        <div style={{background:"#0a0f1e",borderRadius:10,padding:12,marginBottom:8,maxHeight:200,overflowY:"auto",fontSize:12,color:"#9ca3af",fontFamily:"monospace",lineHeight:1.6,whiteSpace:"pre-wrap"}}>
           {text}
+        </div>
+        <div style={{fontSize:11,color:tooLongForStatus?"#f97316":"#4a5568",marginBottom:16}}>
+          {text.length} caracteres{tooLongForStatus?" — muy largo para el Estado de WhatsApp (límite 700)":""}
         </div>
 
         {/* Actions */}
@@ -253,6 +295,17 @@ export function ShareModal({ stickers, username, inviteEmail, onClose }) {
           </button>
           <button onClick={whatsapp} style={{flex:1,padding:"13px",background:"#14532d",border:"1px solid #22c55e",borderRadius:10,color:"#86efac",fontWeight:700,fontSize:14,cursor:"pointer"}}>
             💬 WhatsApp
+          </button>
+        </div>
+
+        {/* Resumen para Estado: el Estado de WhatsApp corta el texto en 700 caracteres,
+            así que la lista completa de arriba casi nunca cabe. Esto da un resumen garantizado corto. */}
+        <div style={{marginTop:16,paddingTop:16,borderTop:"1px solid #1e2a3a"}}>
+          <div style={{fontSize:12,color:"#6b7280",marginBottom:8}}>
+            ¿Lo vas a poner en tu Estado de WhatsApp? Ahí el límite es 700 caracteres — usa este resumen corto en vez de la lista completa:
+          </div>
+          <button onClick={copyStatus} style={{width:"100%",padding:"12px",background:copiedStatus?"#22c55e":"#1e2a3a",border:"1px solid",borderColor:copiedStatus?"#22c55e":"#374151",borderRadius:10,color:copiedStatus?"#fff":"#e8eaf6",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+            {copiedStatus ? "✅ Copiado!" : `📲 Copiar resumen para Estado (${statusText.length} caracteres)`}
           </button>
         </div>
       </div>
@@ -330,11 +383,27 @@ MAR 🇲🇦: 3`;
           ))}
         </div>
 
-        <div style={{marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
           <span style={{fontWeight:700,color:"#e8eaf6",fontSize:14}}>Pega tu lista aquí:</span>
-          <button onClick={()=>setText(EXAMPLE)} style={{fontSize:11,color:"#60a5fa",background:"none",border:"1px solid #1e3a5f",borderRadius:6,padding:"3px 8px",cursor:"pointer"}}>
-            Ver ejemplo
-          </button>
+          <div style={{display:"flex",gap:8,flexShrink:0}}>
+            <button
+              onClick={async()=>{
+                try{
+                  const clip=await navigator.clipboard.readText();
+                  if(clip&&clip.trim()){setText(clip);setError("");}
+                  else setError("El portapapeles está vacío. Copia tu lista primero.");
+                }catch{
+                  setError("No se pudo leer el portapapeles automáticamente. Mantén presionado el cuadro de abajo y selecciona \"Pegar\".");
+                }
+              }}
+              style={{fontSize:11,color:"#86efac",background:"none",border:"1px solid #14532d",borderRadius:6,padding:"3px 8px",cursor:"pointer",whiteSpace:"nowrap"}}
+            >
+              📋 Pegar todo
+            </button>
+            <button onClick={()=>setText(EXAMPLE)} style={{fontSize:11,color:"#60a5fa",background:"none",border:"1px solid #1e3a5f",borderRadius:6,padding:"3px 8px",cursor:"pointer",whiteSpace:"nowrap"}}>
+              Ver ejemplo
+            </button>
+          </div>
         </div>
 
         <textarea
