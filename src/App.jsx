@@ -1,1199 +1,409 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import Importer, { ShareModal } from "./Importer.jsx";
-import Onboarding from "./Onboarding.jsx";
-import Scanner from "./Scanner.jsx";
-
-const SUPABASE_URL = "https://fythsgiofvodukjzutat.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5dGhzZ2lvZnZvZHVranp1dGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NTIyMDgsImV4cCI6MjA5NzEyODIwOH0.HaG8yQgc2BzEGnlaNXFWaLZ0c_Oa6CvhwcVjHj99-AY";
-
-const STATE = {
-  missing:  { color:"#ef4444", bg:"#1e0a0a", label:"Me falta",  emoji:"❌" },
-  have:     { color:"#22c55e", bg:"#0a1e0a", label:"La tengo",  emoji:"✅" },
-  repeated: { color:"#f97316", bg:"#1e0f00", label:"Repetida",  emoji:"🔁" },
-  sell:     { color:"#fbbf24", bg:"#1e1500", label:"En venta",  emoji:"💰" },
-  trade:    { color:"#60a5fa", bg:"#0a0f1e", label:"Cambio",    emoji:"🔄" },
-  auction:  { color:"#a78bfa", bg:"#0f0a1e", label:"Subasta",   emoji:"🔨" },
-};
-// Estados que representan una figurita disponible para intercambio/venta (no la posesión única "have")
-const TRADEABLE_STATES = ["repeated","sell","trade","auction"];
-
-// Orden oficial álbum Panini FIFA WC 2026
-const ALBUM_ORDER = [
-  // Especiales
-  "FWC","CC",
-  // Grupo A
-  "MEX","RSA","KOR","CZE",
-  // Grupo B
-  "CAN","BIH","QAT","SUI",
-  // Grupo C
-  "BRA","MAR","HAI","SCO",
-  // Grupo D
-  "USA","PAR","AUS","TUR",
-  // Grupo E
-  "GER","CUW","CIV","ECU",
-  // Grupo F
-  "NED","JPN","SWE","TUN",
-  // Grupo G
-  "BEL","EGY","IRN","NZL",
-  // Grupo H
-  "ESP","CPV","KSA","URU",
-  // Grupo I
-  "FRA","SEN","IRQ","NOR",
-  // Grupo J
-  "ARG","ALG","AUT","JOR",
-  // Grupo K
-  "POR","COD","UZB","COL",
-  // Grupo L
-  "ENG","CRO","GHA","PAN",
-];
-
-const GROUPS = {
-  FWC:"Especiales", CC:"Especiales",
-  MEX:"Grupo A", RSA:"Grupo A", KOR:"Grupo A", CZE:"Grupo A",
-  CAN:"Grupo B", BIH:"Grupo B", QAT:"Grupo B", SUI:"Grupo B",
-  BRA:"Grupo C", MAR:"Grupo C", HAI:"Grupo C", SCO:"Grupo C",
-  USA:"Grupo D", PAR:"Grupo D", AUS:"Grupo D", TUR:"Grupo D",
-  GER:"Grupo E", CUW:"Grupo E", CIV:"Grupo E", ECU:"Grupo E",
-  NED:"Grupo F", JPN:"Grupo F", SWE:"Grupo F", TUN:"Grupo F",
-  BEL:"Grupo G", EGY:"Grupo G", IRN:"Grupo G", NZL:"Grupo G",
-  ESP:"Grupo H", CPV:"Grupo H", KSA:"Grupo H", URU:"Grupo H",
-  FRA:"Grupo I", SEN:"Grupo I", IRQ:"Grupo I", NOR:"Grupo I",
-  ARG:"Grupo J", ALG:"Grupo J", AUT:"Grupo J", JOR:"Grupo J",
-  POR:"Grupo K", COD:"Grupo K", UZB:"Grupo K", COL:"Grupo K",
-  ENG:"Grupo L", CRO:"Grupo L", GHA:"Grupo L", PAN:"Grupo L",
-};
+import { useState } from "react";
 
 const ALBUM = {
-  // Especiales
-  FWC:{name:"FIFA World Cup",emoji:"🏆",total:20,page:1},
-  CC:{name:"Coca-Cola",emoji:"🥤",total:14,page:6},
-  // Grupo A (pág. 8)
-  MEX:{name:"México",emoji:"🇲🇽",total:20,page:8},
-  RSA:{name:"South Africa",emoji:"🇿🇦",total:20,page:10},
-  KOR:{name:"Korea Republic",emoji:"🇰🇷",total:20,page:12},
-  CZE:{name:"Czechia",emoji:"🇨🇿",total:20,page:14},
-  // Grupo B (pág. 16)
-  CAN:{name:"Canada",emoji:"🇨🇦",total:20,page:16},
-  BIH:{name:"Bosnia-Herzegovina",emoji:"🇧🇦",total:20,page:18},
-  QAT:{name:"Qatar",emoji:"🇶🇦",total:20,page:20},
-  SUI:{name:"Switzerland",emoji:"🇨🇭",total:20,page:22},
-  // Grupo C (pág. 24)
-  BRA:{name:"Brazil",emoji:"🇧🇷",total:20,page:24},
-  MAR:{name:"Morocco",emoji:"🇲🇦",total:20,page:26},
-  HAI:{name:"Haiti",emoji:"🇭🇹",total:20,page:28},
-  SCO:{name:"Scotland",emoji:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",total:20,page:30},
-  // Grupo D (pág. 32)
-  USA:{name:"USA",emoji:"🇺🇸",total:20,page:32},
-  PAR:{name:"Paraguay",emoji:"🇵🇾",total:20,page:34},
-  AUS:{name:"Australia",emoji:"🇦🇺",total:20,page:36},
-  TUR:{name:"Türkiye",emoji:"🇹🇷",total:20,page:38},
-  // Grupo E (pág. 40)
-  GER:{name:"Germany",emoji:"🇩🇪",total:20,page:40},
-  CUW:{name:"Curaçao",emoji:"🇨🇼",total:20,page:42},
-  CIV:{name:"Côte d'Ivoire",emoji:"🇨🇮",total:20,page:44},
-  ECU:{name:"Ecuador",emoji:"🇪🇨",total:20,page:46},
-  // Grupo F (pág. 48)
-  NED:{name:"Netherlands",emoji:"🇳🇱",total:20,page:48},
-  JPN:{name:"Japan",emoji:"🇯🇵",total:20,page:50},
-  SWE:{name:"Sweden",emoji:"🇸🇪",total:20,page:52},
-  TUN:{name:"Tunisia",emoji:"🇹🇳",total:20,page:54},
-  // Grupo G (pág. 58)
-  BEL:{name:"Belgium",emoji:"🇧🇪",total:20,page:58},
-  EGY:{name:"Egypt",emoji:"🇪🇬",total:20,page:60},
-  IRN:{name:"IR Iran",emoji:"🇮🇷",total:20,page:62},
-  NZL:{name:"New Zealand",emoji:"🇳🇿",total:20,page:64},
-  // Grupo H (pág. 66)
-  ESP:{name:"Spain",emoji:"🇪🇸",total:20,page:66},
-  CPV:{name:"Cabo Verde",emoji:"🇨🇻",total:20,page:68},
-  KSA:{name:"Saudi Arabia",emoji:"🇸🇦",total:20,page:70},
-  URU:{name:"Uruguay",emoji:"🇺🇾",total:20,page:72},
-  // Grupo I (pág. 74)
-  FRA:{name:"France",emoji:"🇫🇷",total:20,page:74},
-  SEN:{name:"Senegal",emoji:"🇸🇳",total:20,page:76},
-  IRQ:{name:"Iraq",emoji:"🇮🇶",total:20,page:78},
-  NOR:{name:"Norway",emoji:"🇳🇴",total:20,page:80},
-  // Grupo J (pág. 82)
-  ARG:{name:"Argentina",emoji:"🇦🇷",total:20,page:82},
-  ALG:{name:"Algeria",emoji:"🇩🇿",total:20,page:84},
-  AUT:{name:"Austria",emoji:"🇦🇹",total:20,page:86},
-  JOR:{name:"Jordan",emoji:"🇯🇴",total:20,page:88},
-  // Grupo K (pág. 90)
-  POR:{name:"Portugal",emoji:"🇵🇹",total:20,page:90},
-  COD:{name:"Congo DR",emoji:"🇨🇩",total:20,page:92},
-  UZB:{name:"Uzbekistan",emoji:"🇺🇿",total:20,page:94},
-  COL:{name:"Colombia",emoji:"🇨🇴",total:20,page:96},
-  // Grupo L (pág. 98)
-  ENG:{name:"England",emoji:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",total:20,page:98},
-  CRO:{name:"Croatia",emoji:"🇭🇷",total:20,page:100},
-  GHA:{name:"Ghana",emoji:"🇬🇭",total:20,page:102},
-  PAN:{name:"Panama",emoji:"🇵🇦",total:20,page:104},
+  FWC:{name:"FIFA World Cup",emoji:"🏆",total:20},MEX:{name:"México",emoji:"🇲🇽",total:20},
+  RSA:{name:"South Africa",emoji:"🇿🇦",total:20},KOR:{name:"Korea Republic",emoji:"🇰🇷",total:20},
+  CZE:{name:"Czechia",emoji:"🇨🇿",total:20},CAN:{name:"Canada",emoji:"🇨🇦",total:20},
+  BIH:{name:"Bosnia-Herzegovina",emoji:"🇧🇦",total:20},QAT:{name:"Qatar",emoji:"🇶🇦",total:20},
+  SUI:{name:"Switzerland",emoji:"🇨🇭",total:20},MAR:{name:"Morocco",emoji:"🇲🇦",total:20},
+  HAI:{name:"Haiti",emoji:"🇭🇹",total:20},SCO:{name:"Scotland",emoji:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",total:20},
+  USA:{name:"USA",emoji:"🇺🇸",total:20},PAR:{name:"Paraguay",emoji:"🇵🇾",total:20},
+  AUS:{name:"Australia",emoji:"🇦🇺",total:20},TUR:{name:"Türkiye",emoji:"🇹🇷",total:20},
+  GER:{name:"Germany",emoji:"🇩🇪",total:20},CUW:{name:"Curaçao",emoji:"🇨🇼",total:20},
+  CIV:{name:"Côte d'Ivoire",emoji:"🇨🇮",total:20},ECU:{name:"Ecuador",emoji:"🇪🇨",total:20},
+  NED:{name:"Netherlands",emoji:"🇳🇱",total:20},JPN:{name:"Japan",emoji:"🇯🇵",total:20},
+  SWE:{name:"Sweden",emoji:"🇸🇪",total:20},TUN:{name:"Tunisia",emoji:"🇹🇳",total:20},
+  BEL:{name:"Belgium",emoji:"🇧🇪",total:20},EGY:{name:"Egypt",emoji:"🇪🇬",total:20},
+  IRN:{name:"IR Iran",emoji:"🇮🇷",total:20},NZL:{name:"New Zealand",emoji:"🇳🇿",total:20},
+  ESP:{name:"Spain",emoji:"🇪🇸",total:20},CPV:{name:"Cabo Verde",emoji:"🇨🇻",total:20},
+  KSA:{name:"Saudi Arabia",emoji:"🇸🇦",total:20},URU:{name:"Uruguay",emoji:"🇺🇾",total:20},
+  FRA:{name:"France",emoji:"🇫🇷",total:20},SEN:{name:"Senegal",emoji:"🇸🇳",total:20},
+  IRQ:{name:"Iraq",emoji:"🇮🇶",total:20},NOR:{name:"Norway",emoji:"🇳🇴",total:20},
+  ARG:{name:"Argentina",emoji:"🇦🇷",total:20},AUT:{name:"Austria",emoji:"🇦🇹",total:20},
+  JOR:{name:"Jordan",emoji:"🇯🇴",total:20},POR:{name:"Portugal",emoji:"🇵🇹",total:20},
+  COD:{name:"Congo DR",emoji:"🇨🇩",total:20},UZB:{name:"Uzbekistan",emoji:"🇺🇿",total:20},
+  COL:{name:"Colombia",emoji:"🇨🇴",total:20},ENG:{name:"England",emoji:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",total:20},
+  CRO:{name:"Croatia",emoji:"🇭🇷",total:20},GHA:{name:"Ghana",emoji:"🇬🇭",total:20},
+  PAN:{name:"Panama",emoji:"🇵🇦",total:20},CC:{name:"Coca-Cola",emoji:"🥤",total:14},
+  ALG:{name:"Algeria",emoji:"🇩🇿",total:20},BRA:{name:"Brazil",emoji:"🇧🇷",total:20},
 };
 
-const buildEmpty = () => {
-  const r = {};
-  Object.entries(ALBUM).forEach(([code,team]) => {
-    r[code] = {};
-    for(let i=1;i<=team.total;i++) r[code][i]={state:"missing",qty:1,price:0};
-  });
-  return r;
+const TRADEABLE_STATES = ["repeated","sell","trade","auction"];
+
+const RARITY = {
+  FWC:{4:5},MAR:{1:4,13:4,20:4},ARG:{11:4},ENG:{19:3},
+  CIV:{20:3},TUR:{20:3},CZE:{20:3},IRN:{15:3},
 };
 
-// Detecta si un álbum está completamente vacío (todo en "missing").
-// Se usa para BLOQUEAR el auto-guardado en ese caso: nunca se debe sobreescribir
-// un álbum real en la nube con uno vacío por timing/carga fallida.
-const isEmptyAlbum = (stickers) => {
-  let total = 0;
-  let useful = 0;
-  Object.values(stickers || {}).forEach(team => {
-    Object.values(team || {}).forEach(s => {
-      total++;
-      if (s.state !== "missing") useful++;
-    });
-  });
-  return total > 0 && useful === 0;
-};
-
-const WORLD_FINAL = new Date("2026-07-19T20:00:00Z");
-function useCountdown() {
-  const [t,setT]=useState({d:0,h:0,m:0,s:0});
-  useEffect(()=>{
-    const tick=()=>{const diff=WORLD_FINAL-Date.now();if(diff<=0)return;setT({d:Math.floor(diff/864e5),h:Math.floor((diff%864e5)/36e5),m:Math.floor((diff%36e5)/6e4),s:Math.floor((diff%6e4)/1e3)});};
-    tick();const id=setInterval(tick,1000);return()=>clearInterval(id);
-  },[]);
-  return t;
+function getSuggestedPrice(code, num) {
+  const r = RARITY[code]?.[num] || 1;
+  if(r>=5) return {price:5.00,label:"💎 Muy escasa",color:"#a78bfa"};
+  if(r>=4) return {price:3.00,label:"🔥 Escasa",color:"#f97316"};
+  if(r>=3) return {price:2.00,label:"⚡ Demandada",color:"#fbbf24"};
+  return {price:1.00,label:"📦 Normal",color:"#60a5fa"};
 }
 
-// Normaliza emails en TODOS los puntos de entrada: evita que Test@Email.com y test@email.com se traten como usuarios distintos
-function normalizeEmail(email) {
-  return (email || "").trim().toLowerCase();
-}
+// Redimensiona la foto en el cliente antes de mandarla a la API. Claude procesa imágenes a una
+// resolución efectiva máxima de ~1568px en el lado largo — mandar una foto de cámara sin comprimir
+// (3-8MB típico en iPhone) no mejora la lectura, solo aumenta el riesgo de exceder el límite de
+// payload de Vercel y el tiempo de respuesta. Eso es lo más probable detrás del
+// FUNCTION_INVOCATION_FAILED: la función se mata a mitad de camino por tardar demasiado, en vez
+// de devolver un error controlado. Bonus: el canvas siempre reexporta JPEG real sin importar el
+// formato original (HEIC, PNG, etc.), así que esto también resuelve cualquier caso borde de HEIC
+// que la normalización del lado del servidor no alcance a cubrir.
+const MAX_DIMENSION = 1568;
+const JPEG_QUALITY = 0.85;
 
-// ─── SUPABASE DB ──────────────────────────────────────────────────────────────
-const db = {
-  // Fix RLS: ya NO hay fallback silencioso a la anon key. Si no hay token de sesión real,
-  // h() devuelve null y cada método debe abortar explícitamente en vez de mandar una petición
-  // "autenticada" que en realidad viaja como anónima (lo cual rompería las políticas RLS por
-  // auth.email(), o peor, fallaría en silencio dando la falsa impresión de que funcionó).
-  h(token) {
-    if(!token) return null;
-    return {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json"
-    };
-  },
-
-  async saveAlbum(token, email, stickers, username) {
-    const headers=this.h(token);
-    if(!headers) return false;
-    try {
-      // on_conflict=user_email explícito: la tabla tiene dos restricciones únicas (id, user_email).
-      // Sin especificar la columna, PostgREST puede no resolver el merge-duplicates correctamente
-      // contra user_email y devolver 409 en vez de hacer upsert. Esto fue la causa real del 409.
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?on_conflict=user_email`, {
-        method:"POST",
-        headers:{...headers, Prefer:"resolution=merge-duplicates,return=minimal"},
-        body:JSON.stringify({user_email:email, username:username||email.split("@")[0], stickers, updated_at:new Date().toISOString()})
-      });
-      return res.ok;
-    } catch { return false; }
-  },
-
-  async getAlbum(token, email) {
-    const headers=this.h(token);
-    if(!headers) return null;
-    try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?user_email=eq.${encodeURIComponent(email)}&select=*`, {headers});
-      const data = await res.json();
-      return data?.[0]||null;
-    } catch { return null; }
-  },
-
-  isValidEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  },
-
-  async getRelation(token, emailA, emailB) {
-    const headers=this.h(token);
-    if(!headers) return null;
-    try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?or=(and(user_email.eq.${encodeURIComponent(emailA)},contact_email.eq.${encodeURIComponent(emailB)}),and(user_email.eq.${encodeURIComponent(emailB)},contact_email.eq.${encodeURIComponent(emailA)}))&select=*`, {headers});
-      const data = await res.json();
-      return data?.[0]||null;
-    } catch { return null; }
-  },
-
-  async sendRequest(token, fromEmail, toEmail) {
-    if(!this.isValidEmail(fromEmail)||!this.isValidEmail(toEmail)) return false;
-    if(fromEmail===toEmail) return false;
-    const headers=this.h(token);
-    if(!headers) return false;
-    // No crear una nueva solicitud pendiente si ya existe cualquier relación en cualquier dirección
-    const existing = await this.getRelation(token, fromEmail, toEmail);
-    if(existing) return existing.status==="accepted";
-    try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts`, {
-        method:"POST",
-        headers:{...headers, Prefer:"resolution=ignore-duplicates,return=minimal"},
-        body:JSON.stringify({user_email:fromEmail, contact_email:toEmail, status:"pending"})
-      });
-      return res.ok;
-    } catch { return false; }
-  },
-
-  async acceptRequest(token, myEmail, requesterEmail) {
-    const headers=this.h(token);
-    if(!headers) return false;
-    try {
-      // Update their request to accepted
-      await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(requesterEmail)}&contact_email=eq.${encodeURIComponent(myEmail)}`, {
-        method:"PATCH", headers:{...headers, Prefer:"return=minimal"}, body:JSON.stringify({status:"accepted"})
-      });
-      // Create my side accepted
-      await fetch(`${SUPABASE_URL}/rest/v1/contacts`, {
-        method:"POST",
-        headers:{...headers, Prefer:"resolution=merge-duplicates,return=minimal"},
-        body:JSON.stringify({user_email:myEmail, contact_email:requesterEmail, status:"accepted"})
-      });
-      return true;
-    } catch { return false; }
-  },
-
-  async rejectRequest(token, myEmail, requesterEmail) {
-    const headers=this.h(token);
-    if(!headers) return false;
-    try {
-      await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(requesterEmail)}&contact_email=eq.${encodeURIComponent(myEmail)}`, {
-        method:"PATCH", headers:{...headers, Prefer:"return=minimal"}, body:JSON.stringify({status:"rejected"})
-      });
-      return true;
-    } catch { return false; }
-  },
-
-  async getPendingRequests(token, myEmail) {
-    const headers=this.h(token);
-    if(!headers) return [];
-    try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?contact_email=eq.${encodeURIComponent(myEmail)}&status=eq.pending&select=user_email,created_at`, {headers});
-      return await res.json()||[];
-    } catch { return []; }
-  },
-
-  async getAcceptedContacts(token, myEmail) {
-    const headers=this.h(token);
-    if(!headers) return [];
-    try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(myEmail)}&status=eq.accepted&select=contact_email`, {headers});
-      const data = await res.json();
-      return data?.map(d=>d.contact_email)||[];
-    } catch { return []; }
-  },
-
-  async getContactAlbums(token, contacts) {
-    if(!contacts.length) return [];
-    const headers=this.h(token);
-    if(!headers) return [];
-    try {
-      const emails = contacts.map(e=>`"${e}"`).join(",");
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?user_email=in.(${emails})&select=user_email,username,stickers,updated_at`, {headers});
-      return await res.json()||[];
-    } catch { return []; }
-  },
-
-  async getMyRequests(token, myEmail) {
-    const headers=this.h(token);
-    if(!headers) return [];
-    try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/contacts?user_email=eq.${encodeURIComponent(myEmail)}&select=contact_email,status`, {headers});
-      return await res.json()||[];
-    } catch { return []; }
-  }
-};
-
-// ─── AUTH ─────────────────────────────────────────────────────────────────────
-const sbAuth = {
-  async signInWithGoogle() {
-    window.location.href=`${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(window.location.origin)}`;
-  },
-  async signInWithEmail(email,password) {
-    const res=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{method:"POST",headers:{apikey:SUPABASE_KEY,"Content-Type":"application/json"},body:JSON.stringify({email,password})});
-    return res.json();
-  },
-  async signUp(email,password) {
-    const res=await fetch(`${SUPABASE_URL}/auth/v1/signup`,{method:"POST",headers:{apikey:SUPABASE_KEY,"Content-Type":"application/json"},body:JSON.stringify({email,password})});
-    return res.json();
-  },
-  async signOut(token) {
-    await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:"POST",headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${token}`}});
-  },
-  getTokenFromHash() {
-    const hash=window.location.hash;
-    if(!hash||!hash.includes("access_token"))return null;
-    const p=new URLSearchParams(hash.substring(1));
-    const token=p.get("access_token");
-    if(token){window.location.hash="";return token;}
-    return null;
-  },
-  async getUserFromToken(token) {
-    try{
-      const res=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${token}`}});
-      const data=await res.json();
-      return data?.email||null;
-    }catch{return null;}
-  },
-  getStoredSession() { try{const s=localStorage.getItem("figuswap_session");return s?JSON.parse(s):null;}catch{return null;} },
-  storeSession(s) { try{localStorage.setItem("figuswap_session",JSON.stringify(s));}catch{} },
-  clearSession() { try{localStorage.removeItem("figuswap_session");}catch{} }
-};
-
-// ─── AUTH PAGE ────────────────────────────────────────────────────────────────
-function AuthPage({onAuth}) {
-  const [mode,setMode]=useState("login");
-  const [email,setEmail]=useState("");
-  const [pass,setPass]=useState("");
-  const [loading,setLoading]=useState(false);
-  const [error,setError]=useState("");
-  const inp={width:"100%",boxSizing:"border-box",padding:"12px 14px",borderRadius:10,border:"1px solid #1e2a3a",background:"#0a0f1e",color:"#e8eaf6",fontSize:14,outline:"none",marginBottom:10};
-  const handleEmail=async()=>{
-    setLoading(true);setError("");
-    const normEmail=normalizeEmail(email);
-    try{
-      if(mode==="login"){
-        const r=await sbAuth.signInWithEmail(normEmail,pass);
-        if(r.access_token){const s={token:r.access_token,email:normalizeEmail(r.user?.email||normEmail)};sbAuth.storeSession(s);onAuth(s);}
-        else setError(r.error_description||"Email o contraseña incorrectos");
-      }else{
-        const r=await sbAuth.signUp(normEmail,pass);
-        if(r.id||r.user?.id){setMode("login");setError("✅ Cuenta creada. Ya puedes entrar.");}
-        else setError(r.error_description||"Error al registrarse");
-      }
-    }catch{setError("Error de conexión");}
-    setLoading(false);
-  };
-  return (
-    <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{fontSize:52,marginBottom:8}}>⚽</div>
-      <div style={{fontWeight:900,fontSize:28,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:4}}>FiguSwap</div>
-      <div style={{color:"#6b7280",fontSize:13,marginBottom:28,textAlign:"center"}}>El marketplace global de figuritas FIFA WC 2026™</div>
-      <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:16,padding:24,width:"100%",maxWidth:380}}>
-        <button onClick={sbAuth.signInWithGoogle} style={{width:"100%",padding:"14px",background:"#fff",border:"1px solid #e5e7eb",borderRadius:10,color:"#1f2937",fontWeight:700,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
-          <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-          Continuar con Google
-        </button>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-          <div style={{flex:1,height:1,background:"#1e2a3a"}}/><span style={{fontSize:12,color:"#4a5568"}}>o con email</span><div style={{flex:1,height:1,background:"#1e2a3a"}}/>
-        </div>
-        <div style={{display:"flex",gap:8,marginBottom:16}}>
-          {["login","register"].map(m=>(
-            <button key={m} onClick={()=>setMode(m)} style={{flex:1,padding:"10px",borderRadius:10,border:"1px solid",borderColor:mode===m?"#ffd700":"#1e2a3a",background:mode===m?"#ffd700":"transparent",color:mode===m?"#0a0f1e":"#9ca3af",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-              {m==="login"?"Entrar":"Registrarse"}
-            </button>
-          ))}
-        </div>
-        <input style={inp} type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)}/>
-        <input style={inp} type="password" placeholder="Contraseña" value={pass} onChange={e=>setPass(e.target.value)}/>
-        {error&&<div style={{fontSize:12,marginBottom:10,padding:"8px 12px",background:error.startsWith("✅")?"#052e16":"#1e0a0a",borderRadius:8,color:error.startsWith("✅")?"#86efac":"#ef4444"}}>{error}</div>}
-        <button onClick={handleEmail} disabled={loading} style={{width:"100%",padding:"14px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,fontSize:15,cursor:"pointer",opacity:loading?0.7:1}}>
-          {loading?"⏳ ...":(mode==="login"?"Entrar →":"Crear cuenta →")}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── STICKER CELL — TAP TO CYCLE ─────────────────────────────────────────────
-function StickerCell({code,num,data,onAction}) {
-  const pressTimer = useRef(null);
-  const longPressed = useRef(false);
-  const [pressing,setPressing]=useState(false);
-  const [open,setOpen]=useState(false);
-
-  const handleTap = () => {
-    if(longPressed.current) { longPressed.current = false; return; }
-    // Cycle: missing → have → repeated(+1) → repeated(+1)...
-    if(data.state === "missing") {
-      onAction(code, num, "have", 1, 0);
-    } else if(data.state === "have") {
-      onAction(code, num, "repeated", 1, 0);
-    } else if(data.state === "repeated") {
-      onAction(code, num, "repeated", data.qty + 1, 0);
-    } else {
-      // sell/trade/auction — open modal instead
-      setOpen(true);
-    }
-  };
-
-  const handleLongPress = () => {
-    // Long press = subtract 1
-    if(data.state === "repeated") {
-      const newQty = data.qty - 1;
-      if(newQty <= 0) onAction(code, num, "missing", 1, 0);
-      else onAction(code, num, "repeated", newQty, 0);
-    } else if(data.state === "have") {
-      onAction(code, num, "missing", 1, 0);
-    }
-  };
-
-  const onPressStart = () => {
-    longPressed.current = false;
-    pressTimer.current = setTimeout(() => {
-      longPressed.current = true;
-      setPressing(true);
-      handleLongPress();
-      setTimeout(() => setPressing(false), 300);
-    }, 500);
-  };
-
-  const onPressEnd = () => {
-    if(pressTimer.current) clearTimeout(pressTimer.current);
-  };
-
-  const st=STATE[data.state];
-
-  return (
-    <div>
-      <button
-        onClick={handleTap}
-        onMouseDown={onPressStart}
-        onMouseUp={onPressEnd}
-        onTouchStart={onPressStart}
-        onTouchEnd={onPressEnd}
-        onContextMenu={e=>{e.preventDefault();setOpen(true);}}
-        style={{width:"100%",aspectRatio:"1",borderRadius:10,border:`2px solid ${st.color}`,background:pressing?"#333":st.bg,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,position:"relative",transition:"background 0.1s"}}
-      >
-        <span style={{fontSize:16,lineHeight:1}}>{st.emoji}</span>
-        <span style={{fontSize:12,fontWeight:900,color:st.color}}>{num}</span>
-        {data.state==="repeated"&&<span style={{position:"absolute",top:2,right:3,fontSize:9,fontWeight:800,color:"#f97316",background:"#1e0f00",borderRadius:4,padding:"0 2px"}}>×{data.qty}</span>}
-        {data.state==="sell"&&data.price>0&&<span style={{position:"absolute",bottom:2,fontSize:8,color:"#fbbf24",fontWeight:700}}>${data.price}</span>}
-      </button>
-
-      {/* Long press hint */}
-      {(data.state==="repeated"||data.state==="have")&&(
-        <div style={{fontSize:8,color:"#374151",textAlign:"center",marginTop:1}}>mantén=restar</div>
-      )}
-
-      {/* Full modal for sell/trade/auction */}
-      {open&&(
-        <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center",background:"#000a"}} onClick={()=>setOpen(false)}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"#111827",borderRadius:"20px 20px 0 0",padding:24,width:"100%",maxWidth:480,border:"1px solid #1e2a3a",borderBottom:"none"}}>
-            <div style={{textAlign:"center",marginBottom:16}}>
-              <div style={{fontSize:26}}>{ALBUM[code]?.emoji}</div>
-              <div style={{fontWeight:900,fontSize:17,color:"#fff"}}>{ALBUM[code]?.name} <span style={{color:"#ffd700"}}>#{num}</span></div>
-              <div style={{fontSize:12,color:"#6b7280",marginTop:4}}>Toca para cambiar estado</div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
-              {Object.entries(STATE).map(([key,val])=>(
-                <button key={key} onClick={()=>{onAction(code,num,key);setOpen(false);}} style={{padding:"10px 6px",borderRadius:10,border:`1px solid ${data.state===key?val.color:"#1e2a3a"}`,background:data.state===key?val.bg:"#0a0f1e",color:data.state===key?val.color:"#6b7280",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-                  <span style={{fontSize:18}}>{val.emoji}</span><span>{val.label}</span>
-                </button>
-              ))}
-            </div>
-            {(data.state==="sell"||data.state==="auction")&&(
-              <div style={{background:"#0a0f1e",borderRadius:10,padding:12,marginBottom:12}}>
-                <div style={{fontSize:12,color:"#6b7280",marginBottom:8}}>Precio (USD)</div>
-                <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                  <span style={{color:"#6b7280"}}>$</span>
-                  <input type="number" defaultValue={data.price||1} min={0.5} step={0.5} onChange={e=>onAction(code,num,data.state,data.qty,parseFloat(e.target.value))} style={{flex:1,background:"#111827",border:"1px solid #1e2a3a",borderRadius:8,color:"#ffd700",fontSize:20,fontWeight:700,padding:"8px 12px",outline:"none"}}/>
-                </div>
-              </div>
-            )}
-            <button onClick={()=>setOpen(false)} style={{width:"100%",padding:12,background:"transparent",border:"1px solid #1e2a3a",borderRadius:10,color:"#6b7280",fontWeight:700,cursor:"pointer"}}>Cerrar</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── TEAM SECTION ─────────────────────────────────────────────────────────────
-function TeamSection({code,stickers,tab,onAction,onChat}) {
-  const [expanded,setExpanded]=useState(false);
-  const team=ALBUM[code];
-  const allNums=Object.keys(stickers).map(Number);
-  const visibleNums=tab==="missing"?allNums.filter(n=>stickers[n].state==="missing"):tab==="repeated"?allNums.filter(n=>TRADEABLE_STATES.includes(stickers[n].state)):allNums;
-  if(visibleNums.length===0)return null;
-  const have=allNums.filter(n=>stickers[n].state!=="missing").length;
-  const pct=Math.round(have/team.total*100);
-  const complete=pct===100;
-  return (
-    <div style={{background:complete?"#052e16":"#0d1117",border:`1px solid ${complete?"#22c55e":"#1e2a3a"}`,borderRadius:16,overflow:"hidden",marginBottom:10}}>
-      <button onClick={()=>setExpanded(!expanded)} style={{width:"100%",padding:"14px 16px",background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
-        <span style={{fontSize:26}}>{team.emoji}</span>
-        <div style={{flex:1,textAlign:"left"}}>
-          <div style={{fontWeight:800,fontSize:15,color:complete?"#86efac":"#e8eaf6"}}>{team.name}</div>
-          <div style={{fontSize:11,color:"#4a5568",marginTop:1}}>{GROUPS[code]||""}{team.page?` · pág. ${team.page}`:""}</div>
-          <div style={{fontSize:12,color:"#6b7280",marginTop:2}}>
-            {tab==="missing"&&`❌ ${visibleNums.length} faltantes`}
-            {tab==="repeated"&&`🔁 ${visibleNums.length} repetidas`}
-            {tab==="all"&&`${have}/${team.total} · ❌${allNums.filter(n=>stickers[n].state==="missing").length} 🔁${allNums.filter(n=>TRADEABLE_STATES.includes(stickers[n].state)).length}`}
-            {complete&&" ✅ Completo"}
-          </div>
-        </div>
-        <div style={{fontWeight:800,fontSize:15,color:complete?"#22c55e":pct>=75?"#84cc16":pct>=50?"#eab308":"#ef4444"}}>{pct}%</div>
-        <span style={{color:"#4a5568",fontSize:12}}>{expanded?"▲":"▼"}</span>
-      </button>
-      <div style={{height:3,background:"#1e2a3a",margin:"0 16px"}}>
-        <div style={{height:"100%",width:`${pct}%`,background:complete?"#22c55e":"#ffd700",borderRadius:2}}/>
-      </div>
-      {expanded&&(
-        <div style={{padding:16}}>
-          {(tab==="missing"||tab==="repeated")&&(
-            <div style={{fontSize:11,color:"#4a5568",marginBottom:10}}>
-              {tab==="missing"?"👆 Toca para marcar como ✅ tengo":"👆 Toca para editar · Mantén para restar si es repetida"}
-            </div>
-          )}
-          {tab==="all"&&<div style={{fontSize:11,color:"#4a5568",marginBottom:10}}>👆 Toca para ciclar estado · Mantén para restar</div>}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginBottom:14}}>
-            {visibleNums.map(n=>(<StickerCell key={n} code={code} num={n} data={stickers[n]} onAction={onAction}/>))}
-          </div>
-          <button onClick={()=>onChat(code)} style={{width:"100%",padding:"10px",background:"#0a1a2e",border:"1px solid #1e3a5f",borderRadius:10,color:"#60a5fa",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-            💬 Chat {team.name}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── CONTACTS PAGE ────────────────────────────────────────────────────────────
-function ContactsPage({myEmail,myToken,myStickers,onClose}) {
-  const [pending,setPending]=useState([]);
-  const [contacts,setContacts]=useState([]);
-  const [contactAlbums,setContactAlbums]=useState([]);
-  const [myRequests,setMyRequests]=useState([]);
-  const [loading,setLoading]=useState(true);
-  const [addEmail,setAddEmail]=useState("");
-  const [adding,setAdding]=useState(false);
-  const [selected,setSelected]=useState(null);
-  const [copied,setCopied]=useState(false);
-  const [actionMsg,setActionMsg]=useState("");
-
-  const myLink=`${window.location.origin}?invite=${encodeURIComponent(myEmail)}`;
-
-  const load=useCallback(async()=>{
-    setLoading(true);
-    const [pend,accepted,myReqs]=await Promise.all([
-      db.getPendingRequests(myToken,myEmail),
-      db.getAcceptedContacts(myToken,myEmail),
-      db.getMyRequests(myToken,myEmail),
-    ]);
-    setPending(pend);
-    setContacts(accepted);
-    setMyRequests(myReqs);
-    if(accepted.length>0||pend.length>0){
-      const allEmails=[...accepted,...pend.map(p=>p.user_email)];
-      const albums=await db.getContactAlbums(myToken,allEmails);
-      setContactAlbums(albums);
-    }
-    setLoading(false);
-  },[myEmail,myToken]);
-
-  useEffect(()=>{load();},[load]);
-
-  const showMsg=(msg)=>{setActionMsg(msg);setTimeout(()=>setActionMsg(""),2500);};
-
-  const copyLink=()=>{navigator.clipboard.writeText(myLink).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);});};
-  const shareWhatsApp=()=>{
-    const text=`¡Únete a mi red en FiguSwap para intercambiar figuritas del Mundial 2026! ⚽🎴\n\nMi link: ${myLink}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
-  };
-
-  const sendRequest=async()=>{
-    const email=normalizeEmail(addEmail);
-    if(!email)return;
-    if(!db.isValidEmail(email)){showMsg("⚠️ Ese no es un email válido");return;}
-    if(email===myEmail){showMsg("⚠️ No puedes agregarte a ti mismo");return;}
-    setAdding(true);
-    const ok=await db.sendRequest(myToken,myEmail,email);
-    if(ok)showMsg(`✅ Solicitud enviada a ${email.split("@")[0]}`);
-    else showMsg("ℹ️ Ya existe una conexión o solicitud con ese contacto");
-    setAddEmail("");
-    await load();
-    setAdding(false);
-  };
-
-  const acceptReq=async(requesterEmail)=>{
-    await db.acceptRequest(myToken,myEmail,requesterEmail);
-    showMsg(`✅ ¡Conectado con ${requesterEmail.split("@")[0]}!`);
-    await load();
-  };
-
-  const rejectReq=async(requesterEmail)=>{
-    await db.rejectRequest(myToken,myEmail,requesterEmail);
-    showMsg("Solicitud rechazada");
-    await load();
-  };
-
-  const getMatches=(friendStickers)=>{
-    if(!friendStickers||!myStickers)return{iHave:[],theyHave:[]};
-    const iHave=[],theyHave=[];
-    Object.entries(myStickers).forEach(([code,nums])=>{
-      Object.entries(nums||{}).forEach(([num,s])=>{
-        const n=parseInt(num);
-        if(TRADEABLE_STATES.includes(s.state)&&friendStickers[code]?.[n]?.state==="missing") iHave.push({code,num:n,myState:s.state});
-        if(s.state==="missing"&&TRADEABLE_STATES.includes(friendStickers[code]?.[n]?.state)) theyHave.push({code,num:n,theirState:friendStickers[code][n].state});
-      });
-    });
-    return{iHave,theyHave};
-  };
-
-  const getRepeatedCount=(st)=>{
-    if(!st)return 0;
-    return Object.values(st).reduce((s,team)=>s+Object.values(team||{}).filter(x=>TRADEABLE_STATES.includes(x.state)).length,0);
-  };
-
-  return (
-    <div style={{position:"fixed",inset:0,background:"#0a0f1e",zIndex:500,display:"flex",flexDirection:"column"}}>
-      <div style={{background:"#111827",borderBottom:"1px solid #1e2a3a",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
-        <button onClick={onClose} style={{background:"none",border:"none",color:"#6b7280",fontSize:20,cursor:"pointer"}}>←</button>
-        <span style={{fontWeight:900,fontSize:16,color:"#ffd700"}}>👥 Mi Red</span>
-        {pending.length>0&&<span style={{background:"#ef4444",color:"#fff",fontSize:11,fontWeight:800,borderRadius:20,padding:"2px 8px"}}>{pending.length} nueva{pending.length>1?"s":""}</span>}
-        <span style={{marginLeft:"auto",fontSize:12,color:"#6b7280"}}>{contacts.length} amigos</span>
-      </div>
-
-      {actionMsg&&<div style={{background:"#052e16",borderBottom:"1px solid #22c55e",padding:"10px 16px",fontSize:13,color:"#86efac",fontWeight:700}}>{actionMsg}</div>}
-
-      <div style={{flex:1,overflowY:"auto",padding:16}}>
-
-        {/* SOLICITUDES PENDIENTES */}
-        {pending.length>0&&(
-          <div style={{marginBottom:20}}>
-            <div style={{fontWeight:800,color:"#ffd700",fontSize:15,marginBottom:12}}>🔔 Solicitudes pendientes ({pending.length})</div>
-            {pending.map((req,i)=>{
-              const requesterAlbum=contactAlbums.find(a=>a.user_email===req.user_email);
-              const matches=requesterAlbum?getMatches(requesterAlbum.stickers):{iHave:[],theyHave:[]};
-              const repeatedCount=getRepeatedCount(requesterAlbum?.stickers);
-              return (
-                <div key={i} style={{background:"#111827",border:"2px solid #ffd700",borderRadius:14,padding:16,marginBottom:12}}>
-                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-                    <div style={{width:48,height:48,borderRadius:"50%",background:"linear-gradient(135deg,#ffd700,#f59e0b)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,color:"#0a0f1e",fontSize:22,flexShrink:0}}>
-                      {req.user_email[0].toUpperCase()}
-                    </div>
-                    <div style={{flex:1}}>
-                      <div style={{fontWeight:900,color:"#ffd700",fontSize:16}}>{req.user_email.split("@")[0]}</div>
-                      <div style={{fontSize:12,color:"#6b7280"}}>{req.user_email}</div>
-                      <div style={{fontSize:12,color:"#f97316",marginTop:3}}>
-                        🔁 {repeatedCount} disponibles para intercambio
-                        {matches.theyHave.length>0&&<span style={{color:"#22c55e"}}> · {matches.theyHave.length} que tú necesitas ⭐</span>}
-                      </div>
-                    </div>
-                  </div>
-
-                  {matches.theyHave.length>0&&(
-                    <div style={{background:"#0a1a0a",border:"1px solid #22c55e",borderRadius:10,padding:"10px 12px",marginBottom:12}}>
-                      <div style={{fontSize:12,color:"#4ade80",fontWeight:700,marginBottom:6}}>⭐ Tiene estas que tú necesitas:</div>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                        {matches.theyHave.slice(0,10).map((s,j)=>(
-                          <span key={j} style={{fontSize:11,padding:"3px 8px",borderRadius:12,background:"#052e16",color:"#22c55e",border:"1px solid #22c55e"}}>{s.code} #{s.num}</span>
-                        ))}
-                        {matches.theyHave.length>10&&<span style={{fontSize:11,color:"#6b7280"}}>+{matches.theyHave.length-10} más</span>}
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                    <button onClick={()=>rejectReq(req.user_email)} style={{padding:"13px",background:"transparent",border:"1px solid #ef4444",borderRadius:10,color:"#ef4444",fontWeight:700,fontSize:14,cursor:"pointer"}}>
-                      ❌ Rechazar
-                    </button>
-                    <button onClick={()=>acceptReq(req.user_email)} style={{padding:"13px",background:"linear-gradient(135deg,#22c55e,#16a34a)",border:"none",borderRadius:10,color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>
-                      ✅ Aceptar
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* MI LINK */}
-        <div style={{background:"#111827",border:"1px solid #1e3a5f",borderRadius:14,padding:16,marginBottom:16}}>
-          <div style={{fontWeight:800,color:"#60a5fa",marginBottom:4}}>🔗 Invitar amigos</div>
-          <div style={{fontSize:12,color:"#6b7280",marginBottom:10}}>Al abrir tu link verán tus repetidas y podrán enviarte solicitud de conexión</div>
-          <div style={{display:"flex",gap:8}}>
-            <button onClick={copyLink} style={{flex:1,padding:"11px",background:copied?"#22c55e":"#1e2a3a",border:"1px solid",borderColor:copied?"#22c55e":"#374151",borderRadius:8,color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-              {copied?"✅ Copiado!":"📋 Copiar link"}
-            </button>
-            <button onClick={shareWhatsApp} style={{flex:1,padding:"11px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-              💬 WhatsApp
-            </button>
-          </div>
-        </div>
-
-        {/* AGREGAR POR EMAIL */}
-        <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:14,padding:16,marginBottom:16}}>
-          <div style={{fontWeight:700,color:"#e8eaf6",marginBottom:8}}>➕ Enviar solicitud por email</div>
-          <div style={{display:"flex",gap:8}}>
-            <input value={addEmail} onChange={e=>setAddEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendRequest()} placeholder="email@ejemplo.com" inputMode="email" style={{flex:1,padding:"10px 14px",borderRadius:8,border:"1px solid #1e2a3a",background:"#0a0f1e",color:"#e8eaf6",fontSize:13,outline:"none"}}/>
-            <button onClick={sendRequest} disabled={adding||!addEmail.trim()} style={{padding:"10px 18px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:8,color:"#0a0f1e",fontWeight:800,cursor:"pointer",fontSize:16,opacity:(adding||!addEmail.trim())?0.5:1}}>
-              {adding?"⏳":"→"}
-            </button>
-          </div>
-          {myRequests.filter(r=>r.status==="pending").length>0&&(
-            <div style={{marginTop:10,fontSize:12,color:"#6b7280"}}>
-              📤 Enviadas a: {myRequests.filter(r=>r.status==="pending").map(r=>r.contact_email.split("@")[0]).join(", ")}
-            </div>
-          )}
-        </div>
-
-        {/* AMIGOS */}
-        {loading&&<div style={{textAlign:"center",padding:32,color:"#6b7280"}}>⏳ Cargando red...</div>}
-
-        {!loading&&contacts.length>0&&(
-          <>
-            <div style={{fontWeight:800,color:"#e8eaf6",fontSize:15,marginBottom:12}}>✅ Mis amigos ({contacts.length})</div>
-            {contacts.map((email,i)=>{
-              const album=contactAlbums.find(a=>a.user_email===email);
-              const matches=album?getMatches(album.stickers):{iHave:[],theyHave:[]};
-              const totalMatches=matches.iHave.length+matches.theyHave.length;
-              const repeatedCount=getRepeatedCount(album?.stickers);
-              return (
-                <div key={i} style={{background:"#111827",border:`1px solid ${totalMatches>0?"#22c55e":"#1e2a3a"}`,borderRadius:14,padding:16,marginBottom:12}}>
-                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-                    <div style={{width:44,height:44,borderRadius:"50%",background:"linear-gradient(135deg,#22c55e,#16a34a)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,color:"#fff",fontSize:20,flexShrink:0}}>
-                      {email[0].toUpperCase()}
-                    </div>
-                    <div style={{flex:1}}>
-                      <div style={{fontWeight:800,color:"#e8eaf6",fontSize:15}}>{album?.username||email.split("@")[0]}</div>
-                      <div style={{fontSize:11,color:"#4a5568"}}>{email}</div>
-                      {album&&<div style={{fontSize:11,color:"#6b7280",marginTop:2}}>🔁 {repeatedCount} disponibles · actualizado {new Date(album.updated_at).toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"})}</div>}
-                    </div>
-                    {totalMatches>0&&<span style={{fontSize:12,color:"#ffd700",background:"#1e1500",padding:"4px 10px",borderRadius:20,fontWeight:800}}>🎯 {totalMatches}</span>}
-                  </div>
-
-                  {album&&(
-                    <>
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-                        <div style={{background:"#052e16",borderRadius:10,padding:"12px",textAlign:"center"}}>
-                          <div style={{fontSize:11,color:"#4ade80",marginBottom:2}}>Yo tengo para ellos</div>
-                          <div style={{fontWeight:900,color:"#22c55e",fontSize:24}}>{matches.iHave.length}</div>
-                          <div style={{fontSize:10,color:"#6b7280"}}>de sus faltantes</div>
-                        </div>
-                        <div style={{background:"#1e0f00",borderRadius:10,padding:"12px",textAlign:"center"}}>
-                          <div style={{fontSize:11,color:"#fb923c",marginBottom:2}}>Ellos tienen para mí</div>
-                          <div style={{fontWeight:900,color:"#f97316",fontSize:24}}>{matches.theyHave.length}</div>
-                          <div style={{fontSize:10,color:"#6b7280"}}>de mis faltantes</div>
-                        </div>
-                      </div>
-
-                      {totalMatches>0&&(
-                        <button onClick={()=>setSelected(selected===email?null:email)} style={{width:"100%",padding:"10px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,fontSize:13,cursor:"pointer",marginBottom:8}}>
-                          🎯 {selected===email?"Ocultar":"Ver"} listado completo de matches
-                        </button>
-                      )}
-
-                      {selected===email&&(
-                        <div style={{background:"#0a0f1e",borderRadius:12,padding:14}}>
-                          {matches.theyHave.length>0&&(
-                            <div style={{marginBottom:14}}>
-                              <div style={{fontSize:13,color:"#f97316",fontWeight:800,marginBottom:8}}>🔁 {album?.username||email.split("@")[0]} tiene lo que tú necesitas:</div>
-                              <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                                {matches.theyHave.map((s,j)=>(
-                                  <span key={j} style={{fontSize:12,padding:"4px 10px",borderRadius:12,background:"#1e0f00",color:"#f97316",border:"1px solid #f97316",fontWeight:700}}>{s.code} #{s.num}</span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {matches.iHave.length>0&&(
-                            <div style={{marginBottom:14}}>
-                              <div style={{fontSize:13,color:"#22c55e",fontWeight:800,marginBottom:8}}>✅ Tú tienes lo que {album?.username||email.split("@")[0]} necesita:</div>
-                              <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                                {matches.iHave.map((s,j)=>(
-                                  <span key={j} style={{fontSize:12,padding:"4px 10px",borderRadius:12,background:"#052e16",color:"#22c55e",border:"1px solid #22c55e",fontWeight:700}}>{s.code} #{s.num}</span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          <button onClick={()=>{
-                            const name=album?.username||email.split("@")[0];
-                            const text=`Hola ${name}! 👋\n\nVi en FiguSwap que podemos intercambiar:\n✅ Yo tengo ${matches.iHave.length} que tú necesitas:\n${matches.iHave.slice(0,5).map(s=>`${s.code} #${s.num}`).join(", ")}${matches.iHave.length>5?`... y ${matches.iHave.length-5} más`:""}\n\n🔁 Tú tienes ${matches.theyHave.length} que yo necesito:\n${matches.theyHave.slice(0,5).map(s=>`${s.code} #${s.num}`).join(", ")}${matches.theyHave.length>5?`... y ${matches.theyHave.length-5} más`:""}\n\n¿Coordinamos? ⚽🎴`;
-                            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
-                          }} style={{width:"100%",padding:"12px",background:"#14532d",border:"1px solid #22c55e",borderRadius:10,color:"#86efac",fontWeight:700,fontSize:14,cursor:"pointer"}}>
-                            💬 Coordinar intercambio por WhatsApp
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {!album&&<div style={{fontSize:12,color:"#6b7280",textAlign:"center",padding:"8px 0"}}>{email.split("@")[0]} aún no ha llenado su álbum</div>}
-                </div>
-              );
-            })}
-          </>
-        )}
-
-        {!loading&&contacts.length===0&&pending.length===0&&(
-          <div style={{textAlign:"center",padding:40,color:"#4a5568"}}>
-            <div style={{fontSize:48,marginBottom:12}}>👥</div>
-            <div style={{fontWeight:700,marginBottom:6,color:"#6b7280"}}>Sin conexiones aún</div>
-            <div style={{fontSize:13}}>Comparte tu link o envía una solicitud para conectarte</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── MAIN ─────────────────────────────────────────────────────────────────────
-// Fix: ErrorBoundary para capturar crashes no previstos (token expirado, estado en transición,
-// etc.) y mostrar un mensaje de recuperación en vez de dejar la pantalla completamente en blanco.
-// React requiere que esto sea una clase, no se puede hacer con hooks.
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  componentDidCatch(error, info) {
-    console.error("FiguSwap crash capturado:", error, info);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,textAlign:"center"}}>
-          <div style={{fontSize:48,marginBottom:16}}>⚠️</div>
-          <div style={{fontWeight:800,fontSize:18,color:"#e8eaf6",marginBottom:8}}>Algo salió mal</div>
-          <div style={{fontSize:13,color:"#6b7280",marginBottom:24}}>La app encontró un error inesperado. Tus datos están seguros en la nube.</div>
-          <button onClick={()=>window.location.reload()} style={{padding:"14px 28px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:12,color:"#0a0f1e",fontWeight:800,fontSize:15,cursor:"pointer"}}>
-            🔄 Recargar app
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-function FiguSwapInner() {
-  const [session,setSession]=useState(null);
-  const [checkingSession,setCheckingSession]=useState(true);
-  const [page,setPage]=useState("album");
-  const [albumTab,setAlbumTab]=useState("all");
-  const [stickers,setStickers]=useState(buildEmpty);
-  const [search,setSearch]=useState("");
-  const [chat,setChat]=useState(null);
-  const [toast,setToast]=useState(null);
-  const [showOnboarding,setShowOnboarding]=useState(false);
-  const [showImporter,setShowImporter]=useState(false);
-  const [showShare,setShowShare]=useState(false);
-  const [pendingCount,setPendingCount]=useState(0);
-  const [saving,setSaving]=useState(false);
-  const [loadedAlbum,setLoadedAlbum]=useState(false);
-  const countdown=useCountdown();
-
-  const showToastMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),2500);};
-
-  useEffect(()=>{
-    const params=new URLSearchParams(window.location.search);
-    const inviter=params.get("invite");
-    if(inviter)localStorage.setItem("figuswap_pending_invite",normalizeEmail(inviter));
-
-    const token=sbAuth.getTokenFromHash();
-    if(token){
-      sbAuth.getUserFromToken(token).then(email=>{
-        if(email){
-          const s={token,email:normalizeEmail(email)};
-          sbAuth.storeSession(s);
-          setSession(s);
-        }
-        setCheckingSession(false);
-      });
-      return;
-    }
-    const stored=sbAuth.getStoredSession();
-    if(stored){
-      // No confiar ciegamente en la sesión guardada — verificar que el token siga vivo en Supabase
-      sbAuth.getUserFromToken(stored.token).then(email=>{
-        if(email){
-          // Fix: usar el email recién confirmado por Supabase, NUNCA el stored.email tal cual.
-          // Si localStorage quedó con un email vacío/viejo/corrupto, esto lo corrige en cada carga
-          // en vez de propagar el dato corrupto hacia adelante.
-          const s={token:stored.token, email:normalizeEmail(email)};
-          sbAuth.storeSession(s);
-          setSession(s);
+function resizeImageToDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+        if (width >= height) {
+          height = Math.round(height * (MAX_DIMENSION / width));
+          width = MAX_DIMENSION;
         } else {
-          // Token expirado o rechazado — limpiar localStorage para no quedar "logueado" sin estarlo
-          sbAuth.clearSession();
-          setSession(null);
+          width = Math.round(width * (MAX_DIMENSION / height));
+          height = MAX_DIMENSION;
         }
-        setCheckingSession(false);
-      });
-    } else {
-      setCheckingSession(false);
-    }
-  },[]);
-
-
-  useEffect(()=>{
-    // Fix: nunca proceder con un email vacío o inválido — ni cargar ni dejar que se dispare auto-save después
-    if(!session?.email || !db.isValidEmail(session.email))return;
-    setLoadedAlbum(false);
-    const pending=localStorage.getItem("figuswap_pending_invite");
-    if(pending&&pending!==session.email){
-      // El visitante (session.email) envía la solicitud al dueño del link (pending)
-      db.sendRequest(session.token,session.email,pending).then(()=>{
-        localStorage.removeItem("figuswap_pending_invite");
-        showToastMsg(`✅ Solicitud enviada a ${pending.split("@")[0]}`);
-      });
-    }
-    // Load from Supabase (cloud first)
-    db.getAlbum(session.token,session.email).then(data=>{
-      if(data?.stickers&&Object.keys(data.stickers).length>0){
-        setStickers(data.stickers);
-      } else {
-        try{
-          const local=localStorage.getItem(`figuswap_stickers_${session.email}`);
-          if(local){
-            const parsed=JSON.parse(local);
-            setStickers(parsed);
-            // Fix: el mismo riesgo de sobreescribir la nube con un álbum vacío aplica aquí.
-            // Si el localStorage de este dispositivo está vacío/corrupto, no lo subimos a Supabase.
-            if(!isEmptyAlbum(parsed)){
-              db.saveAlbum(session.token,session.email,parsed,session.email.split("@")[0]);
-            }
-          } else {
-            setShowOnboarding(true);
-          }
-        }catch{setShowOnboarding(true);}
       }
-    }).finally(()=>setLoadedAlbum(true));
-    db.getPendingRequests(session.token,session.email).then(r=>setPendingCount(r.length));
-  },[session]);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(objectUrl);
+      resolve(canvas.toDataURL("image/jpeg", JPEG_QUALITY));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("No se pudo leer la imagen"));
+    };
+    img.src = objectUrl;
+  });
+}
 
-  // Auto-save to Supabase
-  useEffect(()=>{
-    // Fix 1: nunca guardar con email vacío/inválido. Fix 2: nunca guardar antes de que termine la carga inicial.
-    if(!session?.email || !db.isValidEmail(session.email) || !loadedAlbum)return;
-    const timer=setTimeout(async()=>{
-      // Fix 3: nunca guardar un álbum completamente vacío — eso solo puede pasar por timing/carga
-      // fallida, nunca debería sobreescribir un álbum real existente en la nube.
-      if(isEmptyAlbum(stickers)){
-        showToastMsg("⚠️ Guardado bloqueado: álbum vacío detectado");
-        return;
-      }
-      setSaving(true);
-      const ok=await db.saveAlbum(session.token,session.email,stickers,session.email.split("@")[0]);
-      setSaving(false);
-      if(!ok)showToastMsg("⚠️ No se pudo guardar — revisa tu conexión");
-    },1500);
-    return()=>clearTimeout(timer);
-  },[stickers,session,loadedAlbum]);
+export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum }) {
+  const [step,setStep]=useState("upload");
+  const [image,setImage]=useState(null);
+  const [imageBase64,setImageBase64]=useState(null);
+  const [mediaType,setMediaType]=useState("image/jpeg");
+  const [detected,setDetected]=useState([]);
+  const [error,setError]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [processingImage,setProcessingImage]=useState(false);
+  const [applied,setApplied]=useState({});
 
-
-  const handleAction=(code,num,state,qty,price)=>{
-    if(!ALBUM[code]||!STATE[state]){
-      showToastMsg("⚠️ Selección o estado no reconocido");
-      return;
-    }
-    setStickers(prev=>{
-      if(!prev[code]?.[num])return prev;
-      return {
-        ...prev,
-        [code]:{
-          ...prev[code],
-          [num]:{
-            state,
-            qty:qty!==undefined?qty:prev[code][num].qty,
-            price:price!==undefined?price:prev[code][num].price
-          }
-        }
-      };
+  const handleFile=(file)=>{
+    if(!file)return;
+    setError(null);
+    setProcessingImage(true);
+    resizeImageToDataURL(file).then(dataUrl=>{
+      // El canvas siempre reexporta JPEG real, así que mediaType ya no depende de file.type.
+      setMediaType("image/jpeg");
+      setImage(dataUrl);
+      setImageBase64(dataUrl.split(",")[1]);
+    }).catch(()=>{
+      setError("No se pudo procesar esa foto. Intenta con otra.");
+    }).finally(()=>{
+      setProcessingImage(false);
     });
-    showToastMsg(`${STATE[state].emoji} ${ALBUM[code].name} #${num} → ${STATE[state].label}${state==="repeated"&&qty>1?` ×${qty}`:""}`);
   };
 
-  // Fix: filter considers tab when checking if team has visible stickers
-  const filtered=useMemo(()=>ALBUM_ORDER.filter(code=>{
-    const ts=stickers[code];
-    if(!ts)return false;
-    const team=ALBUM[code];
-    if(!team)return false;
-    const matchSearch=search===""||team.name.toLowerCase().includes(search.toLowerCase())||code.toLowerCase().includes(search.toLowerCase());
-    if(!matchSearch)return false;
-    if(albumTab==="missing")return Object.values(ts).some(s=>s.state==="missing");
-    if(albumTab==="repeated")return Object.values(ts).some(s=>TRADEABLE_STATES.includes(s.state));
-    return true;
-  }).map(code=>[code,stickers[code]]),[stickers,search,albumTab]);
+  const scan=async()=>{
+    if(!imageBase64)return;
+    setLoading(true);setError(null);
+    try{
+      const res=await fetch("/api/scan",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({image:imageBase64,mediaType})
+      });
+      if(!res.ok)throw new Error(`Error ${res.status}`);
+      const data=await res.json();
+      const codes=data.stickers||[];
 
-  const albumStats=useMemo(()=>{
-    const counts={missing:0,have:0,repeated:0,sell:0,trade:0,auction:0};
-    let repeatedUnits=0;
-    let tradeableCount=0;
-    Object.values(stickers).forEach(team=>{Object.values(team).forEach(s=>{
-      counts[s.state]=(counts[s.state]||0)+1;
-      if(TRADEABLE_STATES.includes(s.state)){repeatedUnits+=(s.qty||1);tradeableCount++;}
-    });});
-    const total=Object.values(ALBUM).reduce((s,t)=>s+t.total,0);
-    const pct=Math.round((counts.have+counts.repeated+counts.sell+counts.trade+counts.auction)/total*100);
-    return{...counts,repeatedUnits,tradeableCount,total,pct};
-  },[stickers]);
+      const counts={};
+      codes.forEach(c=>{
+        const key=String(c).trim().toUpperCase();
+        counts[key]=(counts[key]||0)+1;
+      });
 
-  const userNeeded=useMemo(()=>{
-    const r={};
-    Object.entries(stickers).forEach(([code,nums])=>{
-      const missing=Object.entries(nums).filter(([,s])=>s.state==="missing").map(([n])=>parseInt(n));
-      if(missing.length>0)r[code]=missing;
-    });
-    return r;
-  },[stickers]);
+      const parsed=Object.keys(counts).map(c=>{
+        const parts=c.split(/\s+/);
+        const code=parts[0]?.toUpperCase();
+        const num=parseInt(parts[1]);
+        if(!code||isNaN(num))return null;
+        const teamExists=!!ALBUM[code];
+        if(!teamExists)return null;
 
-  if(checkingSession)return (
-    <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <div style={{fontSize:40}}>⚽</div>
-    </div>
-  );
-  if(!session)return <AuthPage onAuth={s=>{setSession(s);sbAuth.storeSession(s);}}/>;
+        // Fix: usar myStickers para clasificar correctamente
+        const current=myStickers?.[code]?.[num];
+        const currentState=current?.state||"missing";
+        const isNeeded=currentState==="missing";
+        const isAlreadyTradeable=TRADEABLE_STATES.includes(currentState);
 
-  // Fix condición de carrera (pérdida de datos al importar): antes de este fix, getAlbum() corría
-  // en paralelo a la primera interacción del usuario. Si alguien importaba una lista o tocaba una
-  // figurita ANTES de que getAlbum() resolviera, la respuesta tardía de la nube podía sobreescribir
-  // silenciosamente lo recién hecho. Bloqueamos toda la UI (incluyendo abrir Importador/Scanner)
-  // hasta que loadedAlbum sea true. La carga real toma ~200-500ms, así que esto es casi imperceptible.
-  if(!loadedAlbum)return (
-    <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10}}>
-      <div style={{fontSize:40}}>⚽</div>
-      <div style={{fontSize:13,color:"#6b7280"}}>Cargando tu álbum...</div>
-    </div>
-  );
+        const suggestion=getSuggestedPrice(code,num);
+        const quantity=counts[c];
+        return{code,num,isNeeded,isAlreadyTradeable,currentState,suggestion,quantity,teamExists};
+      }).filter(Boolean);
 
-  const NAV=[["album","📋","Álbum"],["scanner","📸","Escanear"],["contacts","👥","Red"],["profile","👤","Perfil"]];
+      setDetected(parsed);
+      setStep("results");
+    }catch(e){
+      setError(`Error al escanear: ${e.message}`);
+    }
+    setLoading(false);
+  };
 
-  return (
-    <div style={{minHeight:"100vh",background:"#0a0f1e",color:"#e8eaf6",fontFamily:"'Segoe UI',system-ui,sans-serif",paddingBottom:72}}>
-      <div style={{background:"linear-gradient(135deg,#0a0f1e,#111827)",borderBottom:"1px solid #1e2a3a",padding:"12px 16px",position:"sticky",top:0,zIndex:100}}>
-        <div style={{maxWidth:720,margin:"0 auto",display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:22}}>⚽</span>
-          <span style={{fontWeight:900,fontSize:18,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>FiguSwap</span>
-          {saving&&<span style={{fontSize:10,color:"#4a5568",marginLeft:2}}>💾</span>}
-          <div style={{marginLeft:"auto",display:"flex",gap:12}}>
-            {[["d","días"],["h","h"],["m","m"]].map(([k,l])=>(
-              <div key={k} style={{textAlign:"center"}}>
-                <div style={{fontSize:14,fontWeight:900,color:"#ffd700",fontVariantNumeric:"tabular-nums"}}>{String(countdown[k]||0).padStart(2,"0")}</div>
-                <div style={{fontSize:8,color:"#4a5568"}}>{l}</div>
-              </div>
-            ))}
+  // Fix: applyAction ahora pasa qty y price correctamente a handleAction en App.jsx
+  const applyAction=(code,num,action,qty=1,price=0)=>{
+    setApplied(prev=>({...prev,[`${code}-${num}`]:action}));
+    if(onUpdateAlbum) onUpdateAlbum(code,num,action,qty,price);
+  };
+
+  // Fix: botón "Enviar a repetidas" — marca como repeated con qty correcta
+  const sendToRepeated=(s)=>{
+    const current=myStickers?.[s.code]?.[s.num];
+    const currentQty=current?.state==="repeated"?(current.qty||1):0;
+    // Si ya tiene unidades como repeated, suma las nuevas
+    const newQty=currentQty+s.quantity;
+    applyAction(s.code,s.num,"repeated",newQty,0);
+  };
+
+  const reset=()=>{
+    setStep("upload");setImage(null);
+    setImageBase64(null);setDetected([]);
+    setError(null);setApplied({});
+  };
+
+  const needed=detected.filter(s=>s.isNeeded);
+  const repeated=detected.filter(s=>!s.isNeeded&&s.teamExists);
+  const totalApplied=Object.keys(applied).length;
+
+  if(step==="upload") return (
+    <div style={{padding:16,maxWidth:480,margin:"0 auto"}}>
+      <h2 style={{fontWeight:900,fontSize:20,color:"#ffd700",margin:"0 0 4px"}}>📸 Escáner IA</h2>
+      <p style={{color:"#6b7280",fontSize:13,marginBottom:20}}>
+        Sube una foto y la IA detecta automáticamente qué figuritas tienes.
+      </p>
+
+      <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:14,padding:16,marginBottom:20}}>
+        {[
+          ["1️⃣","Elige una foto o toma una nueva"],
+          ["2️⃣","Toca Escanear con IA"],
+          ["3️⃣","La app te dice qué pegar, vender o cambiar"],
+        ].map(([ic,txt],i)=>(
+          <div key={i} style={{display:"flex",gap:10,alignItems:"center",marginBottom:i<2?10:0}}>
+            <span style={{fontSize:20,flexShrink:0}}>{ic}</span>
+            <span style={{color:"#9ca3af",fontSize:13}}>{txt}</span>
           </div>
-        </div>
-      </div>
-
-      <div style={{maxWidth:720,margin:"0 auto",padding:16}}>
-        {page==="album"&&(
-          <>
-            <div style={{background:"#0d1117",border:"1px solid #1e2a3a",borderRadius:14,padding:14,marginBottom:12}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                <span style={{fontWeight:800,color:"#e8eaf6",fontSize:14}}>📋 Mi Álbum FIFA WC 2026</span>
-                <span style={{fontWeight:900,color:"#ffd700",fontSize:16}}>{albumStats.pct}%</span>
-              </div>
-              <div style={{height:6,background:"#1e2a3a",borderRadius:3,overflow:"hidden",marginBottom:10}}>
-                <div style={{height:"100%",width:`${albumStats.pct}%`,background:"linear-gradient(90deg,#ffd700,#f59e0b)",borderRadius:3}}/>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#6b7280",marginBottom:12}}>
-                <span>❌ {albumStats.missing} faltan</span>
-                <span>✅ {albumStats.have} tengo</span>
-                <span>🔁 {albumStats.tradeableCount} disponibles ({albumStats.repeatedUnits} unidades)</span>
-              </div>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setShowShare(true)} style={{flex:1,padding:"8px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:12,cursor:"pointer"}}>📤 Compartir</button>
-                <button onClick={()=>setShowImporter(true)} style={{flex:1,padding:"8px",background:"#1e2a3a",border:"1px solid #374151",borderRadius:8,color:"#9ca3af",fontWeight:700,fontSize:12,cursor:"pointer"}}>📋 Importar</button>
-              </div>
-            </div>
-
-            <div style={{display:"flex",background:"#111827",borderRadius:12,padding:4,marginBottom:12,border:"1px solid #1e2a3a"}}>
-              {[["all","Todas"],["missing","Me faltan"],["repeated","Repetidas"]].map(([v,l])=>(
-                <button key={v} onClick={()=>{setAlbumTab(v);setSearch("");}} style={{flex:1,padding:"10px 4px",borderRadius:9,border:"none",background:albumTab===v?"#ffd700":"transparent",color:albumTab===v?"#0a0f1e":"#6b7280",fontWeight:albumTab===v?800:600,fontSize:13,cursor:"pointer"}}>
-                  {l}
-                  {v==="missing"&&albumStats.missing>0&&<span style={{fontSize:9,marginLeft:3,background:"#ef4444",color:"#fff",borderRadius:10,padding:"1px 4px"}}>{albumStats.missing}</span>}
-                  {v==="repeated"&&albumStats.tradeableCount>0&&<span style={{fontSize:9,marginLeft:3,background:"#f97316",color:"#fff",borderRadius:10,padding:"1px 4px"}}>{albumStats.tradeableCount}</span>}
-                </button>
-              ))}
-            </div>
-
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={`🔍 Buscar ${albumTab==="missing"?"faltantes":albumTab==="repeated"?"repetidas":"selección"}...`} style={{width:"100%",boxSizing:"border-box",padding:"10px 14px",borderRadius:10,border:"1px solid #1e2a3a",background:"#111827",color:"#e8eaf6",fontSize:14,outline:"none",marginBottom:12}}/>
-
-            {filtered.length===0&&(
-              <div style={{textAlign:"center",padding:40,color:"#4a5568"}}>
-                <div style={{fontSize:40,marginBottom:12}}>{albumTab==="missing"?"🎉":albumTab==="repeated"?"🔁":"🔍"}</div>
-                <div style={{fontWeight:700,color:"#6b7280"}}>
-                  {search?`No se encontró "${search}" en ${albumTab==="missing"?"faltantes":albumTab==="repeated"?"repetidas":"el álbum"}`:albumTab==="missing"?"¡No te falta ninguna!":albumTab==="repeated"?"No tienes repetidas aún":"Sin resultados"}
-                </div>
-              </div>
-            )}
-
-            {filtered.map(([code,ts])=>(<TeamSection key={code} code={code} stickers={ts} tab={albumTab} onAction={handleAction} onChat={setChat}/>))}
-          </>
-        )}
-
-        {page==="scanner"&&<Scanner userNeeded={userNeeded} myStickers={stickers} onUpdateAlbum={(code,num,state,qty,price)=>handleAction(code,num,state,qty,price)}/>}
-
-        {page==="contacts"&&<ContactsPage myEmail={session.email} myToken={session.token} myStickers={stickers} onClose={()=>{setPage("album");db.getPendingRequests(session.token,session.email).then(r=>setPendingCount(r.length));}}/>}
-
-        {page==="profile"&&(
-          <div>
-            <div style={{background:"linear-gradient(135deg,#1a1040,#0a1a2e)",border:"1px solid #1e2a3a",borderRadius:16,padding:24,textAlign:"center",marginBottom:16}}>
-              <div style={{fontSize:48,marginBottom:8}}>👤</div>
-              <div style={{fontWeight:900,fontSize:20,color:"#fff"}}>{session.email?.split("@")[0]}</div>
-              <div style={{color:"#6b7280",fontSize:13,marginBottom:16}}>{session.email}</div>
-              <div style={{display:"flex",gap:12,justifyContent:"center"}}>
-                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#ffd700"}}>{albumStats.pct}%</div><div style={{fontSize:11,color:"#6b7280"}}>álbum</div></div>
-                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#ef4444"}}>{albumStats.missing}</div><div style={{fontSize:11,color:"#6b7280"}}>faltan</div></div>
-                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#22c55e"}}>{albumStats.have}</div><div style={{fontSize:11,color:"#6b7280"}}>tengo</div></div>
-                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#f97316"}}>{albumStats.tradeableCount}</div><div style={{fontSize:11,color:"#6b7280"}}>disponibles</div></div>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:10,marginBottom:12}}>
-              <button onClick={()=>setShowShare(true)} style={{flex:1,padding:"13px",background:"#14532d",border:"1px solid #22c55e",borderRadius:12,color:"#86efac",fontWeight:700,cursor:"pointer"}}>📤 Compartir lista</button>
-              <button onClick={()=>setShowImporter(true)} style={{flex:1,padding:"13px",background:"#1e2a3a",border:"1px solid #374151",borderRadius:12,color:"#9ca3af",fontWeight:700,cursor:"pointer"}}>📋 Importar lista</button>
-            </div>
-            <button onClick={()=>setPage("contacts")} style={{width:"100%",padding:"14px",background:"#0a1a2e",border:"1px solid #3b82f6",borderRadius:12,color:"#60a5fa",fontWeight:700,cursor:"pointer",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-              👥 Mi Red de contactos
-              {pendingCount>0&&<span style={{background:"#ef4444",color:"#fff",fontSize:11,fontWeight:800,borderRadius:20,padding:"2px 8px"}}>{pendingCount} nueva{pendingCount>1?"s":""}</span>}
-            </button>
-            <button onClick={async()=>{await sbAuth.signOut(session.token);sbAuth.clearSession();setSession(null);setStickers(buildEmpty());}} style={{width:"100%",padding:"12px",background:"transparent",border:"1px solid #ef4444",borderRadius:10,color:"#ef4444",fontWeight:700,cursor:"pointer"}}>
-              Cerrar sesión
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#0a0f1e",borderTop:"1px solid #1e2a3a",display:"flex",zIndex:100}}>
-        {NAV.map(([p,ic,l])=>(
-          <button key={p} onClick={()=>setPage(p)} style={{flex:1,padding:"10px 0",background:"none",border:"none",color:page===p?"#ffd700":"#4a5568",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,position:"relative"}}>
-            <span style={{fontSize:20}}>{ic}</span>
-            <span style={{fontSize:9,fontWeight:700,textTransform:"uppercase"}}>{l}</span>
-            {p==="contacts"&&pendingCount>0&&<span style={{position:"absolute",top:4,right:"18%",background:"#ef4444",color:"#fff",fontSize:9,fontWeight:800,borderRadius:10,padding:"1px 5px"}}>{pendingCount}</span>}
-          </button>
         ))}
       </div>
 
-      {showOnboarding&&<Onboarding onChoice={choice=>{setShowOnboarding(false);if(choice==="import")setShowImporter(true);else if(choice==="scan")setPage("scanner");}}/>}
-      {showImporter&&<Importer currentAlbum={stickers} onImport={s=>{setStickers(s);showToastMsg("✅ ¡Álbum importado!");}} onClose={()=>setShowImporter(false)}/>}
-      {showShare&&<ShareModal stickers={stickers} username={session.email?.split("@")[0]} inviteEmail={session.email} onClose={()=>setShowShare(false)}/>}
-      {chat&&(
-        <div style={{position:"fixed",inset:0,background:"#000c",zIndex:300,display:"flex",flexDirection:"column"}}>
-          <div style={{background:"#111827",borderBottom:"1px solid #1e2a3a",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
-            <button onClick={()=>setChat(null)} style={{background:"none",border:"none",color:"#6b7280",fontSize:20,cursor:"pointer"}}>←</button>
-            <span style={{fontSize:24}}>{ALBUM[chat]?.emoji}</span>
-            <div style={{fontWeight:800,color:"#e8eaf6"}}>Chat {ALBUM[chat]?.name}</div>
-          </div>
-          <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",background:"#0a0f1e",color:"#4a5568",fontSize:14}}>
-            💬 Chat próximamente
-          </div>
+      {image && (
+        <div style={{marginBottom:16,position:"relative"}}>
+          <img src={image} alt="preview" style={{width:"100%",borderRadius:16,border:"2px solid #3b82f6",display:"block",maxHeight:280,objectFit:"cover"}}/>
+          <button onClick={reset} style={{position:"absolute",top:10,right:10,background:"rgba(0,0,0,0.7)",border:"none",borderRadius:20,color:"#fff",padding:"6px 12px",fontWeight:700,fontSize:12,cursor:"pointer"}}>
+            ✕ Cambiar
+          </button>
         </div>
       )}
-      {toast&&<div style={{position:"fixed",bottom:80,left:"50%",transform:"translateX(-50%)",background:"#111827",border:"1px solid #1e2a3a",color:"#e8eaf6",padding:"10px 20px",borderRadius:24,fontWeight:700,fontSize:13,zIndex:9999,whiteSpace:"nowrap",boxShadow:"0 4px 20px #0008"}}>{toast}</div>}
+
+      {processingImage && (
+        <div style={{textAlign:"center",padding:24,color:"#6b7280",fontSize:13}}>⏳ Procesando foto...</div>
+      )}
+
+      {!image && !processingImage && (
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+          <label style={{display:"block",cursor:"pointer"}}>
+            <div style={{padding:"24px 10px",background:"#0f172a",border:"2px solid #3b82f6",borderRadius:14,display:"flex",flexDirection:"column",alignItems:"center",gap:8,cursor:"pointer"}}>
+              <span style={{fontSize:36}}>📷</span>
+              <span style={{fontWeight:700,color:"#60a5fa",fontSize:14}}>Tomar foto</span>
+              <span style={{fontSize:11,color:"#4a5568"}}>Abre la cámara</span>
+            </div>
+            <input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)handleFile(f);}}/>
+          </label>
+
+          <label style={{display:"block",cursor:"pointer"}}>
+            <div style={{padding:"24px 10px",background:"#0f172a",border:"2px solid #ffd700",borderRadius:14,display:"flex",flexDirection:"column",alignItems:"center",gap:8,cursor:"pointer"}}>
+              <span style={{fontSize:36}}>🖼️</span>
+              <span style={{fontWeight:700,color:"#ffd700",fontSize:14}}>Mi galería</span>
+              <span style={{fontSize:11,color:"#4a5568"}}>Fotos guardadas</span>
+            </div>
+            <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)handleFile(f);}}/>
+          </label>
+        </div>
+      )}
+
+      {error&&(
+        <div style={{background:"#1e0a0a",border:"1px solid #ef4444",borderRadius:10,padding:12,marginBottom:16,color:"#ef4444",fontSize:13}}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      {image&&(
+        <button onClick={scan} disabled={loading} style={{width:"100%",padding:16,background:loading?"#1e2a3a":"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:14,color:loading?"#6b7280":"#0a0f1e",fontWeight:900,fontSize:16,cursor:loading?"not-allowed":"pointer"}}>
+          {loading?"🤖 Analizando tu foto...":"🤖 Escanear con IA →"}
+        </button>
+      )}
+
+      {loading&&(
+        <div style={{textAlign:"center",marginTop:16,color:"#6b7280",fontSize:13}}>
+          La IA está leyendo los códigos... ~5-10 segundos
+        </div>
+      )}
     </div>
   );
-}
 
-// Fix: el export default ahora envuelve toda la app en ErrorBoundary. Cualquier crash de React
-// (token expirado, estado en transición, lo que sea) muestra un mensaje de recuperación con
-// botón de recargar, en vez de dejar la pantalla completamente en blanco sin pista de qué pasó.
-export default function FiguSwap() {
   return (
-    <ErrorBoundary>
-      <FiguSwapInner />
-    </ErrorBoundary>
+    <div style={{padding:16,maxWidth:480,margin:"0 auto"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+        <button onClick={reset} style={{background:"none",border:"none",color:"#6b7280",fontSize:22,cursor:"pointer",padding:0,lineHeight:1}}>←</button>
+        <h2 style={{fontWeight:900,fontSize:18,color:"#ffd700",margin:0}}>Resultado del escaneo</h2>
+        <span style={{marginLeft:"auto",fontSize:12,color:"#6b7280"}}>{detected.length} códigos únicos</span>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
+        {[
+          ["✅",needed.reduce((sum,s)=>sum+s.quantity,0),"#22c55e","Pegar"],
+          ["🔁",repeated.reduce((sum,s)=>sum+s.quantity,0),"#f97316","Repetidas"],
+          ["📦",detected.reduce((sum,s)=>sum+s.quantity,0),"#60a5fa","Total"],
+        ].map(([ic,val,color,label])=>(
+          <div key={label} style={{background:"#111827",border:`1px solid ${color}33`,borderRadius:12,padding:14,textAlign:"center"}}>
+            <div style={{fontSize:22}}>{ic}</div>
+            <div style={{fontWeight:900,fontSize:26,color}}>{val}</div>
+            <div style={{fontSize:11,color:"#6b7280",textTransform:"uppercase"}}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {image&&(
+        <img src={image} alt="" style={{width:"100%",borderRadius:12,border:"1px solid #1e2a3a",maxHeight:160,objectFit:"cover",marginBottom:16}}/>
+      )}
+
+      {totalApplied>0&&(
+        <div style={{background:"#052e16",border:"1px solid #22c55e",borderRadius:12,padding:12,marginBottom:16,display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:20}}>✅</span>
+          <span style={{color:"#86efac",fontWeight:700,fontSize:14}}>
+            {totalApplied} figurita{totalApplied>1?"s":""} actualizada{totalApplied>1?"s":""} en tu álbum
+          </span>
+        </div>
+      )}
+
+      {needed.length>0&&(
+        <div style={{marginBottom:20}}>
+          <div style={{fontWeight:800,fontSize:15,color:"#22c55e",marginBottom:10}}>
+            ✅ ¡Las que puedes PEGAR! ({needed.length})
+          </div>
+          {needed.map((s,i)=>{
+            const team=ALBUM[s.code];
+            const key=`${s.code}-${s.num}`;
+            const done=applied[key];
+            return (
+              <div key={i} style={{background:"#052e16",border:"1px solid #22c55e",borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:26}}>{team?.emoji||"🃏"}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:800,color:"#86efac"}}>
+                    {team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span>
+                    {s.quantity>1&&<span style={{marginLeft:8,fontSize:11,background:"#22c55e",color:"#0a0f1e",padding:"2px 8px",borderRadius:10,fontWeight:700}}>x{s.quantity}</span>}
+                  </div>
+                  <div style={{fontSize:12,color:"#4ade80"}}>¡Estaba en tu lista de faltantes!</div>
+                </div>
+                {done
+                  ? <span style={{fontSize:22}}>✅</span>
+                  : <button onClick={()=>applyAction(s.code,s.num,"have",1,0)} style={{padding:"8px 14px",background:"#22c55e",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>📌 Pegar</button>
+                }
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {repeated.length>0&&(
+        <div style={{marginBottom:20}}>
+          <div style={{fontWeight:800,fontSize:15,color:"#f97316",marginBottom:10}}>
+            🔁 Repetidas — ¿Qué haces con ellas? ({repeated.length})
+          </div>
+          {repeated.map((s,i)=>{
+            const team=ALBUM[s.code];
+            const key=`${s.code}-${s.num}`;
+            const done=applied[key];
+            const{price,label,color}=s.suggestion;
+            const totalValue=(price*s.quantity).toFixed(2);
+            return (
+              <div key={i} style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:12,padding:14,marginBottom:10}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                  <span style={{fontSize:24}}>{team?.emoji||"🃏"}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:800,color:"#e8eaf6"}}>
+                      {team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span>
+                      {s.quantity>1&&<span style={{marginLeft:8,fontSize:11,background:"#f97316",color:"#fff",padding:"2px 8px",borderRadius:10,fontWeight:700}}>x{s.quantity}</span>}
+                    </div>
+                    <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"#0a0f1e",color,border:`1px solid ${color}`,fontWeight:700}}>
+                      {label} · ${price.toFixed(2)} c/u {s.quantity>1?`· $${totalValue} total`:""}
+                    </span>
+                  </div>
+                  {done&&<span style={{fontSize:11,color:"#22c55e",fontWeight:700,background:"#052e16",padding:"4px 8px",borderRadius:8}}>✅</span>}
+                </div>
+
+                <div style={{background:"#0a0f1e",borderRadius:8,padding:"8px 10px",marginBottom:8,fontSize:12,color:"#9ca3af"}}>
+                  💡 <span style={{color,fontWeight:700}}>Sugerencia:</span>{" "}
+                  {price>=3?`Escasa — subasta ${s.quantity>1?"todas":""} para el mejor precio.`:price>=2?"Demandada — véndela o cámbiala pronto.":"Ofrécela en cambio con tu red."}
+                </div>
+
+                {!done&&(
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+                    {/* Fix: botón principal "Agregar a repetidas" antes de vender/cambiar/subastar */}
+                    <button
+                      onClick={()=>sendToRepeated(s)}
+                      style={{padding:"10px 6px",background:"#1e1500",border:"2px solid #f97316",borderRadius:8,color:"#f97316",fontWeight:800,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}
+                    >
+                      <span style={{fontSize:18}}>🔁</span>
+                      <span>Repetida</span>
+                      {s.quantity>1&&<span style={{fontSize:10,color:"#fb923c"}}>x{s.quantity}</span>}
+                    </button>
+                    <button onClick={()=>applyAction(s.code,s.num,"sell",s.quantity,price)} style={{padding:"10px 6px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                      <span style={{fontSize:18}}>💰</span>
+                      <span>Vender</span>
+                      <span style={{fontSize:10,color:"#4ade80"}}>${totalValue}</span>
+                    </button>
+                    <button onClick={()=>applyAction(s.code,s.num,"trade",s.quantity,0)} style={{padding:"10px 6px",background:"#1e3a5f",border:"1px solid #3b82f6",borderRadius:8,color:"#60a5fa",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                      <span style={{fontSize:18}}>🔄</span>
+                      <span>Cambiar</span>
+                      <span style={{fontSize:10,color:"#93c5fd"}}>Con red</span>
+                    </button>
+                    <button onClick={()=>applyAction(s.code,s.num,"auction",s.quantity,price)} style={{padding:"10px 6px",background:"#1e1040",border:"1px solid #a78bfa",borderRadius:8,color:"#a78bfa",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                      <span style={{fontSize:18}}>🔨</span>
+                      <span>Subastar</span>
+                      <span style={{fontSize:10,color:"#c4b5fd"}}>Mejor precio</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {detected.length===0&&(
+        <div style={{textAlign:"center",padding:40}}>
+          <div style={{fontSize:48,marginBottom:12}}>🔍</div>
+          <div style={{fontWeight:700,color:"#e8eaf6",marginBottom:6}}>No se detectaron figuritas</div>
+          <div style={{color:"#6b7280",fontSize:13,marginBottom:20}}>Asegúrate que los códigos sean visibles y la foto esté clara</div>
+          <button onClick={reset} style={{padding:"12px 24px",background:"#ffd700",border:"none",borderRadius:10,fontWeight:800,fontSize:14,cursor:"pointer",color:"#0a0f1e"}}>
+            Intentar de nuevo
+          </button>
+        </div>
+      )}
+
+      <div style={{display:"flex",gap:10,marginTop:8,paddingBottom:20}}>
+        <button onClick={reset} style={{flex:1,padding:14,background:"transparent",border:"1px solid #1e2a3a",borderRadius:12,color:"#6b7280",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+          📸 Escanear más
+        </button>
+      </div>
+    </div>
   );
 }
