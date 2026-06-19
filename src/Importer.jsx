@@ -165,7 +165,11 @@ function buildAlbumFromParsed(parsed, baseAlbum) {
 }
 
 // ─── SHARE LIST GENERATOR ─────────────────────────────────────────────────────
-export function generateShareText(stickers, mode = "both", username = "") {
+// inviteEmail (opcional): si se pasa, el link de invitación usa el mecanismo real de invitación
+// (?invite=email), el mismo que ya procesa App.jsx al abrir la app. Antes este link apuntaba a
+// una ruta /u/username que nunca existió en la app; con solo el username no había forma de generar
+// un link funcional, por eso ahora se prioriza inviteEmail cuando está disponible.
+export function generateShareText(stickers, mode = "both", username = "", inviteEmail = "") {
   const lines = ["🎴 FiguSwap — FIFA World Cup 2026"];
   if (username) lines.push(`👤 ${username}`);
   lines.push("");
@@ -199,15 +203,15 @@ export function generateShareText(stickers, mode = "both", username = "") {
   }
 
   lines.push("📱 Únete en FiguSwap:");
-  lines.push(`https://figuswap-theta.vercel.app${username ? `/u/${username}` : ""}`);
+  lines.push(inviteEmail ? `https://figuswap-theta.vercel.app?invite=${encodeURIComponent(inviteEmail)}` : `https://figuswap-theta.vercel.app`);
   return lines.join("\n");
 }
 
 // ─── SHARE MODAL ──────────────────────────────────────────────────────────────
-export function ShareModal({ stickers, username, onClose }) {
+export function ShareModal({ stickers, username, inviteEmail, onClose }) {
   const [mode, setMode] = useState("both");
   const [copied, setCopied] = useState(false);
-  const text = generateShareText(stickers, mode, username);
+  const text = generateShareText(stickers, mode, username, inviteEmail);
 
   const copy = () => {
     navigator.clipboard.writeText(text).then(() => {
@@ -278,6 +282,16 @@ export default function Importer({ onImport, onClose, currentAlbum }) {
   };
 
   const handleImport = () => {
+    // Guarda de seguridad: en modo "fusionar", si por alguna razón no llegó el álbum base
+    // (currentAlbum undefined/null), buildAlbumFromParsed caería sin darse cuenta al mismo
+    // comportamiento de "reemplazar todo" — porque sin base, todo lo no mencionado se marca
+    // como "have". Eso traicionaría la elección explícita del usuario. Mejor avisar y cancelar.
+    // En modo "reemplazar" no aplica: ahí se pasa null a propósito.
+    if (mergeMode === "merge" && !currentAlbum) {
+      setError("No se pudo cargar tu álbum actual. Cierra y vuelve a abrir el importador para evitar perder datos por accidente.");
+      setStep("paste");
+      return;
+    }
     const album = buildAlbumFromParsed(parsed, mergeMode === "merge" ? currentAlbum : null);
     onImport(album);
     setStep("done");
