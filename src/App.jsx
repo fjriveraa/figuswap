@@ -510,7 +510,7 @@ function StickerCell({code,num,data,onAction}) {
 }
 
 // ─── TEAM SECTION ─────────────────────────────────────────────────────────────
-function TeamSection({code,stickers,tab,onAction,onChat}) {
+function TeamSection({code,stickers,tab,onAction}) {
   const [expanded,setExpanded]=useState(false);
   const team=ALBUM[code];
   const allNums=Object.keys(stickers).map(Number);
@@ -550,9 +550,6 @@ function TeamSection({code,stickers,tab,onAction,onChat}) {
           <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginBottom:14}}>
             {visibleNums.map(n=>(<StickerCell key={n} code={code} num={n} data={stickers[n]} onAction={onAction}/>))}
           </div>
-          <button onClick={()=>onChat(code)} style={{width:"100%",padding:"10px",background:"#0a1a2e",border:"1px solid #1e3a5f",borderRadius:10,color:"#60a5fa",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-            💬 Chat {team.name}
-          </button>
         </div>
       )}
     </div>
@@ -883,7 +880,6 @@ function FiguSwapInner() {
   const [albumTab,setAlbumTab]=useState("all");
   const [stickers,setStickers]=useState(buildEmpty);
   const [search,setSearch]=useState("");
-  const [chat,setChat]=useState(null);
   const [toast,setToast]=useState(null);
   const [showOnboarding,setShowOnboarding]=useState(false);
   const [showImporter,setShowImporter]=useState(false);
@@ -1024,7 +1020,7 @@ function FiguSwapInner() {
   },[stickers,session,loadedAlbum]);
 
 
-  const handleAction=(code,num,state,qty,price)=>{
+  const handleAction=(code,num,state,qty,price,customToast)=>{
     if(!ALBUM[code]||!STATE[state]){
       showToastMsg("⚠️ Selección o estado no reconocido");
       return;
@@ -1043,7 +1039,7 @@ function FiguSwapInner() {
         }
       };
     });
-    showToastMsg(`${STATE[state].emoji} ${ALBUM[code].name} #${num} → ${STATE[state].label}${state==="repeated"&&qty>1?` ×${qty}`:""}`);
+    showToastMsg(customToast || `${STATE[state].emoji} ${ALBUM[code].name} #${num} → ${STATE[state].label}${state==="repeated"&&qty>1?` ×${qty}`:""}`);
   };
 
   // Fix: filter considers tab when checking if team has visible stickers
@@ -1163,11 +1159,11 @@ function FiguSwapInner() {
               </div>
             )}
 
-            {filtered.map(([code,ts])=>(<TeamSection key={code} code={code} stickers={ts} tab={albumTab} onAction={handleAction} onChat={setChat}/>))}
+            {filtered.map(([code,ts])=>(<TeamSection key={code} code={code} stickers={ts} tab={albumTab} onAction={handleAction}/>))}
           </>
         )}
 
-        {page==="scanner"&&<Scanner userNeeded={userNeeded} myStickers={stickers} onUpdateAlbum={(code,num,state,qty,price)=>handleAction(code,num,state,qty,price)}/>}
+        {page==="scanner"&&<Scanner userNeeded={userNeeded} myStickers={stickers} onUpdateAlbum={(code,num,state,qty,price,customToast)=>handleAction(code,num,state,qty,price,customToast)}/>}
 
         {page==="worldcup"&&<WorldCup/>}
 
@@ -1238,18 +1234,6 @@ function FiguSwapInner() {
       {showOnboarding&&<Onboarding onChoice={choice=>{setShowOnboarding(false);if(choice==="import")setShowImporter(true);else if(choice==="scan")setPage("scanner");}}/>}
       {showImporter&&<Importer currentAlbum={stickers} onImport={s=>{setStickers(s);showToastMsg("✅ ¡Álbum importado!");}} onClose={()=>setShowImporter(false)}/>}
       {showShare&&<ShareModal stickers={stickers} username={session.email?.split("@")[0]} inviteEmail={session.email} onClose={()=>setShowShare(false)}/>}
-      {chat&&(
-        <div style={{position:"fixed",inset:0,background:"#000c",zIndex:300,display:"flex",flexDirection:"column"}}>
-          <div style={{background:"#111827",borderBottom:"1px solid #1e2a3a",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
-            <button onClick={()=>setChat(null)} style={{background:"none",border:"none",color:"#6b7280",fontSize:20,cursor:"pointer"}}>←</button>
-            <span style={{fontSize:24}}>{ALBUM[chat]?.emoji}</span>
-            <div style={{fontWeight:800,color:"#e8eaf6"}}>Chat {ALBUM[chat]?.name}</div>
-          </div>
-          <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",background:"#0a0f1e",color:"#4a5568",fontSize:14}}>
-            💬 Chat próximamente
-          </div>
-        </div>
-      )}
       {toast&&<div style={{position:"fixed",bottom:80,left:"50%",transform:"translateX(-50%)",background:"#111827",border:"1px solid #1e2a3a",color:"#e8eaf6",padding:"10px 20px",borderRadius:24,fontWeight:700,fontSize:13,zIndex:9999,whiteSpace:"nowrap",boxShadow:"0 4px 20px #0008"}}>{toast}</div>}
     </div>
   );
