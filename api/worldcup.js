@@ -8,7 +8,11 @@
 // 3) Si la API externa falla, devolvemos un error controlado en JSON en vez de que
 //    el front-end reciba HTML de error o un timeout crudo.
 
-const BASE_URL = "https://worldcup26.ir";
+// Confirmado en vivo: el servicio corre en HTTP plano, puerto 3050 — no HTTPS/443 como se asumió
+// originalmente (de ahí el error SSL al probar con curl). Una llamada servidor-a-servidor desde
+// Vercel a un endpoint HTTP no tiene problema de "mixed content" (eso solo aplica a fetch desde
+// el navegador en una página HTTPS); aquí estamos en el lado del servidor, así que está bien.
+const BASE_URL = "http://worldcup26.ir:3050";
 
 const ENDPOINTS = {
   teams: "/get/teams",
