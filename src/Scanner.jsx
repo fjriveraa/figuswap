@@ -163,18 +163,39 @@ export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum })
   };
 
   // Fix: applyAction ahora pasa qty y price correctamente a handleAction en App.jsx
-  const applyAction=(code,num,action,qty=1,price=0)=>{
+  const applyAction=(code,num,action,qty=1,price=0,customToast=null)=>{
     setApplied(prev=>({...prev,[`${code}-${num}`]:action}));
-    if(onUpdateAlbum) onUpdateAlbum(code,num,action,qty,price);
+    if(onUpdateAlbum) onUpdateAlbum(code,num,action,qty,price,customToast);
   };
 
   // Fix: botón "Enviar a repetidas" — marca como repeated con qty correcta
-  const sendToRepeated=(s)=>{
+  const sendToRepeated=(s,customToast=null)=>{
     const current=myStickers?.[s.code]?.[s.num];
     const currentQty=current?.state==="repeated"?(current.qty||1):0;
     // Si ya tiene unidades como repeated, suma las nuevas
     const newQty=currentQty+s.quantity;
-    applyAction(s.code,s.num,"repeated",newQty,0);
+    applyAction(s.code,s.num,"repeated",newQty,0,customToast);
+  };
+
+  // Aplicar todo de un golpe — evita tener que tocar "Pegar" o "Repetida" figurita por figurita
+  // cuando el escaneo detectó muchas a la vez (ej. un sobre completo o una página). Solo el
+  // último de la tanda manda un toast con el resumen total, en vez de 20 avisos pisándose entre sí.
+  const applyAllNeeded = () => {
+    const toApply = needed.filter(s => !applied[`${s.code}-${s.num}`]);
+    if (toApply.length === 0) return;
+    toApply.forEach((s, i) => {
+      const isLast = i === toApply.length - 1;
+      applyAction(s.code, s.num, "have", 1, 0, isLast ? `✅ ${toApply.length} figurita${toApply.length>1?"s":""} pegada${toApply.length>1?"s":""}` : null);
+    });
+  };
+
+  const applyAllRepeated = () => {
+    const toApply = repeated.filter(s => !applied[`${s.code}-${s.num}`]);
+    if (toApply.length === 0) return;
+    toApply.forEach((s, i) => {
+      const isLast = i === toApply.length - 1;
+      sendToRepeated(s, isLast ? `🔁 ${toApply.length} figurita${toApply.length>1?"s":""} enviada${toApply.length>1?"s":""} a repetidas` : null);
+    });
   };
 
   // Modo Salida: dar de baja stock que físicamente acabas de entregar en un cambio/venta.
@@ -365,8 +386,13 @@ export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum })
       ):(<>
       {needed.length>0&&(
         <div style={{marginBottom:20}}>
-          <div style={{fontWeight:800,fontSize:15,color:"#22c55e",marginBottom:10}}>
-            ✅ ¡Las que puedes PEGAR! ({needed.length})
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,gap:8}}>
+            <div style={{fontWeight:800,fontSize:15,color:"#22c55e"}}>
+              ✅ ¡Las que puedes PEGAR! ({needed.length})
+            </div>
+            <button onClick={applyAllNeeded} style={{padding:"6px 12px",background:"#22c55e",border:"none",borderRadius:8,color:"#0a0f1e",fontWeight:800,fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>
+              📌 Pegar todas
+            </button>
           </div>
           {needed.map((s,i)=>{
             const team=ALBUM[s.code];
@@ -394,8 +420,13 @@ export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum })
 
       {repeated.length>0&&(
         <div style={{marginBottom:20}}>
-          <div style={{fontWeight:800,fontSize:15,color:"#f97316",marginBottom:10}}>
-            🔁 Repetidas — ¿Qué haces con ellas? ({repeated.length})
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,gap:8}}>
+            <div style={{fontWeight:800,fontSize:15,color:"#f97316"}}>
+              🔁 Repetidas ({repeated.length})
+            </div>
+            <button onClick={applyAllRepeated} style={{padding:"6px 12px",background:"#f97316",border:"none",borderRadius:8,color:"#1e0a00",fontWeight:800,fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>
+              🔁 Enviar todas
+            </button>
           </div>
           {repeated.map((s,i)=>{
             const team=ALBUM[s.code];
@@ -405,52 +436,29 @@ export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum })
             const totalValue=(price*s.quantity).toFixed(2);
             return (
               <div key={i} style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:12,padding:14,marginBottom:10}}>
-                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:done?0:10}}>
                   <span style={{fontSize:24}}>{team?.emoji||"🃏"}</span>
                   <div style={{flex:1}}>
                     <div style={{fontWeight:800,color:"#e8eaf6"}}>
                       {team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span>
                       {s.quantity>1&&<span style={{marginLeft:8,fontSize:11,background:"#f97316",color:"#fff",padding:"2px 8px",borderRadius:10,fontWeight:700}}>x{s.quantity}</span>}
                     </div>
+                    {/* Valor estimado se deja como referencia informativa — venta/subasta en stand-by por ahora */}
                     <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:"#0a0f1e",color,border:`1px solid ${color}`,fontWeight:700}}>
-                      {label} · ${price.toFixed(2)} c/u {s.quantity>1?`· $${totalValue} total`:""}
+                      Valor estimado {label} · ${price.toFixed(2)} c/u {s.quantity>1?`· $${totalValue} total`:""}
                     </span>
                   </div>
                   {done&&<span style={{fontSize:11,color:"#22c55e",fontWeight:700,background:"#052e16",padding:"4px 8px",borderRadius:8}}>✅</span>}
                 </div>
 
-                <div style={{background:"#0a0f1e",borderRadius:8,padding:"8px 10px",marginBottom:8,fontSize:12,color:"#9ca3af"}}>
-                  💡 <span style={{color,fontWeight:700}}>Sugerencia:</span>{" "}
-                  {price>=3?`Escasa — subasta ${s.quantity>1?"todas":""} para el mejor precio.`:price>=2?"Demandada — véndela o cámbiala pronto.":"Ofrécela en cambio con tu red."}
-                </div>
-
                 {!done&&(
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
-                    {/* Fix: botón principal "Agregar a repetidas" antes de vender/cambiar/subastar */}
-                    <button
-                      onClick={()=>sendToRepeated(s)}
-                      style={{padding:"10px 6px",background:"#1e1500",border:"2px solid #f97316",borderRadius:8,color:"#f97316",fontWeight:800,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}
-                    >
-                      <span style={{fontSize:18}}>🔁</span>
-                      <span>Repetida</span>
-                      {s.quantity>1&&<span style={{fontSize:10,color:"#fb923c"}}>x{s.quantity}</span>}
-                    </button>
-                    <button onClick={()=>applyAction(s.code,s.num,"sell",s.quantity,price)} style={{padding:"10px 6px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                      <span style={{fontSize:18}}>💰</span>
-                      <span>Vender</span>
-                      <span style={{fontSize:10,color:"#4ade80"}}>${totalValue}</span>
-                    </button>
-                    <button onClick={()=>applyAction(s.code,s.num,"trade",s.quantity,0)} style={{padding:"10px 6px",background:"#1e3a5f",border:"1px solid #3b82f6",borderRadius:8,color:"#60a5fa",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                      <span style={{fontSize:18}}>🔄</span>
-                      <span>Cambiar</span>
-                      <span style={{fontSize:10,color:"#93c5fd"}}>Con red</span>
-                    </button>
-                    <button onClick={()=>applyAction(s.code,s.num,"auction",s.quantity,price)} style={{padding:"10px 6px",background:"#1e1040",border:"1px solid #a78bfa",borderRadius:8,color:"#a78bfa",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                      <span style={{fontSize:18}}>🔨</span>
-                      <span>Subastar</span>
-                      <span style={{fontSize:10,color:"#c4b5fd"}}>Mejor precio</span>
-                    </button>
-                  </div>
+                  <button
+                    onClick={()=>sendToRepeated(s)}
+                    style={{width:"100%",padding:"10px",background:"#1e1500",border:"2px solid #f97316",borderRadius:8,color:"#f97316",fontWeight:800,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}
+                  >
+                    <span style={{fontSize:16}}>🔁</span>
+                    <span>Marcar como repetida{s.quantity>1?` ×${s.quantity}`:""}</span>
+                  </button>
                 )}
               </div>
             );
