@@ -184,17 +184,21 @@ const db = {
     };
   },
 
-  async saveAlbum(token, email, stickers, username) {
+  async saveAlbum(token, email, stickers, username, whatsappNumber) {
     const headers=this.h(token);
     if(!headers) return false;
     try {
       // on_conflict=user_email explícito: la tabla tiene dos restricciones únicas (id, user_email).
       // Sin especificar la columna, PostgREST puede no resolver el merge-duplicates correctamente
       // contra user_email y devolver 409 en vez de hacer upsert. Esto fue la causa real del 409.
+      const body={user_email:email, username:username||email.split("@")[0], stickers, updated_at:new Date().toISOString()};
+      // whatsapp_number es opcional — solo se manda si se pasó explícitamente, para no pisar
+      // con null lo que ya estaba guardado cuando este save viene de un flujo que no lo conoce.
+      if(whatsappNumber!==undefined) body.whatsapp_number=whatsappNumber;
       const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?on_conflict=user_email`, {
         method:"POST",
         headers:{...headers, Prefer:"resolution=merge-duplicates,return=minimal"},
-        body:JSON.stringify({user_email:email, username:username||email.split("@")[0], stickers, updated_at:new Date().toISOString()})
+        body:JSON.stringify(body)
       });
       return res.ok;
     } catch { return false; }
@@ -296,7 +300,7 @@ const db = {
     if(!headers) return [];
     try {
       const emails = contacts.map(e=>`"${e}"`).join(",");
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?user_email=in.(${emails})&select=user_email,username,stickers,updated_at`, {headers});
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?user_email=in.(${emails})&select=user_email,username,stickers,updated_at,whatsapp_number`, {headers});
       return await res.json()||[];
     } catch { return []; }
   },
@@ -348,7 +352,7 @@ const sbAuth = {
 };
 
 // ─── AUTH PAGE ────────────────────────────────────────────────────────────────
-function AuthPage({onAuth}) {
+function AuthPage({onAuth,inviterWhatsapp}) {
   const [mode,setMode]=useState("login");
   const [email,setEmail]=useState("");
   const [pass,setPass]=useState("");
@@ -375,7 +379,17 @@ function AuthPage({onAuth}) {
     <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{fontSize:52,marginBottom:8}}>⚽</div>
       <div style={{fontWeight:900,fontSize:28,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:4}}>FiguSwap</div>
-      <div style={{color:"#6b7280",fontSize:13,marginBottom:28,textAlign:"center"}}>El marketplace global de figuritas FIFA WC 2026™</div>
+      <div style={{color:"#6b7280",fontSize:13,marginBottom:inviterWhatsapp?16:28,textAlign:"center"}}>El marketplace global de figuritas FIFA WC 2026™</div>
+      {/* Si la persona entró desde el QR de alguien (escaneado en persona), le damos la opción
+          de escribirle de inmediato por WhatsApp, sin esperar a terminar de registrarse. */}
+      {inviterWhatsapp&&(
+        <button
+          onClick={()=>window.open(`https://wa.me/${inviterWhatsapp}?text=${encodeURIComponent("¡Hola! Te encontré por tu código QR de FiguSwap ⚽🎴")}`,"_blank")}
+          style={{width:"100%",maxWidth:380,padding:"12px",background:"#14532d",border:"1px solid #22c55e",borderRadius:10,color:"#86efac",fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:20}}
+        >
+          💬 Escríbele por WhatsApp ahora mismo
+        </button>
+      )}
       <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:16,padding:24,width:"100%",maxWidth:380}}>
         <button onClick={sbAuth.signInWithGoogle} style={{width:"100%",padding:"14px",background:"#fff",border:"1px solid #e5e7eb",borderRadius:10,color:"#1f2937",fontWeight:700,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
           <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
@@ -813,9 +827,13 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
                           <button onClick={()=>{
                             const name=album?.username||email.split("@")[0];
                             const text=`Hola ${name}! 👋\n\nVi en FiguSwap que podemos intercambiar:\n✅ Yo tengo ${matches.iHave.length} que tú necesitas:\n${matches.iHave.slice(0,5).map(s=>`${s.code} #${s.num}`).join(", ")}${matches.iHave.length>5?`... y ${matches.iHave.length-5} más`:""}\n\n🔁 Tú tienes ${matches.theyHave.length} que yo necesito:\n${matches.theyHave.slice(0,5).map(s=>`${s.code} #${s.num}`).join(", ")}${matches.theyHave.length>5?`... y ${matches.theyHave.length-5} más`:""}\n\n¿Coordinamos? ⚽🎴`;
-                            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
+                            // Si el contacto compartió su WhatsApp en su Perfil, abrimos su chat directo;
+                            // si no, igual funciona con el selector genérico de contactos como antes.
+                            const phoneDigits=(album?.whatsapp_number||"").replace(/[^\d]/g,"");
+                            const waUrl=phoneDigits?`https://wa.me/${phoneDigits}?text=${encodeURIComponent(text)}`:`https://wa.me/?text=${encodeURIComponent(text)}`;
+                            window.open(waUrl,"_blank");
                           }} style={{width:"100%",padding:"12px",background:"#14532d",border:"1px solid #22c55e",borderRadius:10,color:"#86efac",fontWeight:700,fontSize:14,cursor:"pointer"}}>
-                            💬 Coordinar intercambio por WhatsApp
+                            💬 Coordinar intercambio por WhatsApp{album?.whatsapp_number?" (directo)":""}
                           </button>
                         </div>
                       )}
@@ -884,6 +902,10 @@ function FiguSwapInner() {
   const [showOnboarding,setShowOnboarding]=useState(false);
   const [showImporter,setShowImporter]=useState(false);
   const [showShare,setShowShare]=useState(false);
+  const [showQR,setShowQR]=useState(false);
+  const [whatsappNumber,setWhatsappNumber]=useState("");
+  const [savingWhatsapp,setSavingWhatsapp]=useState(false);
+  const [inviterWhatsapp,setInviterWhatsapp]=useState("");
   const [pendingCount,setPendingCount]=useState(0);
   const [saving,setSaving]=useState(false);
   const [loadedAlbum,setLoadedAlbum]=useState(false);
@@ -927,6 +949,10 @@ function FiguSwapInner() {
     const params=new URLSearchParams(window.location.search);
     const inviter=params.get("invite");
     if(inviter)localStorage.setItem("figuswap_pending_invite",normalizeEmail(inviter));
+    // wa= viene del código QR de alguien que ya mostró su QR en persona — por eso es aceptable
+    // ofrecer un botón directo de WhatsApp aquí mismo, antes incluso de registrarse.
+    const waParam=params.get("wa");
+    if(waParam)setInviterWhatsapp(waParam.replace(/[^\d]/g,""));
 
     const token=sbAuth.getTokenFromHash();
     if(token){
@@ -978,6 +1004,7 @@ function FiguSwapInner() {
     }
     // Load from Supabase (cloud first)
     db.getAlbum(session.token,session.email).then(data=>{
+      if(data?.whatsapp_number!==undefined) setWhatsappNumber(data.whatsapp_number||"");
       if(data?.stickers&&Object.keys(data.stickers).length>0){
         setStickers(data.stickers);
       } else {
@@ -1019,6 +1046,15 @@ function FiguSwapInner() {
     return()=>clearTimeout(timer);
   },[stickers,session,loadedAlbum]);
 
+
+  // Guarda solo el número de WhatsApp, sin tocar el resto del álbum — campo opcional, pensado
+  // únicamente para que tus contactos de Red puedan coordinar contigo directo (no para marketing).
+  const saveWhatsappNumber=async()=>{
+    setSavingWhatsapp(true);
+    const ok=await db.saveAlbum(session.token,session.email,stickers,session.email.split("@")[0],whatsappNumber.trim());
+    setSavingWhatsapp(false);
+    showToastMsg(ok?"✅ WhatsApp guardado":"⚠️ No se pudo guardar");
+  };
 
   const handleAction=(code,num,state,qty,price,customToast)=>{
     if(!ALBUM[code]||!STATE[state]){
@@ -1082,7 +1118,7 @@ function FiguSwapInner() {
       <div style={{fontSize:40}}>⚽</div>
     </div>
   );
-  if(!session)return <AuthPage onAuth={s=>{setSession(s);sbAuth.storeSession(s);}}/>;
+  if(!session)return <AuthPage onAuth={s=>{setSession(s);sbAuth.storeSession(s);}} inviterWhatsapp={inviterWhatsapp}/>;
 
   // Fix condición de carrera (pérdida de datos al importar): antes de este fix, getAlbum() corría
   // en paralelo a la primera interacción del usuario. Si alguien importaba una lista o tocaba una
@@ -1186,6 +1222,31 @@ function FiguSwapInner() {
               <button onClick={()=>setShowShare(true)} style={{flex:1,padding:"13px",background:"#14532d",border:"1px solid #22c55e",borderRadius:12,color:"#86efac",fontWeight:700,cursor:"pointer"}}>📤 Compartir lista</button>
               <button onClick={()=>setShowImporter(true)} style={{flex:1,padding:"13px",background:"#1e2a3a",border:"1px solid #374151",borderRadius:12,color:"#9ca3af",fontWeight:700,cursor:"pointer"}}>📋 Importar lista</button>
             </div>
+            <button onClick={()=>setShowQR(true)} style={{width:"100%",padding:"13px",background:"#1a1040",border:"1px solid #a78bfa",borderRadius:12,color:"#c4b5fd",fontWeight:700,cursor:"pointer",marginBottom:12}}>
+              📷 Mi código QR
+            </button>
+
+            <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:12,padding:16,marginBottom:12}}>
+              <div style={{fontWeight:700,fontSize:13,color:"#e8eaf6",marginBottom:4}}>📱 Tu WhatsApp (opcional)</div>
+              <div style={{fontSize:11,color:"#6b7280",marginBottom:10}}>
+                Incluye el código de tu país (ej. Honduras +504, México +52, España +34) — sin él, el link de WhatsApp no va a abrir el chat correcto. Solo lo ven tus contactos aceptados en Red; nunca se usa para publicidad.
+              </div>
+              <div style={{display:"flex",gap:8,marginBottom:6}}>
+                <input
+                  type="tel"
+                  placeholder="+504 9999-9999"
+                  value={whatsappNumber}
+                  onChange={e=>setWhatsappNumber(e.target.value)}
+                  style={{flex:1,padding:"10px 12px",background:"#0a0f1e",border:"1px solid #374151",borderRadius:8,color:"#e8eaf6",fontSize:14}}
+                />
+                <button onClick={saveWhatsappNumber} disabled={savingWhatsapp} style={{padding:"10px 16px",background:savingWhatsapp?"#1e2a3a":"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,cursor:savingWhatsapp?"not-allowed":"pointer"}}>
+                  {savingWhatsapp?"...":"Guardar"}
+                </button>
+              </div>
+              {whatsappNumber&&whatsappNumber.replace(/[^\d]/g,"").length>0&&whatsappNumber.replace(/[^\d]/g,"").length<8&&(
+                <div style={{fontSize:11,color:"#fb923c"}}>⚠️ Parece muy corto — revisa que incluyas el código de país.</div>
+              )}
+            </div>
             <button onClick={()=>setPage("contacts")} style={{width:"100%",padding:"14px",background:"#0a1a2e",border:"1px solid #3b82f6",borderRadius:12,color:"#60a5fa",fontWeight:700,cursor:"pointer",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
               👥 Mi Red de contactos
               {pendingCount>0&&<span style={{background:"#ef4444",color:"#fff",fontSize:11,fontWeight:800,borderRadius:20,padding:"2px 8px"}}>{pendingCount} nueva{pendingCount>1?"s":""}</span>}
@@ -1221,6 +1282,20 @@ function FiguSwapInner() {
         </div>
       )}
 
+      {/* Puente directo a WhatsApp cuando escaneas el QR de alguien que acabas de conocer.
+          No depende de Red ni de que acepten una solicitud — funciona aunque ya estés logueado,
+          que es justo el caso que el banner de AuthPage no cubre (ese solo aplica a quien todavía
+          no tiene cuenta). Aparece una sola vez por escaneo y se puede cerrar. */}
+      {inviterWhatsapp&&(
+        <div style={{position:"fixed",bottom:resetBackup?112:62,left:0,right:0,background:"#052e16",borderTop:"1px solid #22c55e",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,zIndex:101}}>
+          <span style={{fontSize:12,color:"#86efac",flex:1}}>📱 Te conectaste por QR</span>
+          <button onClick={()=>{
+            window.open(`https://wa.me/${inviterWhatsapp}?text=${encodeURIComponent("¡Hola! Te encontré por tu código QR de FiguSwap ⚽🎴")}`,"_blank");
+          }} style={{padding:"6px 12px",background:"#22c55e",border:"none",borderRadius:8,color:"#052e16",fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>💬 Escribirle ahora</button>
+          <button onClick={()=>setInviterWhatsapp("")} style={{background:"none",border:"none",color:"#6b7280",fontSize:16,cursor:"pointer",padding:"0 4px"}}>✕</button>
+        </div>
+      )}
+
       <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#0a0f1e",borderTop:"1px solid #1e2a3a",display:"flex",zIndex:100}}>
         {NAV.map(([p,ic,l])=>(
           <button key={p} onClick={()=>setPage(p)} style={{flex:1,padding:"10px 0",background:"none",border:"none",color:page===p?"#ffd700":"#4a5568",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,position:"relative"}}>
@@ -1234,6 +1309,34 @@ function FiguSwapInner() {
       {showOnboarding&&<Onboarding onChoice={choice=>{setShowOnboarding(false);if(choice==="import")setShowImporter(true);else if(choice==="scan")setPage("scanner");}}/>}
       {showImporter&&<Importer currentAlbum={stickers} onImport={s=>{setStickers(s);showToastMsg("✅ ¡Álbum importado!");}} onClose={()=>setShowImporter(false)}/>}
       {showShare&&<ShareModal stickers={stickers} username={session.email?.split("@")[0]} inviteEmail={session.email} onClose={()=>setShowShare(false)}/>}
+      {showQR&&(()=>{
+        // Reusa el mismo link de invitación que ya funciona en Red — el QR es solo otra forma
+        // de compartir ese mismo link, ideal para cuando estás en persona con alguien.
+        // Si guardaste tu WhatsApp en Perfil, se agrega como parámetro extra: como el QR solo
+        // lo comparte quien lo muestra (ya hubo contacto presencial), es un contexto válido
+        // para incluirlo, distinto a "recolectar" números de gente que no dio ese paso.
+        const phoneDigits=whatsappNumber.replace(/[^\d]/g,"");
+        let inviteLink=`${window.location.origin}?invite=${encodeURIComponent(session.email)}`;
+        if(phoneDigits) inviteLink+=`&wa=${phoneDigits}`;
+        const qrImgUrl=`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(inviteLink)}`;
+        return (
+          <div style={{position:"fixed",inset:0,background:"#000c",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+            <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:20,padding:24,maxWidth:360,width:"100%",textAlign:"center"}}>
+              <div style={{fontWeight:900,fontSize:18,color:"#c4b5fd",marginBottom:4}}>📷 Mi código QR</div>
+              <div style={{fontSize:12,color:"#6b7280",marginBottom:16}}>
+                Que alguien lo escanee con la cámara de su celular — si no tiene FiguSwap, lo lleva a descargarla; si ya la tiene, se conecta directo a tu Red.
+                {phoneDigits?" También podrá escribirte por WhatsApp de inmediato.":" Agrega tu WhatsApp en Perfil para que también puedan escribirte de inmediato."}
+              </div>
+              <div style={{background:"#fff",borderRadius:12,padding:12,display:"inline-block",marginBottom:16}}>
+                <img src={qrImgUrl} alt="Código QR de invitación" width={220} height={220}/>
+              </div>
+              <button onClick={()=>setShowQR(false)} style={{width:"100%",padding:"12px",background:"#1e2a3a",border:"1px solid #374151",borderRadius:10,color:"#e8eaf6",fontWeight:700,cursor:"pointer"}}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        );
+      })()}
       {toast&&<div style={{position:"fixed",bottom:80,left:"50%",transform:"translateX(-50%)",background:"#111827",border:"1px solid #1e2a3a",color:"#e8eaf6",padding:"10px 20px",borderRadius:24,fontWeight:700,fontSize:13,zIndex:9999,whiteSpace:"nowrap",boxShadow:"0 4px 20px #0008"}}>{toast}</div>}
     </div>
   );
