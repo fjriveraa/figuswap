@@ -913,7 +913,9 @@ function FiguSwapInner() {
 
   const showToastMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),2500);};
   const [showResetConfirm,setShowResetConfirm]=useState(false);
-  const [resetBackup,setResetBackup]=useState(null);
+  const [resetBackup,setResetBackup]=useState(null); // {snapshot, label}
+  const [importBackup,setImportBackup]=useState(null);
+  const [showFullResetConfirm,setShowFullResetConfirm]=useState(false);
 
   // Reinicia TODAS las figuritas en estado tradeable (repetida/venta/cambio/subasta) a "have".
   // Guarda un respaldo completo antes de tocar nada, y manda directo al Scanner para que el
@@ -931,18 +933,29 @@ function FiguSwapInner() {
         }
       });
     });
-    setResetBackup(backup);
+    setResetBackup({snapshot:backup,label:"🔄 Repetidas reiniciadas"});
     setStickers(next);
     setShowResetConfirm(false);
     showToastMsg("🔄 Repetidas reiniciadas — ahora escanea tu stock real");
     setPage("scanner");
   };
 
+  // Empezar de cero por completo — pensado para cuando algo salió mal y la persona prefiere
+  // borrar todo en vez de tratar de corregirlo a mano. Mismo respaldo/deshacer que arriba,
+  // solo que cubre TODO el álbum (vuelve todo a "me falta"), no solo las repetidas.
+  const resetFullAlbum=()=>{
+    const backup=JSON.parse(JSON.stringify(stickers));
+    setResetBackup({snapshot:backup,label:"🆕 Álbum reiniciado"});
+    setStickers(buildEmpty());
+    setShowFullResetConfirm(false);
+    showToastMsg("🆕 Listo, tu álbum quedó en blanco");
+  };
+
   const undoReset=()=>{
     if(!resetBackup)return;
-    setStickers(resetBackup);
+    setStickers(resetBackup.snapshot);
     setResetBackup(null);
-    showToastMsg("↩️ Reinicio deshecho");
+    showToastMsg("↩️ Listo, todo volvió a como estaba");
   };
 
   useEffect(()=>{
@@ -1270,13 +1283,43 @@ function FiguSwapInner() {
                 </div>
               </div>
             )}
+
+            {!showFullResetConfirm ? (
+              <button onClick={()=>setShowFullResetConfirm(true)} style={{width:"100%",padding:"12px",background:"transparent",border:"1px solid #374151",borderRadius:10,color:"#6b7280",fontWeight:700,cursor:"pointer",fontSize:13,marginTop:8}}>
+                🆕 Empezar de cero
+              </button>
+            ) : (
+              <div style={{background:"#1e0a0a",border:"1px solid #ef4444",borderRadius:12,padding:14,marginTop:8}}>
+                <div style={{color:"#fca5a5",fontWeight:700,fontSize:13,marginBottom:8}}>
+                  🆕 Esto borra TODO tu álbum y lo deja en blanco — útil si te equivocaste de lista al importar o quieres arrancar de nuevo. Puedes deshacerlo justo después si te arrepientes.
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>setShowFullResetConfirm(false)} style={{flex:1,padding:"10px",background:"transparent",border:"1px solid #374151",borderRadius:8,color:"#9ca3af",fontWeight:700,fontSize:13,cursor:"pointer"}}>Cancelar</button>
+                  <button onClick={resetFullAlbum} style={{flex:1,padding:"10px",background:"#ef4444",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>Sí, empezar de cero</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
+      {/* Deshacer importación — cercano y sin asustar, justo para el caso de "pegué la lista
+          equivocada". Se queda visible hasta que la cierres, sin importar a qué pantalla vayas. */}
+      {importBackup&&(
+        <div style={{position:"fixed",bottom:62,left:0,right:0,background:"#0a1a2e",borderTop:"1px solid #3b82f6",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,zIndex:101}}>
+          <span style={{fontSize:12,color:"#93c5fd",flex:1}}>📋 ¿Esa lista no era la correcta?</span>
+          <button onClick={()=>{
+            setStickers(importBackup);
+            setImportBackup(null);
+            showToastMsg("↩️ Listo, tu álbum volvió a como estaba");
+          }} style={{padding:"6px 12px",background:"#3b82f6",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>↩️ Deshacer</button>
+          <button onClick={()=>setImportBackup(null)} style={{background:"none",border:"none",color:"#6b7280",fontSize:16,cursor:"pointer",padding:"0 4px"}}>✕</button>
+        </div>
+      )}
+
       {resetBackup&&(
-        <div style={{position:"fixed",bottom:62,left:0,right:0,background:"#1e1500",borderTop:"1px solid #f97316",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,zIndex:101}}>
-          <span style={{fontSize:12,color:"#fbbf24",flex:1}}>🔄 Repetidas reiniciadas</span>
+        <div style={{position:"fixed",bottom:62+(importBackup?50:0),left:0,right:0,background:"#1e1500",borderTop:"1px solid #f97316",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,zIndex:101}}>
+          <span style={{fontSize:12,color:"#fbbf24",flex:1}}>{resetBackup?.label}</span>
           <button onClick={undoReset} style={{padding:"6px 12px",background:"#f97316",border:"none",borderRadius:8,color:"#1e0a00",fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>↩️ Deshacer</button>
           <button onClick={()=>setResetBackup(null)} style={{background:"none",border:"none",color:"#6b7280",fontSize:16,cursor:"pointer",padding:"0 4px"}}>✕</button>
         </div>
@@ -1287,7 +1330,7 @@ function FiguSwapInner() {
           que es justo el caso que el banner de AuthPage no cubre (ese solo aplica a quien todavía
           no tiene cuenta). Aparece una sola vez por escaneo y se puede cerrar. */}
       {inviterWhatsapp&&(
-        <div style={{position:"fixed",bottom:resetBackup?112:62,left:0,right:0,background:"#052e16",borderTop:"1px solid #22c55e",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,zIndex:101}}>
+        <div style={{position:"fixed",bottom:62+(importBackup?50:0)+(resetBackup?50:0),left:0,right:0,background:"#052e16",borderTop:"1px solid #22c55e",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,zIndex:101}}>
           <span style={{fontSize:12,color:"#86efac",flex:1}}>📱 Te conectaste por QR</span>
           <button onClick={()=>{
             window.open(`https://wa.me/${inviterWhatsapp}?text=${encodeURIComponent("¡Hola! Te encontré por tu código QR de FiguSwap ⚽🎴")}`,"_blank");
@@ -1307,7 +1350,13 @@ function FiguSwapInner() {
       </div>
 
       {showOnboarding&&<Onboarding onChoice={choice=>{setShowOnboarding(false);if(choice==="import")setShowImporter(true);else if(choice==="scan")setPage("scanner");}}/>}
-      {showImporter&&<Importer currentAlbum={stickers} onImport={s=>{setStickers(s);showToastMsg("✅ ¡Álbum importado!");}} onClose={()=>setShowImporter(false)}/>}
+      {showImporter&&<Importer currentAlbum={stickers} onImport={s=>{
+        // Respaldo justo antes de importar — si era la lista de la persona equivocada,
+        // un toque y queda todo como estaba, sin importar si tu álbum estaba vacío o lleno.
+        setImportBackup(stickers);
+        setStickers(s);
+        showToastMsg("✅ ¡Álbum importado!");
+      }} onClose={()=>setShowImporter(false)}/>}
       {showShare&&<ShareModal stickers={stickers} username={session.email?.split("@")[0]} inviteEmail={session.email} onClose={()=>setShowShare(false)}/>}
       {showQR&&(()=>{
         // Reusa el mismo link de invitación que ya funciona en Red — el QR es solo otra forma
