@@ -435,7 +435,7 @@ function AuthPage({onAuth,inviterWhatsapp}) {
   };
   return (
     <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{fontSize:52,marginBottom:8}}>⚽</div>
+      <img src="/icon-512.png" alt="FiguSwap" style={{width:64,height:64,borderRadius:14,marginBottom:8}}/>
       <div style={{fontWeight:900,fontSize:28,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:4}}>FiguSwap</div>
       <div style={{color:"#6b7280",fontSize:13,marginBottom:inviterWhatsapp?16:28,textAlign:"center"}}>El marketplace global de figuritas FIFA WC 2026™</div>
       {/* Si la persona entró desde el QR de alguien (escaneado en persona), le damos la opción
@@ -1199,7 +1199,7 @@ function FiguSwapInner() {
 
   if(checkingSession)return (
     <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <div style={{fontSize:40}}>⚽</div>
+      <img src="/icon-512.png" alt="FiguSwap" style={{width:48,height:48,borderRadius:10}}/>
     </div>
   );
   if(!session)return <AuthPage onAuth={s=>{setSession(s);sbAuth.storeSession(s);}} inviterWhatsapp={inviterWhatsapp}/>;
@@ -1211,7 +1211,7 @@ function FiguSwapInner() {
   // hasta que loadedAlbum sea true. La carga real toma ~200-500ms, así que esto es casi imperceptible.
   if(!loadedAlbum)return (
     <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10}}>
-      <div style={{fontSize:40}}>⚽</div>
+      <img src="/icon-512.png" alt="FiguSwap" style={{width:48,height:48,borderRadius:10}}/>
       <div style={{fontSize:13,color:"#6b7280"}}>Cargando tu álbum...</div>
     </div>
   );
@@ -1222,7 +1222,7 @@ function FiguSwapInner() {
     <div style={{minHeight:"100vh",background:"#0a0f1e",color:"#e8eaf6",fontFamily:"'Segoe UI',system-ui,sans-serif",paddingBottom:72}}>
       <div style={{background:"linear-gradient(135deg,#0a0f1e,#111827)",borderBottom:"1px solid #1e2a3a",padding:"12px 16px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:720,margin:"0 auto",display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:22}}>⚽</span>
+          <img src="/icon-512.png" alt="FiguSwap" style={{width:28,height:28,borderRadius:6}}/>
           <span style={{fontWeight:900,fontSize:18,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>FiguSwap</span>
           {saving&&<span style={{fontSize:10,color:"#4a5568",marginLeft:2}}>💾</span>}
           <div style={{marginLeft:"auto",display:"flex",gap:12}}>
