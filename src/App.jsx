@@ -455,16 +455,16 @@ function AuthPage({onAuth,inviterWhatsapp}) {
         </button>
         {/* Botón de Apple con la marca oficial (fondo negro, logo blanco) — Apple exige esta
             apariencia específica para "Sign in with Apple" si quieres pasar revisión. */}
-        <button onClick={sbAuth.signInWithApple} style={{width:"100%",padding:"14px",background:"#000",border:"none",borderRadius:10,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
+        <button onClick={sbAuth.signInWithApple} style={{width:"100%",padding:"14px",background:"#000",border:"1px solid #2a2a2a",borderRadius:10,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
           <svg width="17" height="20" viewBox="0 0 17 20" fill="#fff"><path d="M14.94 10.6c-.03-2.16 1.76-3.2 1.84-3.25-1-1.46-2.56-1.66-3.11-1.68-1.42-.14-2.69.82-3.39.82-.71 0-1.8-.8-2.95-.78-1.51.02-2.91.88-3.68 2.23-1.57 2.72-.4 6.98 1.13 9.27.75 1.12 1.65 2.37 2.83 2.33 1.13-.04 1.56-.74 2.93-.74 1.37 0 1.75.74 2.95.72 1.22-.02 1.99-1.12 2.74-2.24.86-1.29 1.22-2.54 1.24-2.62-.03-.01-2.38-.91-2.41-3.62l-.06-.04zM12.32 3.6c.65-.79 1.09-1.88.97-2.97-.94.04-2.07.63-2.74 1.42-.6.7-1.13 1.82-.99 2.89 1.05.08 2.1-.53 2.76-1.34z"/></svg>
           Continuar con Apple
         </button>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
           <div style={{flex:1,height:1,background:"#1e2a3a"}}/><span style={{fontSize:12,color:"#4a5568"}}>o con email</span><div style={{flex:1,height:1,background:"#1e2a3a"}}/>
         </div>
-        <div style={{display:"flex",gap:8,marginBottom:16}}>
+        <div style={{display:"flex",gap:4,marginBottom:20,borderBottom:"1px solid #1e2a3a"}}>
           {["login","register"].map(m=>(
-            <button key={m} onClick={()=>setMode(m)} style={{flex:1,padding:"10px",borderRadius:10,border:"1px solid",borderColor:mode===m?"#ffd700":"#1e2a3a",background:mode===m?"#ffd700":"transparent",color:mode===m?"#0a0f1e":"#9ca3af",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+            <button key={m} onClick={()=>setMode(m)} style={{flex:1,padding:"10px",border:"none",borderBottom:mode===m?"2px solid #ffd700":"2px solid transparent",background:"transparent",color:mode===m?"#ffd700":"#6b7280",fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:-1}}>
               {m==="login"?"Entrar":"Registrarse"}
             </button>
           ))}
