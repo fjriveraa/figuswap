@@ -96,8 +96,12 @@ function parseList(text) {
     }
 
     // Acepta: "MEX: 6, 18, 19" | "🇲🇽 MEX: 6, 18, 19" (emoji antes) | "MEX 8 15 16" (sin dos puntos) | "UZB-8" (guion) | "MEX: 8-12" (rango)
+    // Fix: sin la bandera "i" (insensible a mayúsculas) — los códigos reales de selección
+    // siempre vienen en MAYÚSCULAS en cualquier formato que hemos visto. Con "i" activado,
+    // la palabra "Usa" dentro del título del álbum ("Usa Méx Can 26") se confundía con el
+    // código real "USA", generando una entrada falsa "USA: 26" marcada como fuera de rango.
     const validCodes = Object.keys(ALBUM).join("|");
-    const match = line.match(new RegExp(`\\b(${validCodes})\\b\\s*[:\\-–]?\\s*(.*)`, "i"));
+    const match = line.match(new RegExp(`\\b(${validCodes})\\b\\s*[:\\-–]?\\s*(.*)`));
     if (!match) {
       ignored.push(line);
       continue;
@@ -315,6 +319,15 @@ export function ShareModal({ stickers, username, inviteEmail, onClose }) {
 
 // ─── IMPORTER MAIN ────────────────────────────────────────────────────────────
 export default function Importer({ onImport, onClose, currentAlbum }) {
+  // Detecta si esto es una primera importación (álbum vacío o casi vacío). En ese caso, "fusionar"
+  // y "reemplazar" no son una elección real — fusionar contra un álbum 100% "me falta" deja todo
+  // en "me falta", mientras que lo correcto para una primera carga es que lo no mencionado se
+  // marque como "tengo" (igual que hace "reemplazar"). Por eso, para álbum vacío, usamos
+  // reemplazar automáticamente y ni mostramos el selector — la elección solo tiene sentido real
+  // una vez que ya hay datos previos que sí valga la pena preservar.
+  const isFreshAlbum = !currentAlbum || Object.values(currentAlbum).every(
+    team => Object.values(team || {}).every(s => !s || s.state === "missing")
+  );
   const [step, setStep] = useState("paste"); // paste | preview | done
   const [text, setText] = useState("");
   const [parsed, setParsed] = useState(null);
@@ -335,17 +348,21 @@ export default function Importer({ onImport, onClose, currentAlbum }) {
   };
 
   const handleImport = () => {
+    // Modo efectivo: si es la primera importación (álbum vacío), siempre se comporta como
+    // "reemplazar" — ver la nota junto a isFreshAlbum más arriba sobre por qué eso es lo correcto.
+    const effectiveMode = isFreshAlbum ? "replace" : mergeMode;
+
     // Guarda de seguridad: en modo "fusionar", si por alguna razón no llegó el álbum base
     // (currentAlbum undefined/null), buildAlbumFromParsed caería sin darse cuenta al mismo
     // comportamiento de "reemplazar todo" — porque sin base, todo lo no mencionado se marca
     // como "have". Eso traicionaría la elección explícita del usuario. Mejor avisar y cancelar.
     // En modo "reemplazar" no aplica: ahí se pasa null a propósito.
-    if (mergeMode === "merge" && !currentAlbum) {
+    if (effectiveMode === "merge" && !currentAlbum) {
       setError("No se pudo cargar tu álbum actual. Cierra y vuelve a abrir el importador para evitar perder datos por accidente.");
       setStep("paste");
       return;
     }
-    const album = buildAlbumFromParsed(parsed, mergeMode === "merge" ? currentAlbum : null);
+    const album = buildAlbumFromParsed(parsed, effectiveMode === "merge" ? currentAlbum : null);
     onImport(album);
     setStep("done");
   };
@@ -507,22 +524,30 @@ MAR 🇲🇦: 3`;
           </div>
         )}
 
-        {/* Selector de modo: evita borrar el álbum entero por accidente con una lista parcial */}
-        <div style={{marginBottom:16}}>
-          <div style={{fontWeight:700,color:"#e8eaf6",fontSize:13,marginBottom:8}}>¿Cómo aplicar esta lista?</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            <button onClick={()=>setMergeMode("merge")} style={{textAlign:"left",padding:"12px 14px",borderRadius:10,border:"1px solid",borderColor:mergeMode==="merge"?"#22c55e":"#1e2a3a",background:mergeMode==="merge"?"#0a1e0a":"#111827",cursor:"pointer"}}>
-              <div style={{fontWeight:700,color:mergeMode==="merge"?"#22c55e":"#e8eaf6",fontSize:13}}>✅ Fusionar con mi álbum actual (recomendado)</div>
-              <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>Solo actualiza las figuritas mencionadas en esta lista; el resto de tu álbum no cambia</div>
-            </button>
-            <button onClick={()=>setMergeMode("replace")} style={{textAlign:"left",padding:"12px 14px",borderRadius:10,border:"1px solid",borderColor:mergeMode==="replace"?"#ef4444":"#1e2a3a",background:mergeMode==="replace"?"#1e0a0a":"#111827",cursor:"pointer"}}>
-              <div style={{fontWeight:700,color:mergeMode==="replace"?"#ef4444":"#e8eaf6",fontSize:13}}>🔄 Reemplazar todo mi álbum</div>
-              <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>Lo no mencionado en la lista se marcará como "tengo" — usa esto solo si la lista es completa</div>
-            </button>
+        {/* Selector de modo: solo tiene sentido real si ya hay algo en el álbum que preservar.
+            En una primera importación (álbum vacío), fusionar y reemplazar no son una elección
+            real — se aplica directo, sin el selector que solo generaría confusión. */}
+        {isFreshAlbum ? (
+          <div style={{background:"#0a1e0a",border:"1px solid #22c55e",borderRadius:12,padding:14,fontSize:13,color:"#86efac",marginBottom:16}}>
+            ✅ Como es tu primera importación, esta lista se aplica directo a tu álbum — todo lo no mencionado se marcará como "tengo".
           </div>
-        </div>
+        ) : (
+          <div style={{marginBottom:16}}>
+            <div style={{fontWeight:700,color:"#e8eaf6",fontSize:13,marginBottom:8}}>¿Cómo aplicar esta lista?</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <button onClick={()=>setMergeMode("merge")} style={{textAlign:"left",padding:"12px 14px",borderRadius:10,border:"1px solid",borderColor:mergeMode==="merge"?"#22c55e":"#1e2a3a",background:mergeMode==="merge"?"#0a1e0a":"#111827",cursor:"pointer"}}>
+                <div style={{fontWeight:700,color:mergeMode==="merge"?"#22c55e":"#e8eaf6",fontSize:13}}>✅ Fusionar con mi álbum actual (recomendado)</div>
+                <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>Solo actualiza las figuritas mencionadas en esta lista; el resto de tu álbum no cambia</div>
+              </button>
+              <button onClick={()=>setMergeMode("replace")} style={{textAlign:"left",padding:"12px 14px",borderRadius:10,border:"1px solid",borderColor:mergeMode==="replace"?"#ef4444":"#1e2a3a",background:mergeMode==="replace"?"#1e0a0a":"#111827",cursor:"pointer"}}>
+                <div style={{fontWeight:700,color:mergeMode==="replace"?"#ef4444":"#e8eaf6",fontSize:13}}>🔄 Reemplazar todo mi álbum</div>
+                <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>Lo no mencionado en la lista se marcará como "tengo" — usa esto solo si la lista es completa</div>
+              </button>
+            </div>
+          </div>
+        )}
 
-        {mergeMode==="replace"&&(
+        {!isFreshAlbum && mergeMode==="replace"&&(
           <div style={{background:"#0a1a2e",border:"1px solid #1e3a5f",borderRadius:12,padding:14,fontSize:13,color:"#60a5fa"}}>
             ⚠️ Esto reemplazará tu álbum actual. Las figuritas no mencionadas se marcarán como "tengo".
           </div>
