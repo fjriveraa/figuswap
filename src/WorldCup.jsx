@@ -38,6 +38,13 @@ function matchStatus(match) {
   return "scheduled";
 }
 
+// Resuelve la letra del grupo probando varios nombres de campo posibles a nivel de grupo,
+// y si ninguno existe, la toma del propio equipo (cada equipo trae su letra en team.groups).
+function getGroupLetter(group, teamsById) {
+  return group.group || group.name || group.letter || group.id || group.groupName
+    || teamsById[group.teams?.[0]?.team_id]?.groups || "?";
+}
+
 function MatchRow({ match, teamsById }) {
   const home = teamsById[match.home_team_id];
   const away = teamsById[match.away_team_id];
@@ -94,7 +101,9 @@ function GroupTable({ group, teamsById, games }) {
 
   return (
     <div style={{ marginBottom: 18 }}>
-      <div style={{ fontWeight: 800, color: "#ffd700", fontSize: 13, marginBottom: 6 }}>Grupo {group.group}</div>
+      <div style={{ fontWeight: 800, color: "#ffd700", fontSize: 13, marginBottom: 6 }}>
+        Grupo {getGroupLetter(group, teamsById)}
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 28px 28px 28px 28px 32px", gap: 4, fontSize: 10, color: "#4a5568", padding: "0 4px", marginBottom: 4 }}>
         <span>Equipo</span><span style={{ textAlign: "center" }}>PJ</span><span style={{ textAlign: "center" }}>GF</span><span style={{ textAlign: "center" }}>GC</span><span style={{ textAlign: "center" }}>DG</span><span style={{ textAlign: "center" }}>Pts</span>
       </div>
@@ -198,9 +207,11 @@ export default function WorldCup() {
             </div>
           ))}
 
-          {subTab === "table" && groups.map((g) => (
-            <GroupTable key={g.group} group={g} teamsById={teamsById} games={games} />
-          ))}
+          {subTab === "table" && [...groups]
+            .sort((a, b) => getGroupLetter(a, teamsById).localeCompare(getGroupLetter(b, teamsById)))
+            .map((g, i) => (
+              <GroupTable key={g.group || g.teams?.[0]?.team_id || i} group={g} teamsById={teamsById} games={games} />
+            ))}
         </>
       )}
     </div>
