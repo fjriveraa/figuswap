@@ -24,11 +24,14 @@ function fetchWorldcup(type) {
 }
 
 function Flag({ team }) {
-  if (!team) return <span style={{ width: 20, display: "inline-block" }}>🏳️</span>;
-  if (team.flag) {
-    return <img src={team.flag} alt="" style={{ width: 20, height: 14, objectFit: "cover", borderRadius: 2, flexShrink: 0 }} />;
+  const [imgFailed, setImgFailed] = useState(false);
+  if (!team || !team.flag || imgFailed) {
+    return <span style={{ width: 20, display: "inline-block", flexShrink: 0 }}>🏳️</span>;
   }
-  return <span style={{ width: 20, display: "inline-block", flexShrink: 0 }}>🏳️</span>;
+  // Fix: antes solo se revisaba si team.flag existía como dato, pero si la URL existe y la
+  // imagen falla al cargar (link roto, CORS, etc.), el navegador mostraba un ícono de imagen
+  // rota en vez de la bandera de respaldo. onError ahora cambia al emoji si eso pasa.
+  return <img src={team.flag} alt="" onError={() => setImgFailed(true)} style={{ width: 20, height: 14, objectFit: "cover", borderRadius: 2, flexShrink: 0 }} />;
 }
 
 // Fix: esta API manda finished como texto "TRUE"/"FALSE" (string), no booleano real.
@@ -206,6 +209,10 @@ export default function WorldCup() {
 
   const teamsById = {};
   teams.forEach((t) => { teamsById[t.id] = t; });
+  // Los goleadores solo traen el nombre del equipo (ej. "Argentina"), no su id — este lookup
+  // permite encontrar la bandera correspondiente sin tener que cambiar cómo se calculan los goles.
+  const teamsByName = {};
+  teams.forEach((t) => { if (t.name_en) teamsByName[t.name_en] = t; });
 
   const sortedGames = [...games].sort((a, b) => new Date(a.local_date) - new Date(b.local_date));
   const gamesByDate = {};
@@ -279,7 +286,10 @@ export default function WorldCup() {
                     <span style={{ width: 24, textAlign: "center", fontWeight: 800, color: i < 3 ? "#ffd700" : "#6b7280", fontSize: 13 }}>{i + 1}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, color: "#e8eaf6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
-                      <div style={{ fontSize: 10, color: "#6b7280" }}>{s.team || "—"}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <Flag team={teamsByName[s.team]} />
+                        <span style={{ fontSize: 10, color: "#6b7280" }}>{s.team || "—"}</span>
+                      </div>
                     </div>
                     <span style={{ fontWeight: 900, fontSize: 16, color: "#ffd700" }}>{s.goals}</span>
                   </div>
