@@ -31,11 +31,57 @@ function Flag({ team }) {
   return <span style={{ width: 20, display: "inline-block", flexShrink: 0 }}>🏳️</span>;
 }
 
+// Fix: esta API manda finished como texto "TRUE"/"FALSE" (string), no booleano real.
+// "FALSE" es un string no vacío, así que `if(match.finished)` lo trataba como verdadero —
+// eso hacía que TODOS los partidos contaran como finalizados, inflando "PJ" en la tabla.
+// Tampoco existe un campo "status": el indicador real de en vivo/no-empezado es time_elapsed.
+// Suma goles por jugador a partir de home_scorers/away_scorers de todos los partidos.
+// Cada entrada del array es un gol individual (si alguien anotó 2, aparece 2 veces en la lista).
+function computeTopScorers(games) {
+  const counts = {}; // nombre -> { goals, team }
+  (games || []).forEach((g) => {
+    const homeTeam = g.home_team_name_en;
+    const awayTeam = g.away_team_name_en;
+    parsePgArray(g.home_scorers).forEach((entry) => {
+      const name = parseScorerName(entry);
+      if (!name) return;
+      if (!counts[name]) counts[name] = { name, goals: 0, team: homeTeam };
+      counts[name].goals++;
+    });
+    parsePgArray(g.away_scorers).forEach((entry) => {
+      const name = parseScorerName(entry);
+      if (!name) return;
+      if (!counts[name]) counts[name] = { name, goals: 0, team: awayTeam };
+      counts[name].goals++;
+    });
+  });
+  return Object.values(counts).sort((a, b) => b.goals - a.goals);
+}
+
 function matchStatus(match) {
-  const s = (match.status || "").toLowerCase();
-  if (s === "live" || s === "in_progress" || s === "playing") return "live";
-  if (match.finished || s === "finished" || s === "ft") return "finished";
-  return "scheduled";
+  const elapsed = String(match.time_elapsed || "").toLowerCase();
+  const finished = String(match.finished || "").toUpperCase() === "TRUE";
+  if (finished || elapsed === "finished" || elapsed === "ft") return "finished";
+  if (elapsed === "notstarted" || elapsed === "") return "scheduled";
+  return "live"; // cualquier otro valor de time_elapsed (ej. "45'", "ht") = en curso
+}
+
+// Convierte el literal de array de Postgres (texto tipo {"a","b"}) en un array real de JS.
+// Esta API no manda JSON real para home_scorers/away_scorers, manda el texto crudo de Postgres.
+function parsePgArray(str) {
+  if (!str || str === "null" || str === "NULL") return [];
+  const inner = String(str).trim().replace(/^\{/, "").replace(/\}$/, "");
+  if (!inner) return [];
+  const matches = inner.match(/"((?:[^"\\]|\\.)*)"/g) || [];
+  return matches.map(m => m.slice(1, -1).replace(/\\"/g, '"').trim());
+}
+
+// Extrae el nombre del jugador de un texto tipo "K. Mbappé 90+6'" o "D. Bobadilla 7'(OG)".
+// Excluye autogoles (OG) — por convención, un autogol no cuenta para la tabla de goleadores.
+function parseScorerName(entry) {
+  if (/\(OG\)/i.test(entry)) return null;
+  const m = entry.match(/^(.*?)\s+\d+/);
+  return m ? m[1].trim() : entry.trim();
 }
 
 // Resuelve la letra del grupo probando varios nombres de campo posibles a nivel de grupo,
@@ -50,20 +96,23 @@ function MatchRow({ match, teamsById }) {
   const away = teamsById[match.away_team_id];
   const status = matchStatus(match);
   const hasScore = status !== "scheduled";
+  // Fix: home_score/away_score llegan como texto, y algunos partidos futuros mandan el
+  // string literal "null" en vez de un null real — Number("null") es NaN, así que se cubre aquí.
+  const toScore = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 4px", borderBottom: "1px solid #1e2a3a" }}>
       <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
         <Flag team={home} />
         <span style={{ fontSize: 13, color: "#e8eaf6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {home?.name_en || home?.fifa_code || "Por confirmar"}
+          {home?.name_en || match.home_team_name_en || match.home_team_label || "Por confirmar"}
         </span>
       </div>
 
       <div style={{ flexShrink: 0, textAlign: "center", minWidth: 64 }}>
         {hasScore ? (
           <div style={{ fontWeight: 900, fontSize: 16, color: status === "live" ? "#f97316" : "#e8eaf6" }}>
-            {match.home_score ?? 0} - {match.away_score ?? 0}
+            {toScore(match.home_score)} - {toScore(match.away_score)}
           </div>
         ) : (
           <div style={{ fontSize: 12, color: "#4a5568", fontWeight: 700 }}>vs</div>
@@ -78,7 +127,7 @@ function MatchRow({ match, teamsById }) {
 
       <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end", minWidth: 0 }}>
         <span style={{ fontSize: 13, color: "#e8eaf6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "right" }}>
-          {away?.name_en || away?.fifa_code || "Por confirmar"}
+          {away?.name_en || match.away_team_name_en || match.away_team_label || "Por confirmar"}
         </span>
         <Flag team={away} />
       </div>
@@ -87,15 +136,17 @@ function MatchRow({ match, teamsById }) {
 }
 
 function GroupTable({ group, teamsById, games }) {
+  // Misma API, mismo patrón: los números pueden llegar como texto, incluido el string "null".
+  const toNum = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
   const rows = (group.teams || []).map((gt) => {
     const played = (games || []).filter(
       (g) =>
         (String(g.home_team_id) === String(gt.team_id) || String(g.away_team_id) === String(gt.team_id)) &&
         matchStatus(g) === "finished"
     ).length;
-    const gf = Number(gt.gf || 0);
-    const ga = Number(gt.ga || 0);
-    return { ...gt, played, gf, ga, gd: gf - ga, pts: Number(gt.pts || 0), team: teamsById[gt.team_id] };
+    const gf = toNum(gt.gf);
+    const ga = toNum(gt.ga);
+    return { ...gt, played, gf, ga, gd: gf - ga, pts: toNum(gt.pts), team: teamsById[gt.team_id] };
   });
   rows.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
 
@@ -167,7 +218,7 @@ export default function WorldCup() {
   return (
     <div>
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-        {[["calendar", "📅 Partidos"], ["table", "📊 Posiciones"]].map(([key, label]) => (
+        {[["calendar", "📅 Partidos"], ["table", "📊 Posiciones"], ["scorers", "⚽ Goleadores"]].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setSubTab(key)}
@@ -212,6 +263,30 @@ export default function WorldCup() {
             .map((g, i) => (
               <GroupTable key={g.group || g.teams?.[0]?.team_id || i} group={g} teamsById={teamsById} games={games} />
             ))}
+
+          {subTab === "scorers" && (() => {
+            const scorers = computeTopScorers(games).slice(0, 25);
+            if (scorers.length === 0) {
+              return <div style={{ textAlign: "center", padding: 30, color: "#4a5568", fontSize: 13 }}>Todavía no hay goles registrados.</div>;
+            }
+            return (
+              <div>
+                <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 10 }}>
+                  ⚠️ Algunos nombres pueden venir mal escritos para selecciones más chicas — es un problema de los datos de origen, no de FiguSwap.
+                </div>
+                {scorers.map((s, i) => (
+                  <div key={s.name + i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 4px", borderBottom: "1px solid #1e2a3a" }}>
+                    <span style={{ width: 24, textAlign: "center", fontWeight: 800, color: i < 3 ? "#ffd700" : "#6b7280", fontSize: 13 }}>{i + 1}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: "#e8eaf6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
+                      <div style={{ fontSize: 10, color: "#6b7280" }}>{s.team || "—"}</div>
+                    </div>
+                    <span style={{ fontWeight: 900, fontSize: 16, color: "#ffd700" }}>{s.goals}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </>
       )}
     </div>
