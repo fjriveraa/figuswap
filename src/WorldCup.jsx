@@ -138,7 +138,7 @@ function MatchRow({ match, teamsById }) {
   );
 }
 
-function GroupTable({ group, teamsById, games }) {
+function GroupTable({ group, teamsById, games, t }) {
   // Misma API, mismo patrón: los números pueden llegar como texto, incluido el string "null".
   const toNum = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
   const rows = (group.teams || []).map((gt) => {
@@ -156,10 +156,10 @@ function GroupTable({ group, teamsById, games }) {
   return (
     <div style={{ marginBottom: 18 }}>
       <div style={{ fontWeight: 800, color: "#ffd700", fontSize: 13, marginBottom: 6 }}>
-        Grupo {getGroupLetter(group, teamsById)}
+        {t?.group || "Grupo"} {getGroupLetter(group, teamsById)}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 28px 28px 28px 28px 32px", gap: 4, fontSize: 10, color: "#4a5568", padding: "0 4px", marginBottom: 4 }}>
-        <span>Equipo</span><span style={{ textAlign: "center" }}>PJ</span><span style={{ textAlign: "center" }}>GF</span><span style={{ textAlign: "center" }}>GC</span><span style={{ textAlign: "center" }}>DG</span><span style={{ textAlign: "center" }}>Pts</span>
+        <span>{t?.team || "Equipo"}</span><span style={{ textAlign: "center" }}>{t?.played || "PJ"}</span><span style={{ textAlign: "center" }}>{t?.goalsFor || "GF"}</span><span style={{ textAlign: "center" }}>{t?.goalsAgainst || "GC"}</span><span style={{ textAlign: "center" }}>{t?.goalDifference || "DG"}</span><span style={{ textAlign: "center" }}>{t?.points || "Pts"}</span>
       </div>
       {rows.map((r, i) => (
         <div key={r.team_id} style={{ display: "grid", gridTemplateColumns: "1fr 28px 28px 28px 28px 32px", gap: 4, alignItems: "center", padding: "6px 4px", background: i < 2 ? "#0a1a0a" : "transparent", borderRadius: 6 }}>
@@ -177,7 +177,7 @@ function GroupTable({ group, teamsById, games }) {
   );
 }
 
-export default function WorldCup() {
+export default function WorldCup({ lang="es", t }) {
   const [subTab, setSubTab] = useState("calendar"); // calendar | table
   const [teams, setTeams] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -196,7 +196,7 @@ export default function WorldCup() {
       .catch(() => {
         // No tumbamos la pantalla — si ya había datos de una carga anterior, los dejamos
         // visibles y solo avisamos que la actualización falló.
-        setError("No se pudo actualizar la información del Mundial. Puede que la API esté caída temporalmente.");
+        setError(t?.worldcupError || "No se pudo actualizar la información del Mundial. Puede que la API esté caída temporalmente.");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -225,7 +225,7 @@ export default function WorldCup() {
   return (
     <div>
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-        {[["calendar", "📅 Partidos"], ["table", "📊 Posiciones"], ["scorers", "⚽ Goleadores"]].map(([key, label]) => (
+        {[["calendar", t?.matches || "📅 Partidos"], ["table", t?.standings || "📊 Posiciones"], ["scorers", t?.topScorers || "⚽ Goleadores"]].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setSubTab(key)}
@@ -237,7 +237,7 @@ export default function WorldCup() {
       </div>
 
       {loading && (
-        <div style={{ textAlign: "center", padding: 40, color: "#4a5568" }}>⏳ Cargando datos del Mundial...</div>
+        <div style={{ textAlign: "center", padding: 40, color: "#4a5568" }}>{t?.loadingWorldcup || "⏳ Cargando datos del Mundial..."}</div>
       )}
 
       {!loading && error && games.length === 0 && (
@@ -245,7 +245,7 @@ export default function WorldCup() {
           <div style={{ fontSize: 36, marginBottom: 10 }}>📡</div>
           <div style={{ marginBottom: 12, fontSize: 13 }}>{error}</div>
           <button onClick={() => { setLoading(true); load(); }} style={{ padding: "10px 20px", background: "#1e2a3a", border: "1px solid #374151", borderRadius: 10, color: "#e8eaf6", fontWeight: 700, cursor: "pointer" }}>
-            Reintentar
+            {t?.retry || "Reintentar"}
           </button>
         </div>
       )}
@@ -254,7 +254,7 @@ export default function WorldCup() {
         <>
           {error && (
             <div style={{ background: "#1e1500", border: "1px solid #92400e", borderRadius: 10, padding: "8px 12px", fontSize: 11, color: "#fbbf24", marginBottom: 12 }}>
-              ⚠️ {error} Mostrando los últimos datos disponibles.
+              ⚠️ {error} {t?.showingCached || "Mostrando los últimos datos disponibles."}
             </div>
           )}
 
@@ -268,18 +268,18 @@ export default function WorldCup() {
           {subTab === "table" && [...groups]
             .sort((a, b) => getGroupLetter(a, teamsById).localeCompare(getGroupLetter(b, teamsById)))
             .map((g, i) => (
-              <GroupTable key={g.group || g.teams?.[0]?.team_id || i} group={g} teamsById={teamsById} games={games} />
+              <GroupTable key={g.group || g.teams?.[0]?.team_id || i} group={g} teamsById={teamsById} games={games} t={t} />
             ))}
 
           {subTab === "scorers" && (() => {
             const scorers = computeTopScorers(games).slice(0, 25);
             if (scorers.length === 0) {
-              return <div style={{ textAlign: "center", padding: 30, color: "#4a5568", fontSize: 13 }}>Todavía no hay goles registrados.</div>;
+              return <div style={{ textAlign: "center", padding: 30, color: "#4a5568", fontSize: 13 }}>{t?.noGoalsYet || "Todavía no hay goles registrados."}</div>;
             }
             return (
               <div>
                 <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 10 }}>
-                  ⚠️ Algunos nombres pueden venir mal escritos para selecciones más chicas — es un problema de los datos de origen, no de FiguSwap.
+                  {t?.sourceDataWarning || "⚠️ Algunos nombres pueden venir mal escritos para selecciones más chicas — es un problema de los datos de origen, no de FiguSwap."}
                 </div>
                 {scorers.map((s, i) => (
                   <div key={s.name + i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 4px", borderBottom: "1px solid #1e2a3a" }}>
