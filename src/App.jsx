@@ -3,18 +3,19 @@ import Importer, { ShareModal } from "./Importer.jsx";
 import Onboarding from "./Onboarding.jsx";
 import Scanner from "./Scanner.jsx";
 import WorldCup from "./WorldCup.jsx";
+import { translations, getInitialLang } from "./i18n";
 
 const SUPABASE_URL = "https://fythsgiofvodukjzutat.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5dGhzZ2lvZnZvZHVranp1dGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NTIyMDgsImV4cCI6MjA5NzEyODIwOH0.HaG8yQgc2BzEGnlaNXFWaLZ0c_Oa6CvhwcVjHj99-AY";
 
-const STATE = {
-  missing:  { color:"#ef4444", bg:"#1e0a0a", label:"Me falta",  emoji:"❌" },
-  have:     { color:"#22c55e", bg:"#0a1e0a", label:"La tengo",  emoji:"✅" },
-  repeated: { color:"#f97316", bg:"#1e0f00", label:"Repetida",  emoji:"🔁" },
-  sell:     { color:"#fbbf24", bg:"#1e1500", label:"En venta",  emoji:"💰" },
-  trade:    { color:"#60a5fa", bg:"#0a0f1e", label:"Cambio",    emoji:"🔄" },
-  auction:  { color:"#a78bfa", bg:"#0f0a1e", label:"Subasta",   emoji:"🔨" },
-};
+const getStateLabels = (t) => ({
+  missing:  { color:"#ef4444", bg:"#1e0a0a", label:t.missingState || t.missing,  emoji:"❌" },
+  have:     { color:"#22c55e", bg:"#0a1e0a", label:t.have,  emoji:"✅" },
+  repeated: { color:"#f97316", bg:"#1e0f00", label:t.repeatedState || t.repeated,  emoji:"🔁" },
+  sell:     { color:"#fbbf24", bg:"#1e1500", label:t.sell,  emoji:"💰" },
+  trade:    { color:"#60a5fa", bg:"#0a0f1e", label:t.trade,    emoji:"🔄" },
+  auction:  { color:"#a78bfa", bg:"#0f0a1e", label:t.auction,   emoji:"🔨" },
+});
 // Estados que representan una figurita disponible para intercambio/venta (no la posesión única "have")
 const TRADEABLE_STATES = ["repeated","sell","trade","auction"];
 
@@ -378,6 +379,9 @@ const sbAuth = {
   async signInWithApple() {
     window.location.href=`${SUPABASE_URL}/auth/v1/authorize?provider=apple&redirect_to=${encodeURIComponent(window.location.origin)}`;
   },
+  async signInWithFacebook() {
+    window.location.href=`${SUPABASE_URL}/auth/v1/authorize?provider=facebook&redirect_to=${encodeURIComponent(window.location.origin)}`;
+  },
   async signInWithEmail(email,password) {
     const res=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{method:"POST",headers:{apikey:SUPABASE_KEY,"Content-Type":"application/json"},body:JSON.stringify({email,password})});
     return res.json();
@@ -410,7 +414,7 @@ const sbAuth = {
 };
 
 // ─── AUTH PAGE ────────────────────────────────────────────────────────────────
-function AuthPage({onAuth,inviterWhatsapp}) {
+function AuthPage({onAuth,onClose,inviterWhatsapp,t=translations.es}) {
   const [mode,setMode]=useState("login");
   const [email,setEmail]=useState("");
   const [pass,setPass]=useState("");
@@ -424,56 +428,64 @@ function AuthPage({onAuth,inviterWhatsapp}) {
       if(mode==="login"){
         const r=await sbAuth.signInWithEmail(normEmail,pass);
         if(r.access_token){const s={token:r.access_token,email:normalizeEmail(r.user?.email||normEmail)};sbAuth.storeSession(s);onAuth(s);}
-        else setError(r.error_description||"Email o contraseña incorrectos");
+        else setError(r.error_description||t.emailOrPasswordError);
       }else{
         const r=await sbAuth.signUp(normEmail,pass);
-        if(r.id||r.user?.id){setMode("login");setError("✅ Cuenta creada. Ya puedes entrar.");}
-        else setError(r.error_description||"Error al registrarse");
+        if(r.id||r.user?.id){setMode("login");setError(t.accountCreated);}
+        else setError(r.error_description||t.registerError);
       }
-    }catch{setError("Error de conexión");}
+    }catch{setError(t.connectionError);}
     setLoading(false);
   };
   return (
-    <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,position:"relative"}}>
+      {onClose&&(
+        <button onClick={onClose} style={{position:"absolute",top:16,right:16,background:"none",border:"none",color:"#6b7280",fontSize:24,cursor:"pointer",padding:8}}>✕</button>
+      )}
       <img src="/icon-512.png" alt="FiguSwap" style={{width:64,height:64,borderRadius:14,marginBottom:8}}/>
       <div style={{fontWeight:900,fontSize:28,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:4}}>FiguSwap</div>
-      <div style={{color:"#6b7280",fontSize:13,marginBottom:inviterWhatsapp?16:28,textAlign:"center"}}>El marketplace global de figuritas FIFA WC 2026™</div>
+      <div style={{color:"#6b7280",fontSize:13,marginBottom:inviterWhatsapp?16:28,textAlign:"center"}}>{t.appSubtitle}</div>
       {/* Si la persona entró desde el QR de alguien (escaneado en persona), le damos la opción
           de escribirle de inmediato por WhatsApp, sin esperar a terminar de registrarse. */}
       {inviterWhatsapp&&(
         <button
-          onClick={()=>window.open(`https://wa.me/${inviterWhatsapp}?text=${encodeURIComponent("¡Hola! Te encontré por tu código QR de FiguSwap ⚽🎴")}`,"_blank")}
+          onClick={()=>window.open(`https://wa.me/${inviterWhatsapp}?text=${encodeURIComponent(t.qrWhatsappMessage)}`,"_blank")}
           style={{width:"100%",maxWidth:380,padding:"12px",background:"#14532d",border:"1px solid #22c55e",borderRadius:10,color:"#86efac",fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:20}}
         >
-          💬 Escríbele por WhatsApp ahora mismo
+          {t.whatsappNow}
         </button>
       )}
       <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:16,padding:24,width:"100%",maxWidth:380}}>
-        <button onClick={sbAuth.signInWithGoogle} style={{width:"100%",padding:"14px",background:"#fff",border:"1px solid #e5e7eb",borderRadius:10,color:"#1f2937",fontWeight:700,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:12}}>
+        <button onClick={sbAuth.signInWithGoogle} style={{width:"100%",padding:"14px",background:"#fff",border:"1px solid #e5e7eb",borderRadius:10,color:"#1f2937",fontWeight:700,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
           <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-          Continuar con Google
+          {t.continueWithGoogle}
         </button>
         {/* Botón de Apple con la marca oficial (fondo negro, logo blanco) — Apple exige esta
-            apariencia específica para "Sign in with Apple" si quieres pasar revisión. */}
+            apariencia específica para "Sign in with Apple" si quieres pasar revisión. Borde
+            sutil para que se distinga de la tarjeta oscura en vez de fundirse invisible. */}
         <button onClick={sbAuth.signInWithApple} style={{width:"100%",padding:"14px",background:"#000",border:"1px solid #2a2a2a",borderRadius:10,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
           <svg width="17" height="20" viewBox="0 0 17 20" fill="#fff"><path d="M14.94 10.6c-.03-2.16 1.76-3.2 1.84-3.25-1-1.46-2.56-1.66-3.11-1.68-1.42-.14-2.69.82-3.39.82-.71 0-1.8-.8-2.95-.78-1.51.02-2.91.88-3.68 2.23-1.57 2.72-.4 6.98 1.13 9.27.75 1.12 1.65 2.37 2.83 2.33 1.13-.04 1.56-.74 2.93-.74 1.37 0 1.75.74 2.95.72 1.22-.02 1.99-1.12 2.74-2.24.86-1.29 1.22-2.54 1.24-2.62-.03-.01-2.38-.91-2.41-3.62l-.06-.04zM12.32 3.6c.65-.79 1.09-1.88.97-2.97-.94.04-2.07.63-2.74 1.42-.6.7-1.13 1.82-.99 2.89 1.05.08 2.1-.53 2.76-1.34z"/></svg>
-          Continuar con Apple
+          {t.continueWithApple}
+        </button>
+        <button onClick={sbAuth.signInWithFacebook} style={{width:"100%",padding:"14px",background:"#1877F2",border:"none",borderRadius:10,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.95h-1.5c-1.5 0-1.96.93-1.96 1.89v2.28h3.32l-.53 3.49h-2.79V24C19.61 23.1 24 18.1 24 12.07z"/></svg>
+          {t.continueWithFacebook}
         </button>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-          <div style={{flex:1,height:1,background:"#1e2a3a"}}/><span style={{fontSize:12,color:"#4a5568"}}>o con email</span><div style={{flex:1,height:1,background:"#1e2a3a"}}/>
+          <div style={{flex:1,height:1,background:"#1e2a3a"}}/><span style={{fontSize:12,color:"#4a5568"}}>{t.withEmail}</span><div style={{flex:1,height:1,background:"#1e2a3a"}}/>
         </div>
         <div style={{display:"flex",gap:4,marginBottom:20,borderBottom:"1px solid #1e2a3a"}}>
           {["login","register"].map(m=>(
             <button key={m} onClick={()=>setMode(m)} style={{flex:1,padding:"10px",border:"none",borderBottom:mode===m?"2px solid #ffd700":"2px solid transparent",background:"transparent",color:mode===m?"#ffd700":"#6b7280",fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:-1}}>
-              {m==="login"?"Entrar":"Registrarse"}
+              {m==="login"?t.login:t.register}
             </button>
           ))}
         </div>
         <input style={inp} type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)}/>
-        <input style={inp} type="password" placeholder="Contraseña" value={pass} onChange={e=>setPass(e.target.value)}/>
+        <input style={inp} type="password" placeholder={t.password} value={pass} onChange={e=>setPass(e.target.value)}/>
         {error&&<div style={{fontSize:12,marginBottom:10,padding:"8px 12px",background:error.startsWith("✅")?"#052e16":"#1e0a0a",borderRadius:8,color:error.startsWith("✅")?"#86efac":"#ef4444"}}>{error}</div>}
         <button onClick={handleEmail} disabled={loading} style={{width:"100%",padding:"14px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,fontSize:15,cursor:"pointer",opacity:loading?0.7:1}}>
-          {loading?"⏳ ...":(mode==="login"?"Entrar →":"Crear cuenta →")}
+          {loading?"⏳ ...":(mode==="login"?`${t.login} →`:`${t.createAccount} →`)}
         </button>
       </div>
     </div>
@@ -481,7 +493,7 @@ function AuthPage({onAuth,inviterWhatsapp}) {
 }
 
 // ─── STICKER CELL — TAP TO CYCLE ─────────────────────────────────────────────
-function StickerCell({code,num,data,onAction}) {
+function StickerCell({code,num,data,onAction,t,stateMap}) {
   const pressTimer = useRef(null);
   const longPressed = useRef(false);
   const [pressing,setPressing]=useState(false);
@@ -530,7 +542,7 @@ function StickerCell({code,num,data,onAction}) {
     if(pressTimer.current) clearTimeout(pressTimer.current);
   };
 
-  const st=STATE[data.state];
+  const st=stateMap[data.state];
 
   return (
     <div>
@@ -551,7 +563,7 @@ function StickerCell({code,num,data,onAction}) {
 
       {/* Long press hint */}
       {(data.state==="repeated"||data.state==="have")&&(
-        <div style={{fontSize:8,color:"#374151",textAlign:"center",marginTop:1}}>mantén=restar</div>
+        <div style={{fontSize:8,color:"#374151",textAlign:"center",marginTop:1}}>{t.holdToSubtract}</div>
       )}
 
       {/* Full modal for sell/trade/auction */}
@@ -564,10 +576,10 @@ function StickerCell({code,num,data,onAction}) {
               {STICKER_NAMES[code]?.[num]&&(
                 <div style={{fontSize:13,color:"#9ca3af",marginTop:2}}>{STICKER_NAMES[code][num]}</div>
               )}
-              <div style={{fontSize:12,color:"#6b7280",marginTop:4}}>Toca para cambiar estado</div>
+              <div style={{fontSize:12,color:"#6b7280",marginTop:4}}>{t.tapToChangeState}</div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
-              {Object.entries(STATE).map(([key,val])=>(
+              {Object.entries(stateMap).map(([key,val])=>(
                 <button key={key} onClick={()=>{onAction(code,num,key);setOpen(false);}} style={{padding:"10px 6px",borderRadius:10,border:`1px solid ${data.state===key?val.color:"#1e2a3a"}`,background:data.state===key?val.bg:"#0a0f1e",color:data.state===key?val.color:"#6b7280",fontWeight:700,fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
                   <span style={{fontSize:18}}>{val.emoji}</span><span>{val.label}</span>
                 </button>
@@ -575,14 +587,14 @@ function StickerCell({code,num,data,onAction}) {
             </div>
             {(data.state==="sell"||data.state==="auction")&&(
               <div style={{background:"#0a0f1e",borderRadius:10,padding:12,marginBottom:12}}>
-                <div style={{fontSize:12,color:"#6b7280",marginBottom:8}}>Precio (USD)</div>
+                <div style={{fontSize:12,color:"#6b7280",marginBottom:8}}>{t.priceUsd}</div>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
                   <span style={{color:"#6b7280"}}>$</span>
                   <input type="number" defaultValue={data.price||1} min={0.5} step={0.5} onChange={e=>onAction(code,num,data.state,data.qty,parseFloat(e.target.value))} style={{flex:1,background:"#111827",border:"1px solid #1e2a3a",borderRadius:8,color:"#ffd700",fontSize:20,fontWeight:700,padding:"8px 12px",outline:"none"}}/>
                 </div>
               </div>
             )}
-            <button onClick={()=>setOpen(false)} style={{width:"100%",padding:12,background:"transparent",border:"1px solid #1e2a3a",borderRadius:10,color:"#6b7280",fontWeight:700,cursor:"pointer"}}>Cerrar</button>
+            <button onClick={()=>setOpen(false)} style={{width:"100%",padding:12,background:"transparent",border:"1px solid #1e2a3a",borderRadius:10,color:"#6b7280",fontWeight:700,cursor:"pointer"}}>{t.close}</button>
           </div>
         </div>
       )}
@@ -591,7 +603,7 @@ function StickerCell({code,num,data,onAction}) {
 }
 
 // ─── TEAM SECTION ─────────────────────────────────────────────────────────────
-function TeamSection({code,stickers,tab,onAction}) {
+function TeamSection({code,stickers,tab,onAction,t,stateMap}) {
   const [expanded,setExpanded]=useState(false);
   const team=ALBUM[code];
   const allNums=Object.keys(stickers).map(Number);
@@ -606,12 +618,12 @@ function TeamSection({code,stickers,tab,onAction}) {
         <span style={{fontSize:26}}>{team.emoji}</span>
         <div style={{flex:1,textAlign:"left"}}>
           <div style={{fontWeight:800,fontSize:15,color:complete?"#86efac":"#e8eaf6"}}>{team.name}</div>
-          <div style={{fontSize:11,color:"#4a5568",marginTop:1}}>{GROUPS[code]||""}{team.page?` · pág. ${team.page}`:""}</div>
+          <div style={{fontSize:11,color:"#4a5568",marginTop:1}}>{GROUPS[code]||""}{team.page?` · ${t.pageAbbr} ${team.page}`:""}</div>
           <div style={{fontSize:12,color:"#6b7280",marginTop:2}}>
-            {tab==="missing"&&`❌ ${visibleNums.length} faltantes`}
-            {tab==="repeated"&&`🔁 ${visibleNums.length} repetidas`}
+            {tab==="missing"&&`❌ ${visibleNums.length} ${t.scopeMissing}`}
+            {tab==="repeated"&&`🔁 ${visibleNums.length} ${t.scopeRepeated}`}
             {tab==="all"&&`${have}/${team.total} · ❌${allNums.filter(n=>stickers[n].state==="missing").length} 🔁${allNums.filter(n=>TRADEABLE_STATES.includes(stickers[n].state)).length}`}
-            {complete&&" ✅ Completo"}
+            {complete&&` ✅ ${t.completed || "Completo"}`}
           </div>
         </div>
         <div style={{fontWeight:800,fontSize:15,color:complete?"#22c55e":pct>=75?"#84cc16":pct>=50?"#eab308":"#ef4444"}}>{pct}%</div>
@@ -624,12 +636,12 @@ function TeamSection({code,stickers,tab,onAction}) {
         <div style={{padding:16}}>
           {(tab==="missing"||tab==="repeated")&&(
             <div style={{fontSize:11,color:"#4a5568",marginBottom:10}}>
-              {tab==="missing"?"👆 Toca para marcar como ✅ tengo":"👆 Toca para editar · Mantén para restar si es repetida"}
+              {tab==="missing"?t.tapToMarkOwned:t.tapToEditHoldSubtract}
             </div>
           )}
-          {tab==="all"&&<div style={{fontSize:11,color:"#4a5568",marginBottom:10}}>👆 Toca para ciclar estado · Mantén para restar</div>}
+          {tab==="all"&&<div style={{fontSize:11,color:"#4a5568",marginBottom:10}}>{t.tapToCycleHoldSubtract}</div>}
           <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginBottom:14}}>
-            {visibleNums.map(n=>(<StickerCell key={n} code={code} num={n} data={stickers[n]} onAction={onAction}/>))}
+            {visibleNums.map(n=>(<StickerCell key={n} code={code} num={n} data={stickers[n]} onAction={onAction} t={t} stateMap={stateMap}/>))}
           </div>
         </div>
       )}
@@ -638,7 +650,7 @@ function TeamSection({code,stickers,tab,onAction}) {
 }
 
 // ─── CONTACTS PAGE ────────────────────────────────────────────────────────────
-function ContactsPage({myEmail,myToken,myStickers,onClose}) {
+function ContactsPage({myEmail,myToken,myStickers,onClose,t,lang}) {
   const [pending,setPending]=useState([]);
   const [contacts,setContacts]=useState([]);
   const [contactAlbums,setContactAlbums]=useState([]);
@@ -676,19 +688,19 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
 
   const copyLink=()=>{navigator.clipboard.writeText(myLink).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);});};
   const shareWhatsApp=()=>{
-    const text=`¡Únete a mi red en FiguSwap para intercambiar figuritas del Mundial 2026! ⚽🎴\n\nMi link: ${myLink}`;
+    const text=`${t.appSubtitle}\n\n${myLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank");
   };
 
   const sendRequest=async()=>{
     const email=normalizeEmail(addEmail);
     if(!email)return;
-    if(!db.isValidEmail(email)){showMsg("⚠️ Ese no es un email válido");return;}
-    if(email===myEmail){showMsg("⚠️ No puedes agregarte a ti mismo");return;}
+    if(!db.isValidEmail(email)){showMsg(t.invalidEmail);return;}
+    if(email===myEmail){showMsg(t.cannotAddYourself);return;}
     setAdding(true);
     const ok=await db.sendRequest(myToken,myEmail,email);
-    if(ok)showMsg(`✅ Solicitud enviada a ${email.split("@")[0]}`);
-    else showMsg("ℹ️ Ya existe una conexión o solicitud con ese contacto");
+    if(ok)showMsg(`${t.requestSentTo} ${email.split("@")[0]}`);
+    else showMsg(t.alreadyConnected);
     setAddEmail("");
     await load();
     setAdding(false);
@@ -696,13 +708,13 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
 
   const acceptReq=async(requesterEmail)=>{
     await db.acceptRequest(myToken,myEmail,requesterEmail);
-    showMsg(`✅ ¡Conectado con ${requesterEmail.split("@")[0]}!`);
+    showMsg(`${t.connectedWith} ${requesterEmail.split("@")[0]}!`);
     await load();
   };
 
   const rejectReq=async(requesterEmail)=>{
     await db.rejectRequest(myToken,myEmail,requesterEmail);
-    showMsg("Solicitud rechazada");
+    showMsg(t.requestRejected);
     await load();
   };
 
@@ -734,9 +746,9 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
     <div style={{position:"fixed",inset:0,background:"#0a0f1e",zIndex:500,display:"flex",flexDirection:"column"}}>
       <div style={{background:"#111827",borderBottom:"1px solid #1e2a3a",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
         <button onClick={onClose} style={{background:"none",border:"none",color:"#6b7280",fontSize:20,cursor:"pointer"}}>←</button>
-        <span style={{fontWeight:900,fontSize:16,color:"#ffd700"}}>👥 Mi Red</span>
-        {pending.length>0&&<span style={{background:"#ef4444",color:"#fff",fontSize:11,fontWeight:800,borderRadius:20,padding:"2px 8px"}}>{pending.length} nueva{pending.length>1?"s":""}</span>}
-        <span style={{marginLeft:"auto",fontSize:12,color:"#6b7280"}}>{contacts.length} amigos</span>
+        <span style={{fontWeight:900,fontSize:16,color:"#ffd700"}}>{t.myNetworkTitle}</span>
+        {pending.length>0&&<span style={{background:"#ef4444",color:"#fff",fontSize:11,fontWeight:800,borderRadius:20,padding:"2px 8px"}}>{pending.length} {pending.length>1?t.newPlural:t.newSingular}</span>}
+        <span style={{marginLeft:"auto",fontSize:12,color:"#6b7280"}}>{contacts.length} {t.friendsCount}</span>
       </div>
 
       {actionMsg&&<div style={{background:"#052e16",borderBottom:"1px solid #22c55e",padding:"10px 16px",fontSize:13,color:"#86efac",fontWeight:700}}>{actionMsg}</div>}
@@ -746,7 +758,7 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
         {/* SOLICITUDES PENDIENTES */}
         {pending.length>0&&(
           <div style={{marginBottom:20}}>
-            <div style={{fontWeight:800,color:"#ffd700",fontSize:15,marginBottom:12}}>🔔 Solicitudes pendientes ({pending.length})</div>
+            <div style={{fontWeight:800,color:"#ffd700",fontSize:15,marginBottom:12}}>{t.pendingRequests} ({pending.length})</div>
             {pending.map((req,i)=>{
               const requesterAlbum=contactAlbums.find(a=>a.user_email===req.user_email);
               const matches=requesterAlbum?getMatches(requesterAlbum.stickers):{iHave:[],theyHave:[]};
@@ -761,30 +773,30 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
                       <div style={{fontWeight:900,color:"#ffd700",fontSize:16}}>{req.user_email.split("@")[0]}</div>
                       <div style={{fontSize:12,color:"#6b7280"}}>{req.user_email}</div>
                       <div style={{fontSize:12,color:"#f97316",marginTop:3}}>
-                        🔁 {repeatedCount} disponibles para intercambio
-                        {matches.theyHave.length>0&&<span style={{color:"#22c55e"}}> · {matches.theyHave.length} que tú necesitas ⭐</span>}
+                        🔁 {repeatedCount} {t.availableForTrade}
+                        {matches.theyHave.length>0&&<span style={{color:"#22c55e"}}> · {matches.theyHave.length} {t.neededByYou} ⭐</span>}
                       </div>
                     </div>
                   </div>
 
                   {matches.theyHave.length>0&&(
                     <div style={{background:"#0a1a0a",border:"1px solid #22c55e",borderRadius:10,padding:"10px 12px",marginBottom:12}}>
-                      <div style={{fontSize:12,color:"#4ade80",fontWeight:700,marginBottom:6}}>⭐ Tiene estas que tú necesitas:</div>
+                      <div style={{fontSize:12,color:"#4ade80",fontWeight:700,marginBottom:6}}>{t.hasTheseYouNeed}</div>
                       <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
                         {matches.theyHave.slice(0,10).map((s,j)=>(
                           <span key={j} style={{fontSize:11,padding:"3px 8px",borderRadius:12,background:"#052e16",color:"#22c55e",border:"1px solid #22c55e"}}>{s.code} #{s.num}</span>
                         ))}
-                        {matches.theyHave.length>10&&<span style={{fontSize:11,color:"#6b7280"}}>+{matches.theyHave.length-10} más</span>}
+                        {matches.theyHave.length>10&&<span style={{fontSize:11,color:"#6b7280"}}>+{matches.theyHave.length-10} {t.more}</span>}
                       </div>
                     </div>
                   )}
 
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                     <button onClick={()=>rejectReq(req.user_email)} style={{padding:"13px",background:"transparent",border:"1px solid #ef4444",borderRadius:10,color:"#ef4444",fontWeight:700,fontSize:14,cursor:"pointer"}}>
-                      ❌ Rechazar
+                      {t.reject}
                     </button>
                     <button onClick={()=>acceptReq(req.user_email)} style={{padding:"13px",background:"linear-gradient(135deg,#22c55e,#16a34a)",border:"none",borderRadius:10,color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer"}}>
-                      ✅ Aceptar
+                      {t.accept}
                     </button>
                   </div>
                 </div>
@@ -795,11 +807,11 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
 
         {/* MI LINK */}
         <div style={{background:"#111827",border:"1px solid #1e3a5f",borderRadius:14,padding:16,marginBottom:16}}>
-          <div style={{fontWeight:800,color:"#60a5fa",marginBottom:4}}>🔗 Invitar amigos</div>
-          <div style={{fontSize:12,color:"#6b7280",marginBottom:10}}>Al abrir tu link verán tus repetidas y podrán enviarte solicitud de conexión</div>
+          <div style={{fontWeight:800,color:"#60a5fa",marginBottom:4}}>{t.inviteFriends}</div>
+          <div style={{fontSize:12,color:"#6b7280",marginBottom:10}}>{t.inviteHelp}</div>
           <div style={{display:"flex",gap:8}}>
             <button onClick={copyLink} style={{flex:1,padding:"11px",background:copied?"#22c55e":"#1e2a3a",border:"1px solid",borderColor:copied?"#22c55e":"#374151",borderRadius:8,color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-              {copied?"✅ Copiado!":"📋 Copiar link"}
+              {copied?t.copied:t.copyLink}
             </button>
             <button onClick={shareWhatsApp} style={{flex:1,padding:"11px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:13,cursor:"pointer"}}>
               💬 WhatsApp
@@ -809,7 +821,7 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
 
         {/* AGREGAR POR EMAIL */}
         <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:14,padding:16,marginBottom:16}}>
-          <div style={{fontWeight:700,color:"#e8eaf6",marginBottom:8}}>➕ Enviar solicitud por email</div>
+          <div style={{fontWeight:700,color:"#e8eaf6",marginBottom:8}}>{t.sendEmailRequest}</div>
           <div style={{display:"flex",gap:8}}>
             <input value={addEmail} onChange={e=>setAddEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendRequest()} placeholder="email@ejemplo.com" inputMode="email" style={{flex:1,padding:"10px 14px",borderRadius:8,border:"1px solid #1e2a3a",background:"#0a0f1e",color:"#e8eaf6",fontSize:13,outline:"none"}}/>
             <button onClick={sendRequest} disabled={adding||!addEmail.trim()} style={{padding:"10px 18px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:8,color:"#0a0f1e",fontWeight:800,cursor:"pointer",fontSize:16,opacity:(adding||!addEmail.trim())?0.5:1}}>
@@ -818,17 +830,17 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
           </div>
           {myRequests.filter(r=>r.status==="pending").length>0&&(
             <div style={{marginTop:10,fontSize:12,color:"#6b7280"}}>
-              📤 Enviadas a: {myRequests.filter(r=>r.status==="pending").map(r=>r.contact_email.split("@")[0]).join(", ")}
+              {t.sentTo} {myRequests.filter(r=>r.status==="pending").map(r=>r.contact_email.split("@")[0]).join(", ")}
             </div>
           )}
         </div>
 
         {/* AMIGOS */}
-        {loading&&<div style={{textAlign:"center",padding:32,color:"#6b7280"}}>⏳ Cargando red...</div>}
+        {loading&&<div style={{textAlign:"center",padding:32,color:"#6b7280"}}>{t.networkLoading}</div>}
 
         {!loading&&contacts.length>0&&(
           <>
-            <div style={{fontWeight:800,color:"#e8eaf6",fontSize:15,marginBottom:12}}>✅ Mis amigos ({contacts.length})</div>
+            <div style={{fontWeight:800,color:"#e8eaf6",fontSize:15,marginBottom:12}}>{t.myFriends} ({contacts.length})</div>
             {contacts.map((email,i)=>{
               const album=contactAlbums.find(a=>a.user_email===email);
               const matches=album?getMatches(album.stickers):{iHave:[],theyHave:[]};
@@ -843,7 +855,7 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
                     <div style={{flex:1}}>
                       <div style={{fontWeight:800,color:"#e8eaf6",fontSize:15}}>{album?.username||email.split("@")[0]}</div>
                       <div style={{fontSize:11,color:"#4a5568"}}>{email}</div>
-                      {album&&<div style={{fontSize:11,color:"#6b7280",marginTop:2}}>🔁 {repeatedCount} disponibles · actualizado {new Date(album.updated_at).toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"})}</div>}
+                      {album&&<div style={{fontSize:11,color:"#6b7280",marginTop:2}}>🔁 {repeatedCount} {t.availableForTrade} · {t.updated} {new Date(album.updated_at).toLocaleTimeString(lang,{hour:"2-digit",minute:"2-digit"})}</div>}
                     </div>
                     {totalMatches>0&&<span style={{fontSize:12,color:"#ffd700",background:"#1e1500",padding:"4px 10px",borderRadius:20,fontWeight:800}}>🎯 {totalMatches}</span>}
                   </div>
@@ -852,20 +864,20 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
                     <>
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
                         <div style={{background:"#052e16",borderRadius:10,padding:"12px",textAlign:"center"}}>
-                          <div style={{fontSize:11,color:"#4ade80",marginBottom:2}}>Yo tengo para ellos</div>
+                          <div style={{fontSize:11,color:"#4ade80",marginBottom:2}}>{t.iHaveForThem}</div>
                           <div style={{fontWeight:900,color:"#22c55e",fontSize:24}}>{matches.iHave.length}</div>
-                          <div style={{fontSize:10,color:"#6b7280"}}>de sus faltantes</div>
+                          <div style={{fontSize:10,color:"#6b7280"}}>{t.ofTheirMissing}</div>
                         </div>
                         <div style={{background:"#1e0f00",borderRadius:10,padding:"12px",textAlign:"center"}}>
-                          <div style={{fontSize:11,color:"#fb923c",marginBottom:2}}>Ellos tienen para mí</div>
+                          <div style={{fontSize:11,color:"#fb923c",marginBottom:2}}>{t.theyHaveForMe}</div>
                           <div style={{fontWeight:900,color:"#f97316",fontSize:24}}>{matches.theyHave.length}</div>
-                          <div style={{fontSize:10,color:"#6b7280"}}>de mis faltantes</div>
+                          <div style={{fontSize:10,color:"#6b7280"}}>{t.ofMyMissing}</div>
                         </div>
                       </div>
 
                       {totalMatches>0&&(
                         <button onClick={()=>setSelected(selected===email?null:email)} style={{width:"100%",padding:"10px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,fontSize:13,cursor:"pointer",marginBottom:8}}>
-                          🎯 {selected===email?"Ocultar":"Ver"} listado completo de matches
+                          🎯 {selected===email?t.hide:t.view} {t.fullMatchList}
                         </button>
                       )}
 
@@ -873,7 +885,7 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
                         <div style={{background:"#0a0f1e",borderRadius:12,padding:14}}>
                           {matches.theyHave.length>0&&(
                             <div style={{marginBottom:14}}>
-                              <div style={{fontSize:13,color:"#f97316",fontWeight:800,marginBottom:8}}>🔁 {album?.username||email.split("@")[0]} tiene lo que tú necesitas:</div>
+                              <div style={{fontSize:13,color:"#f97316",fontWeight:800,marginBottom:8}}>🔁 {album?.username||email.split("@")[0]} {t.hasWhatYouNeed}</div>
                               <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                                 {matches.theyHave.map((s,j)=>(
                                   <span key={j} style={{fontSize:12,padding:"4px 10px",borderRadius:12,background:"#1e0f00",color:"#f97316",border:"1px solid #f97316",fontWeight:700}}>{s.code} #{s.num}</span>
@@ -883,7 +895,7 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
                           )}
                           {matches.iHave.length>0&&(
                             <div style={{marginBottom:14}}>
-                              <div style={{fontSize:13,color:"#22c55e",fontWeight:800,marginBottom:8}}>✅ Tú tienes lo que {album?.username||email.split("@")[0]} necesita:</div>
+                              <div style={{fontSize:13,color:"#22c55e",fontWeight:800,marginBottom:8}}>✅ {t.youHaveWhatTheyNeed}</div>
                               <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                                 {matches.iHave.map((s,j)=>(
                                   <span key={j} style={{fontSize:12,padding:"4px 10px",borderRadius:12,background:"#052e16",color:"#22c55e",border:"1px solid #22c55e",fontWeight:700}}>{s.code} #{s.num}</span>
@@ -900,14 +912,14 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
                             const waUrl=phoneDigits?`https://wa.me/${phoneDigits}?text=${encodeURIComponent(text)}`:`https://wa.me/?text=${encodeURIComponent(text)}`;
                             window.open(waUrl,"_blank");
                           }} style={{width:"100%",padding:"12px",background:"#14532d",border:"1px solid #22c55e",borderRadius:10,color:"#86efac",fontWeight:700,fontSize:14,cursor:"pointer"}}>
-                            💬 Coordinar intercambio por WhatsApp{album?.whatsapp_number?" (directo)":""}
+                            {t.coordinateTradeWhatsapp}{album?.whatsapp_number?` (${t.direct})`:""}
                           </button>
                         </div>
                       )}
                     </>
                   )}
 
-                  {!album&&<div style={{fontSize:12,color:"#6b7280",textAlign:"center",padding:"8px 0"}}>{email.split("@")[0]} aún no ha llenado su álbum</div>}
+                  {!album&&<div style={{fontSize:12,color:"#6b7280",textAlign:"center",padding:"8px 0"}}>{email.split("@")[0]} {t.noAlbumYet}</div>}
                 </div>
               );
             })}
@@ -917,8 +929,8 @@ function ContactsPage({myEmail,myToken,myStickers,onClose}) {
         {!loading&&contacts.length===0&&pending.length===0&&(
           <div style={{textAlign:"center",padding:40,color:"#4a5568"}}>
             <div style={{fontSize:48,marginBottom:12}}>👥</div>
-            <div style={{fontWeight:700,marginBottom:6,color:"#6b7280"}}>Sin conexiones aún</div>
-            <div style={{fontSize:13}}>Comparte tu link o envía una solicitud para conectarte</div>
+            <div style={{fontWeight:700,marginBottom:6,color:"#6b7280"}}>{t.noConnections}</div>
+            <div style={{fontSize:13}}>{t.noConnectionsHelp}</div>
           </div>
         )}
       </div>
@@ -946,10 +958,10 @@ class ErrorBoundary extends React.Component {
       return (
         <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,textAlign:"center"}}>
           <div style={{fontSize:48,marginBottom:16}}>⚠️</div>
-          <div style={{fontWeight:800,fontSize:18,color:"#e8eaf6",marginBottom:8}}>Algo salió mal</div>
-          <div style={{fontSize:13,color:"#6b7280",marginBottom:24}}>La app encontró un error inesperado. Tus datos están seguros en la nube.</div>
+          <div style={{fontWeight:800,fontSize:18,color:"#e8eaf6",marginBottom:8}}>Something went wrong</div>
+          <div style={{fontSize:13,color:"#6b7280",marginBottom:24}}>The app ran into an unexpected error. Your data is safe in the cloud.</div>
           <button onClick={()=>window.location.reload()} style={{padding:"14px 28px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:12,color:"#0a0f1e",fontWeight:800,fontSize:15,cursor:"pointer"}}>
-            🔄 Recargar app
+            🔄 Reload app
           </button>
         </div>
       );
@@ -959,8 +971,37 @@ class ErrorBoundary extends React.Component {
 }
 
 function FiguSwapInner() {
+  const [lang,setLang]=useState(getInitialLang);
+  const t=translations[lang];
+  const stateMap = useMemo(()=>getStateLabels(t),[t]);
+  const changeLang=(nextLang) =>{setLang(nextLang);localStorage.setItem("figuswap_lang",nextLang);};
+  // El árabe se lee de derecha a izquierda — esto ajusta automáticamente la dirección del
+  // documento completo (no solo de un contenedor) cada vez que cambia el idioma.
+  useEffect(() => {
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+    document.documentElement.lang = lang;
+  }, [lang]);
   const [session,setSession]=useState(null);
   const [checkingSession,setCheckingSession]=useState(true);
+  // Modo invitado: por defecto, cualquier visitante sin sesión entra directo a la app — sin
+  // pedir nada al inicio. Solo cuando intenta algo que de verdad requiere identidad (Red,
+  // guardar para siempre) se le muestra el login, mediante showAuthOverlay.
+  const [isGuest,setIsGuest]=useState(false);
+  // "Agregar a pantalla de inicio": Android/Chrome sí permite activar el instalador nativo
+  // por código (capturando beforeinstallprompt); iOS/Safari NUNCA lo permite — Apple no expone
+  // esa API — así que ahí solo podemos mostrar instrucciones paso a paso, no un botón mágico.
+  const [installPrompt,setInstallPrompt]=useState(null);
+  const [showIosInstallHelp,setShowIosInstallHelp]=useState(false);
+  const isIos=useMemo(()=>/iPhone|iPad|iPod/.test(navigator.userAgent),[]);
+  const isStandalone=useMemo(()=>window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true,[]);
+  useEffect(()=>{
+    const handler=(e)=>{e.preventDefault();setInstallPrompt(e);};
+    window.addEventListener("beforeinstallprompt",handler);
+    return ()=>window.removeEventListener("beforeinstallprompt",handler);
+  },[]);
+  const [showAuthOverlay,setShowAuthOverlay]=useState(false);
+  const [guestScanCount,setGuestScanCount]=useState(()=>Number(localStorage.getItem("figuswap_guest_scans")||0));
+  const GUEST_SCAN_LIMIT=10;
   const [page,setPage]=useState("album");
   const [albumTab,setAlbumTab]=useState("all");
   const [stickers,setStickers]=useState(buildEmpty);
@@ -1000,10 +1041,10 @@ function FiguSwapInner() {
         }
       });
     });
-    setResetBackup({snapshot:backup,label:"🔄 Repetidas reiniciadas"});
+    setResetBackup({snapshot:backup,label:t.resetRepeatedConfirm});
     setStickers(next);
     setShowResetConfirm(false);
-    showToastMsg("🔄 Repetidas reiniciadas — ahora escanea tu stock real");
+    showToastMsg(t.resetRepeatedConfirm);
     setPage("scanner");
   };
 
@@ -1012,17 +1053,17 @@ function FiguSwapInner() {
   // solo que cubre TODO el álbum (vuelve todo a "me falta"), no solo las repetidas.
   const resetFullAlbum=()=>{
     const backup=JSON.parse(JSON.stringify(stickers));
-    setResetBackup({snapshot:backup,label:"🆕 Álbum reiniciado"});
+    setResetBackup({snapshot:backup,label:t.startFromZero});
     setStickers(buildEmpty());
     setShowFullResetConfirm(false);
-    showToastMsg("🆕 Listo, tu álbum quedó en blanco");
+    showToastMsg(t.blankAlbumDone);
   };
 
   const undoReset=()=>{
     if(!resetBackup)return;
     setStickers(resetBackup.snapshot);
     setResetBackup(null);
-    showToastMsg("↩️ Listo, todo volvió a como estaba");
+    showToastMsg(t.undoResetDone);
   };
 
   useEffect(()=>{
@@ -1041,6 +1082,8 @@ function FiguSwapInner() {
           const s={token,email:normalizeEmail(email)};
           sbAuth.storeSession(s);
           setSession(s);
+        } else {
+          setIsGuest(true);
         }
         setCheckingSession(false);
       });
@@ -1061,10 +1104,13 @@ function FiguSwapInner() {
           // Token expirado o rechazado — limpiar localStorage para no quedar "logueado" sin estarlo
           sbAuth.clearSession();
           setSession(null);
+          setIsGuest(true);
         }
         setCheckingSession(false);
       });
     } else {
+      // Sin sesión guardada y sin token en la URL: entra directo como invitado, sin pedir nada.
+      setIsGuest(true);
       setCheckingSession(false);
     }
   },[]);
@@ -1079,7 +1125,7 @@ function FiguSwapInner() {
       // El visitante (session.email) envía la solicitud al dueño del link (pending)
       db.sendRequest(session.token,session.email,pending).then(()=>{
         localStorage.removeItem("figuswap_pending_invite");
-        showToastMsg(`✅ Solicitud enviada a ${pending.split("@")[0]}`);
+        showToastMsg(`${t.requestSentTo} ${pending.split("@")[0]}`);
       });
     }
     // Load from Supabase (cloud first)
@@ -1107,6 +1153,33 @@ function FiguSwapInner() {
     db.getPendingRequests(session.token,session.email).then(r=>setPendingCount(r.length));
   },[session]);
 
+  // Carga del álbum de invitado — vive solo en este dispositivo (localStorage), no en la nube.
+  // Por eso el banner de invitado advierte que se puede perder si cambia de teléfono o borra datos.
+  useEffect(()=>{
+    if(!isGuest)return;
+    setLoadedAlbum(false);
+    try{
+      const local=localStorage.getItem("figuswap_guest_stickers");
+      if(local){
+        setStickers(JSON.parse(local));
+      } else {
+        setShowOnboarding(true);
+      }
+    }catch{setShowOnboarding(true);}
+    setLoadedAlbum(true);
+  },[isGuest]);
+
+  // Auto-guardado del álbum de invitado en localStorage (sin red, sin Supabase).
+  useEffect(()=>{
+    if(!isGuest || !loadedAlbum)return;
+    const timer=setTimeout(()=>{
+      if(!isEmptyAlbum(stickers)){
+        localStorage.setItem("figuswap_guest_stickers",JSON.stringify(stickers));
+      }
+    },500);
+    return ()=>clearTimeout(timer);
+  },[stickers,isGuest,loadedAlbum]);
+
   // Auto-save to Supabase
   useEffect(()=>{
     // Fix 1: nunca guardar con email vacío/inválido. Fix 2: nunca guardar antes de que termine la carga inicial.
@@ -1115,13 +1188,13 @@ function FiguSwapInner() {
       // Fix 3: nunca guardar un álbum completamente vacío — eso solo puede pasar por timing/carga
       // fallida, nunca debería sobreescribir un álbum real existente en la nube.
       if(isEmptyAlbum(stickers)){
-        showToastMsg("⚠️ Guardado bloqueado: álbum vacío detectado");
+        showToastMsg(t.saveBlockedEmptyAlbum);
         return;
       }
       setSaving(true);
       const ok=await db.saveAlbum(session.token,session.email,stickers,session.email.split("@")[0]);
       setSaving(false);
-      if(!ok)showToastMsg("⚠️ No se pudo guardar — revisa tu conexión");
+      if(!ok)showToastMsg(t.saveFailedConnection);
     },1500);
     return()=>clearTimeout(timer);
   },[stickers,session,loadedAlbum]);
@@ -1137,8 +1210,8 @@ function FiguSwapInner() {
   };
 
   const handleAction=(code,num,state,qty,price,customToast)=>{
-    if(!ALBUM[code]||!STATE[state]){
-      showToastMsg("⚠️ Selección o estado no reconocido");
+    if(!ALBUM[code]||!stateMap[state]){
+      showToastMsg(t.unknownTeamOrState);
       return;
     }
     setStickers(prev=>{
@@ -1155,7 +1228,7 @@ function FiguSwapInner() {
         }
       };
     });
-    showToastMsg(customToast || `${STATE[state].emoji} ${ALBUM[code].name} #${num} → ${STATE[state].label}${state==="repeated"&&qty>1?` ×${qty}`:""}`);
+    showToastMsg(customToast || `${stateMap[state].emoji} ${ALBUM[code].name} #${num} → ${stateMap[state].label}${state==="repeated"&&qty>1?` ×${qty}`:""}`);
   };
 
   // Fix: filter considers tab when checking if team has visible stickers
@@ -1165,7 +1238,7 @@ function FiguSwapInner() {
     const team=ALBUM[code];
     if(!team)return false;
     const q=search.toLowerCase();
-    // Fix: ahora también busca por nombre de jugador/escudo/foto de equipo (ej. "Messi"
+    // Ahora también busca por nombre de jugador/escudo/foto de equipo (ej. "Messi"
     // encuentra Argentina), no solo por nombre de selección o código de 3 letras.
     const matchesPlayerName=q!==""&&Object.values(STICKER_NAMES[code]||{}).some(n=>n.toLowerCase().includes(q));
     const matchSearch=search===""||team.name.toLowerCase().includes(q)||code.toLowerCase().includes(q)||matchesPlayerName;
@@ -1202,7 +1275,27 @@ function FiguSwapInner() {
       <img src="/icon-512.png" alt="FiguSwap" style={{width:48,height:48,borderRadius:10}}/>
     </div>
   );
-  if(!session)return <AuthPage onAuth={s=>{setSession(s);sbAuth.storeSession(s);}} inviterWhatsapp={inviterWhatsapp}/>;
+  if(showAuthOverlay)return (
+    <AuthPage t={t} inviterWhatsapp={inviterWhatsapp} onClose={isGuest?()=>setShowAuthOverlay(false):undefined} onAuth={s=>{
+      // Migración: si venía como invitado y ya armó algo de álbum en este dispositivo, lo
+      // copiamos a la llave local específica de su cuenta nueva — el efecto de carga normal
+      // (más abajo) ya sabe leer esa llave como respaldo si la nube todavía está vacía, así
+      // que no pierde lo que escaneó/importó antes de crear cuenta.
+      const guestData=localStorage.getItem("figuswap_guest_stickers");
+      if(guestData){
+        try{
+          if(!isEmptyAlbum(JSON.parse(guestData))){
+            localStorage.setItem(`figuswap_stickers_${s.email}`,guestData);
+          }
+        }catch{}
+        localStorage.removeItem("figuswap_guest_stickers");
+      }
+      setIsGuest(false);
+      setShowAuthOverlay(false);
+      setSession(s);
+      sbAuth.storeSession(s);
+    }}/>
+  );
 
   // Fix condición de carrera (pérdida de datos al importar): antes de este fix, getAlbum() corría
   // en paralelo a la primera interacción del usuario. Si alguien importaba una lista o tocaba una
@@ -1212,11 +1305,11 @@ function FiguSwapInner() {
   if(!loadedAlbum)return (
     <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10}}>
       <img src="/icon-512.png" alt="FiguSwap" style={{width:48,height:48,borderRadius:10}}/>
-      <div style={{fontSize:13,color:"#6b7280"}}>Cargando tu álbum...</div>
+      <div style={{fontSize:13,color:"#6b7280"}}>{t.loadingAlbum}</div>
     </div>
   );
 
-  const NAV=[["album","📋","Álbum"],["scanner","📸","Escanear"],["worldcup","📅","Mundial"],["contacts","👥","Red"],["profile","👤","Perfil"]];
+  const NAV=[["album","📋",t.album],["scanner","📸",t.scan],["worldcup","📅",t.worldcup],["contacts","👥",t.network],["profile","👤",t.profile]];
 
   return (
     <div style={{minHeight:"100vh",background:"#0a0f1e",color:"#e8eaf6",fontFamily:"'Segoe UI',system-ui,sans-serif",paddingBottom:72}}>
@@ -1225,8 +1318,17 @@ function FiguSwapInner() {
           <img src="/icon-512.png" alt="FiguSwap" style={{width:28,height:28,borderRadius:6}}/>
           <span style={{fontWeight:900,fontSize:18,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>FiguSwap</span>
           {saving&&<span style={{fontSize:10,color:"#4a5568",marginLeft:2}}>💾</span>}
+          <select value={lang} onChange={e=>changeLang(e.target.value)} style={{marginLeft:8,border:"1px solid #1e2a3a",borderRadius:8,background:"#111827",color:"#e8eaf6",fontWeight:800,fontSize:11,padding:"6px 8px"}}>
+            <option value="es">ES</option>
+            <option value="en">EN</option>
+            <option value="pt">PT</option>
+            <option value="fr">FR</option>
+            <option value="it">IT</option>
+            <option value="de">DE</option>
+            <option value="ar">AR</option>
+          </select>
           <div style={{marginLeft:"auto",display:"flex",gap:12}}>
-            {[["d","días"],["h","h"],["m","m"]].map(([k,l])=>(
+            {[["d",t.countdownDays],["h","h"],["m","m"]].map(([k,l])=>(
               <div key={k} style={{textAlign:"center"}}>
                 <div style={{fontSize:14,fontWeight:900,color:"#ffd700",fontVariantNumeric:"tabular-nums"}}>{String(countdown[k]||0).padStart(2,"0")}</div>
                 <div style={{fontSize:8,color:"#4a5568"}}>{l}</div>
@@ -1236,30 +1338,39 @@ function FiguSwapInner() {
         </div>
       </div>
 
+      {isGuest&&(
+        <div style={{maxWidth:720,margin:"0 auto",padding:"10px 16px 0"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,background:"#1a1500",border:"1px solid #92400e",borderRadius:10,padding:"10px 12px"}}>
+            <span style={{fontSize:12,color:"#fbbf24",flex:1}}>{t.guestBannerText}</span>
+            <button onClick={()=>setShowAuthOverlay(true)} style={{padding:"6px 12px",background:"#ffd700",border:"none",borderRadius:8,color:"#0a0f1e",fontWeight:800,fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>{t.guestBannerCta}</button>
+          </div>
+        </div>
+      )}
+
       <div style={{maxWidth:720,margin:"0 auto",padding:16}}>
         {page==="album"&&(
           <>
             <div style={{background:"#0d1117",border:"1px solid #1e2a3a",borderRadius:14,padding:14,marginBottom:12}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                <span style={{fontWeight:800,color:"#e8eaf6",fontSize:14}}>📋 Mi Álbum FIFA WC 2026</span>
+                <span style={{fontWeight:800,color:"#e8eaf6",fontSize:14}}>{t.myAlbum}</span>
                 <span style={{fontWeight:900,color:"#ffd700",fontSize:16}}>{albumStats.pct}%</span>
               </div>
               <div style={{height:6,background:"#1e2a3a",borderRadius:3,overflow:"hidden",marginBottom:10}}>
                 <div style={{height:"100%",width:`${albumStats.pct}%`,background:"linear-gradient(90deg,#ffd700,#f59e0b)",borderRadius:3}}/>
               </div>
               <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#6b7280",marginBottom:12}}>
-                <span>❌ {albumStats.missing} faltan</span>
-                <span>✅ {albumStats.have} tengo</span>
-                <span>🔁 {albumStats.tradeableCount} disponibles ({albumStats.repeatedUnits} unidades)</span>
+                <span>❌ {albumStats.missing} {t.missingCount}</span>
+                <span>✅ {albumStats.have} {t.haveCount}</span>
+                <span>🔁 {albumStats.tradeableCount} {t.availableCount} ({albumStats.repeatedUnits} {t.units})</span>
               </div>
               <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setShowShare(true)} style={{flex:1,padding:"8px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:12,cursor:"pointer"}}>📤 Compartir</button>
-                <button onClick={()=>setShowImporter(true)} style={{flex:1,padding:"8px",background:"#1e2a3a",border:"1px solid #374151",borderRadius:8,color:"#9ca3af",fontWeight:700,fontSize:12,cursor:"pointer"}}>📋 Importar</button>
+                <button onClick={()=>isGuest?setShowAuthOverlay(true):setShowShare(true)} style={{flex:1,padding:"8px",background:"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.share}</button>
+                <button onClick={()=>setShowImporter(true)} style={{flex:1,padding:"8px",background:"#1e2a3a",border:"1px solid #374151",borderRadius:8,color:"#9ca3af",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.import}</button>
               </div>
             </div>
 
             <div style={{display:"flex",background:"#111827",borderRadius:12,padding:4,marginBottom:12,border:"1px solid #1e2a3a"}}>
-              {[["all","Todas"],["missing","Me faltan"],["repeated","Repetidas"]].map(([v,l])=>(
+              {[["all",t.all],["missing",t.missing],["repeated",t.repeated]].map(([v,l])=>(
                 <button key={v} onClick={()=>{setAlbumTab(v);setSearch("");}} style={{flex:1,padding:"10px 4px",borderRadius:9,border:"none",background:albumTab===v?"#ffd700":"transparent",color:albumTab===v?"#0a0f1e":"#6b7280",fontWeight:albumTab===v?800:600,fontSize:13,cursor:"pointer"}}>
                   {l}
                   {v==="missing"&&albumStats.missing>0&&<span style={{fontSize:9,marginLeft:3,background:"#ef4444",color:"#fff",borderRadius:10,padding:"1px 4px"}}>{albumStats.missing}</span>}
@@ -1268,105 +1379,180 @@ function FiguSwapInner() {
               ))}
             </div>
 
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={`🔍 Buscar ${albumTab==="missing"?"faltantes":albumTab==="repeated"?"repetidas":"selección"}...`} style={{width:"100%",boxSizing:"border-box",padding:"10px 14px",borderRadius:10,border:"1px solid #1e2a3a",background:"#111827",color:"#e8eaf6",fontSize:14,outline:"none",marginBottom:12}}/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={albumTab==="missing"?`🔍 ${t.searchMissing}`:albumTab==="repeated"?`🔍 ${t.searchRepeated}`:`🔍 ${t.searchTeam}`} style={{width:"100%",boxSizing:"border-box",padding:"10px 14px",borderRadius:10,border:"1px solid #1e2a3a",background:"#111827",color:"#e8eaf6",fontSize:14,outline:"none",marginBottom:12}}/>
 
             {filtered.length===0&&(
               <div style={{textAlign:"center",padding:40,color:"#4a5568"}}>
                 <div style={{fontSize:40,marginBottom:12}}>{albumTab==="missing"?"🎉":albumTab==="repeated"?"🔁":"🔍"}</div>
                 <div style={{fontWeight:700,color:"#6b7280"}}>
-                  {search?`No se encontró "${search}" en ${albumTab==="missing"?"faltantes":albumTab==="repeated"?"repetidas":"el álbum"}`:albumTab==="missing"?"¡No te falta ninguna!":albumTab==="repeated"?"No tienes repetidas aún":"Sin resultados"}
+                  {search?t.noSearchFound(search, albumTab==="missing"?t.scopeMissing:albumTab==="repeated"?t.scopeRepeated:t.scopeAlbum):albumTab==="missing"?t.noMissing:albumTab==="repeated"?t.noRepeated:t.noResults}
                 </div>
               </div>
             )}
 
-            {filtered.map(([code,ts])=>(<TeamSection key={code} code={code} stickers={ts} tab={albumTab} onAction={handleAction}/>))}
+            {filtered.map(([code,ts])=>(<TeamSection key={code} code={code} stickers={ts} tab={albumTab} onAction={handleAction} t={t} stateMap={stateMap}/>))}
           </>
         )}
 
-        {page==="scanner"&&<Scanner userNeeded={userNeeded} myStickers={stickers} onUpdateAlbum={(code,num,state,qty,price,customToast)=>handleAction(code,num,state,qty,price,customToast)}/>}
+        {page==="scanner"&&(isGuest&&guestScanCount>=GUEST_SCAN_LIMIT?(
+          <div style={{padding:"60px 24px",textAlign:"center"}}>
+            <div style={{fontSize:44,marginBottom:12}}>📸</div>
+            <div style={{fontWeight:800,fontSize:17,color:"#e8eaf6",marginBottom:8}}>{t.scannerTitle}</div>
+            <div style={{fontSize:13,color:"#6b7280",marginBottom:20,maxWidth:320,marginLeft:"auto",marginRight:"auto"}}>{t.guestScanLimitReached}</div>
+            <button onClick={()=>setShowAuthOverlay(true)} style={{padding:"12px 24px",background:"linear-gradient(90deg,#ffd700,#f59e0b)",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,cursor:"pointer"}}>{t.createAccount}</button>
+          </div>
+        ):(
+          <Scanner lang={lang} t={t} userNeeded={userNeeded} myStickers={stickers} onUpdateAlbum={(code,num,state,qty,price,customToast)=>{
+            // Cada figurita confirmada por el Escáner cuenta hacia el límite de invitado — no
+            // cuenta fotos, cuenta resultados aplicados, que es lo que realmente cuesta (la
+            // llamada a la IA ya se hizo antes de esto, pero este es el momento estable para contar).
+            if(isGuest){
+              const next=guestScanCount+1;
+              setGuestScanCount(next);
+              localStorage.setItem("figuswap_guest_scans",String(next));
+            }
+            handleAction(code,num,state,qty,price,customToast);
+          }}/>
+        ))}
 
-        {page==="worldcup"&&<WorldCup/>}
+        {page==="worldcup"&&<WorldCup lang={lang} t={t}/>}
 
-        {page==="contacts"&&<ContactsPage myEmail={session.email} myToken={session.token} myStickers={stickers} onClose={()=>{setPage("album");db.getPendingRequests(session.token,session.email).then(r=>setPendingCount(r.length));}}/>}
+        {page==="contacts"&&(isGuest?(
+          <div style={{padding:"60px 24px",textAlign:"center"}}>
+            <div style={{fontSize:44,marginBottom:12}}>👥</div>
+            <div style={{fontWeight:800,fontSize:17,color:"#e8eaf6",marginBottom:8}}>{t.myContactNetwork}</div>
+            <div style={{fontSize:13,color:"#6b7280",marginBottom:20,maxWidth:320,marginLeft:"auto",marginRight:"auto"}}>{t.guestNetworkLocked}</div>
+            <button onClick={()=>setShowAuthOverlay(true)} style={{padding:"12px 24px",background:"linear-gradient(90deg,#ffd700,#f59e0b)",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,cursor:"pointer"}}>{t.createAccount}</button>
+          </div>
+        ):(
+          <ContactsPage myEmail={session.email} myToken={session.token} myStickers={stickers} t={t} lang={lang} onClose={()=>{setPage("album");db.getPendingRequests(session.token,session.email).then(r=>setPendingCount(r.length));}}/>
+        ))}
 
         {page==="profile"&&(
           <div>
             <div style={{background:"linear-gradient(135deg,#1a1040,#0a1a2e)",border:"1px solid #1e2a3a",borderRadius:16,padding:24,textAlign:"center",marginBottom:16}}>
               <div style={{fontSize:48,marginBottom:8}}>👤</div>
-              <div style={{fontWeight:900,fontSize:20,color:"#fff"}}>{session.email?.split("@")[0]}</div>
-              <div style={{color:"#6b7280",fontSize:13,marginBottom:16}}>{session.email}</div>
-              <div style={{display:"flex",gap:12,justifyContent:"center"}}>
-                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#ffd700"}}>{albumStats.pct}%</div><div style={{fontSize:11,color:"#6b7280"}}>álbum</div></div>
-                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#ef4444"}}>{albumStats.missing}</div><div style={{fontSize:11,color:"#6b7280"}}>faltan</div></div>
-                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#22c55e"}}>{albumStats.have}</div><div style={{fontSize:11,color:"#6b7280"}}>tengo</div></div>
-                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#f97316"}}>{albumStats.tradeableCount}</div><div style={{fontSize:11,color:"#6b7280"}}>disponibles</div></div>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:10,marginBottom:12}}>
-              <button onClick={()=>setShowShare(true)} style={{flex:1,padding:"13px",background:"#14532d",border:"1px solid #22c55e",borderRadius:12,color:"#86efac",fontWeight:700,cursor:"pointer"}}>📤 Compartir lista</button>
-              <button onClick={()=>setShowImporter(true)} style={{flex:1,padding:"13px",background:"#1e2a3a",border:"1px solid #374151",borderRadius:12,color:"#9ca3af",fontWeight:700,cursor:"pointer"}}>📋 Importar lista</button>
-            </div>
-            <button onClick={()=>setShowQR(true)} style={{width:"100%",padding:"13px",background:"#1a1040",border:"1px solid #a78bfa",borderRadius:12,color:"#c4b5fd",fontWeight:700,cursor:"pointer",marginBottom:12}}>
-              📷 Mi código QR
-            </button>
-
-            <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:12,padding:16,marginBottom:12}}>
-              <div style={{fontWeight:700,fontSize:13,color:"#e8eaf6",marginBottom:4}}>📱 Tu WhatsApp (opcional)</div>
-              <div style={{fontSize:11,color:"#6b7280",marginBottom:10}}>
-                Incluye el código de tu país (ej. Honduras +504, México +52, España +34) — sin él, el link de WhatsApp no va a abrir el chat correcto. Solo lo ven tus contactos aceptados en Red; nunca se usa para publicidad.
-              </div>
-              <div style={{display:"flex",gap:8,marginBottom:6}}>
-                <input
-                  type="tel"
-                  placeholder="+504 9999-9999"
-                  value={whatsappNumber}
-                  onChange={e=>setWhatsappNumber(e.target.value)}
-                  style={{flex:1,padding:"10px 12px",background:"#0a0f1e",border:"1px solid #374151",borderRadius:8,color:"#e8eaf6",fontSize:14}}
-                />
-                <button onClick={saveWhatsappNumber} disabled={savingWhatsapp} style={{padding:"10px 16px",background:savingWhatsapp?"#1e2a3a":"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,cursor:savingWhatsapp?"not-allowed":"pointer"}}>
-                  {savingWhatsapp?"...":"Guardar"}
-                </button>
-              </div>
-              {whatsappNumber&&whatsappNumber.replace(/[^\d]/g,"").length>0&&whatsappNumber.replace(/[^\d]/g,"").length<8&&(
-                <div style={{fontSize:11,color:"#fb923c"}}>⚠️ Parece muy corto — revisa que incluyas el código de país.</div>
+              {isGuest?(
+                <>
+                  <div style={{fontWeight:900,fontSize:20,color:"#fff"}}>{t.continueAsGuest}</div>
+                  <div style={{color:"#6b7280",fontSize:13,marginBottom:16}}>—</div>
+                </>
+              ):(
+                <>
+                  <div style={{fontWeight:900,fontSize:20,color:"#fff"}}>{session.email?.split("@")[0]}</div>
+                  <div style={{color:"#6b7280",fontSize:13,marginBottom:16}}>{session.email}</div>
+                </>
               )}
+              <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#ffd700"}}>{albumStats.pct}%</div><div style={{fontSize:11,color:"#6b7280"}}>{t.albumLower}</div></div>
+                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#ef4444"}}>{albumStats.missing}</div><div style={{fontSize:11,color:"#6b7280"}}>{t.missingLower}</div></div>
+                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#22c55e"}}>{albumStats.have}</div><div style={{fontSize:11,color:"#6b7280"}}>{t.haveLower}</div></div>
+                <div style={{textAlign:"center"}}><div style={{fontWeight:900,fontSize:22,color:"#f97316"}}>{albumStats.tradeableCount}</div><div style={{fontSize:11,color:"#6b7280"}}>{t.availableLower}</div></div>
+              </div>
             </div>
-            <button onClick={()=>setPage("contacts")} style={{width:"100%",padding:"14px",background:"#0a1a2e",border:"1px solid #3b82f6",borderRadius:12,color:"#60a5fa",fontWeight:700,cursor:"pointer",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-              👥 Mi Red de contactos
-              {pendingCount>0&&<span style={{background:"#ef4444",color:"#fff",fontSize:11,fontWeight:800,borderRadius:20,padding:"2px 8px"}}>{pendingCount} nueva{pendingCount>1?"s":""}</span>}
-            </button>
-            <button onClick={async()=>{await sbAuth.signOut(session.token);sbAuth.clearSession();setSession(null);setStickers(buildEmpty());}} style={{width:"100%",padding:"12px",background:"transparent",border:"1px solid #ef4444",borderRadius:10,color:"#ef4444",fontWeight:700,cursor:"pointer",marginBottom:12}}>
-              Cerrar sesión
-            </button>
+
+            {/* Botón de instalar — no necesita cuenta ni identidad, visible para todos.
+                Se oculta solo si ya está instalada (display-mode standalone) o si el
+                navegador no soporta ninguno de los dos caminos (Android nativo / iOS manual). */}
+            {!isStandalone&&(installPrompt||isIos)&&(
+              <button onClick={async()=>{
+                if(installPrompt){
+                  installPrompt.prompt();
+                  await installPrompt.userChoice;
+                  setInstallPrompt(null);
+                }
+                else setShowIosInstallHelp(true);
+              }} style={{width:"100%",padding:"13px",background:"#0a1a2e",border:"1px solid #3b82f6",borderRadius:12,color:"#60a5fa",fontWeight:700,cursor:"pointer",marginBottom:12}}>
+                {t.installApp}
+              </button>
+            )}
+
+            {/* Importar sí funciona como invitado — solo llena el álbum local, no necesita identidad. */}
+            <div style={{display:"flex",gap:10,marginBottom:12}}>
+              {!isGuest&&<button onClick={()=>setShowShare(true)} style={{flex:1,padding:"13px",background:"#14532d",border:"1px solid #22c55e",borderRadius:12,color:"#86efac",fontWeight:700,cursor:"pointer"}}>{t.shareListButton}</button>}
+              <button onClick={()=>setShowImporter(true)} style={{flex:1,padding:"13px",background:"#1e2a3a",border:"1px solid #374151",borderRadius:12,color:"#9ca3af",fontWeight:700,cursor:"pointer"}}>{t.importListButton}</button>
+            </div>
+
+            {isGuest?(
+              /* Compartir, QR, WhatsApp y Red necesitan una identidad estable (correo) para
+                 funcionar de verdad — en vez de mostrarlos rotos, se agrupan en una sola
+                 invitación clara a crear cuenta. */
+              <div style={{background:"linear-gradient(135deg,#1a1040,#0a1a2e)",border:"1px solid #a78bfa",borderRadius:12,padding:20,textAlign:"center",marginBottom:12}}>
+                <div style={{fontSize:13,color:"#c4b5fd",marginBottom:14}}>{t.guestNetworkLocked}</div>
+                <button onClick={()=>setShowAuthOverlay(true)} style={{padding:"12px 24px",background:"linear-gradient(90deg,#ffd700,#f59e0b)",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,cursor:"pointer"}}>{t.createAccount}</button>
+              </div>
+            ):(
+              <>
+                <button onClick={()=>setShowQR(true)} style={{width:"100%",padding:"13px",background:"#1a1040",border:"1px solid #a78bfa",borderRadius:12,color:"#c4b5fd",fontWeight:700,cursor:"pointer",marginBottom:12}}>
+                  {t.myQrCode}
+                </button>
+
+                <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:12,padding:16,marginBottom:12}}>
+                  <div style={{fontWeight:700,fontSize:13,color:"#e8eaf6",marginBottom:4}}>{t.whatsappOptional}</div>
+                  <div style={{fontSize:11,color:"#6b7280",marginBottom:10}}>
+                    {t.whatsappHelp}
+                  </div>
+                  <div style={{display:"flex",gap:8,marginBottom:6}}>
+                    <input
+                      type="tel"
+                      placeholder="+504 9999-9999"
+                      value={whatsappNumber}
+                      onChange={e=>setWhatsappNumber(e.target.value)}
+                      style={{flex:1,padding:"10px 12px",background:"#0a0f1e",border:"1px solid #374151",borderRadius:8,color:"#e8eaf6",fontSize:14}}
+                    />
+                    <button onClick={saveWhatsappNumber} disabled={savingWhatsapp} style={{padding:"10px 16px",background:savingWhatsapp?"#1e2a3a":"#14532d",border:"1px solid #22c55e",borderRadius:8,color:"#86efac",fontWeight:700,cursor:savingWhatsapp?"not-allowed":"pointer"}}>
+                      {savingWhatsapp?"...":t.save}
+                    </button>
+                  </div>
+                  {whatsappNumber&&whatsappNumber.replace(/[^\d]/g,"").length>0&&whatsappNumber.replace(/[^\d]/g,"").length<8&&(
+                    <div style={{fontSize:11,color:"#fb923c"}}>⚠️ {t.phoneTooShort.replace("⚠️ ","")}</div>
+                  )}
+                </div>
+                <button onClick={()=>setPage("contacts")} style={{width:"100%",padding:"14px",background:"#0a1a2e",border:"1px solid #3b82f6",borderRadius:12,color:"#60a5fa",fontWeight:700,cursor:"pointer",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  {t.myContactNetwork}
+                  {pendingCount>0&&<span style={{background:"#ef4444",color:"#fff",fontSize:11,fontWeight:800,borderRadius:20,padding:"2px 8px"}}>{pendingCount} {t.newBadge(pendingCount)}</span>}
+                </button>
+              </>
+            )}
+
+            {isGuest?(
+              <button onClick={()=>setShowAuthOverlay(true)} style={{width:"100%",padding:"12px",background:"transparent",border:"1px solid #374151",borderRadius:10,color:"#9ca3af",fontWeight:700,cursor:"pointer",marginBottom:12}}>
+                {t.login}
+              </button>
+            ):(
+              <button onClick={async()=>{await sbAuth.signOut(session.token);sbAuth.clearSession();setSession(null);setIsGuest(true);setStickers(buildEmpty());}} style={{width:"100%",padding:"12px",background:"transparent",border:"1px solid #ef4444",borderRadius:10,color:"#ef4444",fontWeight:700,cursor:"pointer",marginBottom:12}}>
+                {t.logout}
+              </button>
+            )}
 
             {!showResetConfirm ? (
               <button onClick={()=>setShowResetConfirm(true)} style={{width:"100%",padding:"12px",background:"transparent",border:"1px solid #374151",borderRadius:10,color:"#6b7280",fontWeight:700,cursor:"pointer",fontSize:13}}>
-                🔄 Reiniciar repetidas y re-escanear
+                {t.resetRepeatedConfirm.replace(t.yes + ", ", "🔄 ")}
               </button>
             ) : (
               <div style={{background:"#1e1500",border:"1px solid #f97316",borderRadius:12,padding:14}}>
                 <div style={{color:"#fbbf24",fontWeight:700,fontSize:13,marginBottom:8}}>
-                  ⚠️ Esto marca como "La tengo" TODAS tus figuritas que hoy están en repetida/venta/cambio/subasta ({albumStats.tradeableCount} en total). Solo hazlo si vas a re-escanear tu stock real ahora mismo.
+                  {t.resetRepeatedWarning} ({albumStats.tradeableCount})
                 </div>
                 <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>setShowResetConfirm(false)} style={{flex:1,padding:"10px",background:"transparent",border:"1px solid #374151",borderRadius:8,color:"#9ca3af",fontWeight:700,fontSize:13,cursor:"pointer"}}>Cancelar</button>
-                  <button onClick={resetRepeatedStock} style={{flex:1,padding:"10px",background:"#ef4444",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>Sí, reiniciar y escanear</button>
+                  <button onClick={()=>setShowResetConfirm(false)} style={{flex:1,padding:"10px",background:"transparent",border:"1px solid #374151",borderRadius:8,color:"#9ca3af",fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.cancel}</button>
+                  <button onClick={resetRepeatedStock} style={{flex:1,padding:"10px",background:"#ef4444",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.resetRepeatedConfirm}</button>
                 </div>
               </div>
             )}
 
             {!showFullResetConfirm ? (
               <button onClick={()=>setShowFullResetConfirm(true)} style={{width:"100%",padding:"12px",background:"transparent",border:"1px solid #374151",borderRadius:10,color:"#6b7280",fontWeight:700,cursor:"pointer",fontSize:13,marginTop:8}}>
-                🆕 Empezar de cero
+                {t.startFromZero}
               </button>
             ) : (
               <div style={{background:"#1e0a0a",border:"1px solid #ef4444",borderRadius:12,padding:14,marginTop:8}}>
                 <div style={{color:"#fca5a5",fontWeight:700,fontSize:13,marginBottom:8}}>
-                  🆕 Esto borra TODO tu álbum y lo deja en blanco — útil si te equivocaste de lista al importar o quieres arrancar de nuevo. Puedes deshacerlo justo después si te arrepientes.
+                  {t.fullResetWarning}
                 </div>
                 <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>setShowFullResetConfirm(false)} style={{flex:1,padding:"10px",background:"transparent",border:"1px solid #374151",borderRadius:8,color:"#9ca3af",fontWeight:700,fontSize:13,cursor:"pointer"}}>Cancelar</button>
-                  <button onClick={resetFullAlbum} style={{flex:1,padding:"10px",background:"#ef4444",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>Sí, empezar de cero</button>
+                  <button onClick={()=>setShowFullResetConfirm(false)} style={{flex:1,padding:"10px",background:"transparent",border:"1px solid #374151",borderRadius:8,color:"#9ca3af",fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.cancel}</button>
+                  <button onClick={resetFullAlbum} style={{flex:1,padding:"10px",background:"#ef4444",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.fullResetConfirm}</button>
                 </div>
               </div>
             )}
@@ -1378,12 +1564,12 @@ function FiguSwapInner() {
           equivocada". Se queda visible hasta que la cierres, sin importar a qué pantalla vayas. */}
       {importBackup&&(
         <div style={{position:"fixed",bottom:62,left:0,right:0,background:"#0a1a2e",borderTop:"1px solid #3b82f6",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,zIndex:101}}>
-          <span style={{fontSize:12,color:"#93c5fd",flex:1}}>📋 ¿Esa lista no era la correcta?</span>
+          <span style={{fontSize:12,color:"#93c5fd",flex:1}}>{t.wrongListQuestion}</span>
           <button onClick={()=>{
             setStickers(importBackup);
             setImportBackup(null);
-            showToastMsg("↩️ Listo, tu álbum volvió a como estaba");
-          }} style={{padding:"6px 12px",background:"#3b82f6",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>↩️ Deshacer</button>
+            showToastMsg(t.undoImportDone);
+          }} style={{padding:"6px 12px",background:"#3b82f6",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>{t.undo}</button>
           <button onClick={()=>setImportBackup(null)} style={{background:"none",border:"none",color:"#6b7280",fontSize:16,cursor:"pointer",padding:"0 4px"}}>✕</button>
         </div>
       )}
@@ -1391,7 +1577,7 @@ function FiguSwapInner() {
       {resetBackup&&(
         <div style={{position:"fixed",bottom:62+(importBackup?50:0),left:0,right:0,background:"#1e1500",borderTop:"1px solid #f97316",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,zIndex:101}}>
           <span style={{fontSize:12,color:"#fbbf24",flex:1}}>{resetBackup?.label}</span>
-          <button onClick={undoReset} style={{padding:"6px 12px",background:"#f97316",border:"none",borderRadius:8,color:"#1e0a00",fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>↩️ Deshacer</button>
+          <button onClick={undoReset} style={{padding:"6px 12px",background:"#f97316",border:"none",borderRadius:8,color:"#1e0a00",fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>{t.undo}</button>
           <button onClick={()=>setResetBackup(null)} style={{background:"none",border:"none",color:"#6b7280",fontSize:16,cursor:"pointer",padding:"0 4px"}}>✕</button>
         </div>
       )}
@@ -1402,10 +1588,10 @@ function FiguSwapInner() {
           no tiene cuenta). Aparece una sola vez por escaneo y se puede cerrar. */}
       {inviterWhatsapp&&(
         <div style={{position:"fixed",bottom:62+(importBackup?50:0)+(resetBackup?50:0),left:0,right:0,background:"#052e16",borderTop:"1px solid #22c55e",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,zIndex:101}}>
-          <span style={{fontSize:12,color:"#86efac",flex:1}}>📱 Te conectaste por QR</span>
+          <span style={{fontSize:12,color:"#86efac",flex:1}}>{t.connectedByQr}</span>
           <button onClick={()=>{
-            window.open(`https://wa.me/${inviterWhatsapp}?text=${encodeURIComponent("¡Hola! Te encontré por tu código QR de FiguSwap ⚽🎴")}`,"_blank");
-          }} style={{padding:"6px 12px",background:"#22c55e",border:"none",borderRadius:8,color:"#052e16",fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>💬 Escribirle ahora</button>
+            window.open(`https://wa.me/${inviterWhatsapp}?text=${encodeURIComponent(t.qrWhatsappMessage)}`,"_blank");
+          }} style={{padding:"6px 12px",background:"#22c55e",border:"none",borderRadius:8,color:"#052e16",fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>{t.writeNow}</button>
           <button onClick={()=>setInviterWhatsapp("")} style={{background:"none",border:"none",color:"#6b7280",fontSize:16,cursor:"pointer",padding:"0 4px"}}>✕</button>
         </div>
       )}
@@ -1420,15 +1606,15 @@ function FiguSwapInner() {
         ))}
       </div>
 
-      {showOnboarding&&<Onboarding onChoice={choice=>{setShowOnboarding(false);if(choice==="import")setShowImporter(true);else if(choice==="scan")setPage("scanner");}}/>}
-      {showImporter&&<Importer currentAlbum={stickers} onImport={s=>{
+      {showOnboarding&&<Onboarding lang={lang} t={t} onChoice={choice=>{setShowOnboarding(false);if(choice==="import")setShowImporter(true);else if(choice==="scan")setPage("scanner");}}/>}
+      {showImporter&&<Importer lang={lang} t={t} currentAlbum={stickers} onImport={s=>{
         // Respaldo justo antes de importar — si era la lista de la persona equivocada,
         // un toque y queda todo como estaba, sin importar si tu álbum estaba vacío o lleno.
         setImportBackup(stickers);
         setStickers(s);
-        showToastMsg("✅ ¡Álbum importado!");
+        showToastMsg(t.importSuccess);
       }} onClose={()=>setShowImporter(false)}/>}
-      {showShare&&<ShareModal stickers={stickers} username={session.email?.split("@")[0]} inviteEmail={session.email} onClose={()=>setShowShare(false)}/>}
+      {showShare&&<ShareModal t={t} stickers={stickers} username={session.email?.split("@")[0]} inviteEmail={session.email} onClose={()=>setShowShare(false)}/>}
       {showQR&&(()=>{
         // Reusa el mismo link de invitación que ya funciona en Red — el QR es solo otra forma
         // de compartir ese mismo link, ideal para cuando estás en persona con alguien.
@@ -1442,21 +1628,36 @@ function FiguSwapInner() {
         return (
           <div style={{position:"fixed",inset:0,background:"#000c",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
             <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:20,padding:24,maxWidth:360,width:"100%",textAlign:"center"}}>
-              <div style={{fontWeight:900,fontSize:18,color:"#c4b5fd",marginBottom:4}}>📷 Mi código QR</div>
+              <div style={{fontWeight:900,fontSize:18,color:"#c4b5fd",marginBottom:4}}>{t.myQrCode}</div>
               <div style={{fontSize:12,color:"#6b7280",marginBottom:16}}>
-                Que alguien lo escanee con la cámara de su celular — si no tiene FiguSwap, lo lleva a descargarla; si ya la tiene, se conecta directo a tu Red.
-                {phoneDigits?" También podrá escribirte por WhatsApp de inmediato.":" Agrega tu WhatsApp en Perfil para que también puedan escribirte de inmediato."}
+                {t.qrDescription}
+                {phoneDigits?` ${t.qrWhatsappWith}`:` ${t.qrWhatsappWithout}`}
               </div>
               <div style={{background:"#fff",borderRadius:12,padding:12,display:"inline-block",marginBottom:16}}>
-                <img src={qrImgUrl} alt="Código QR de invitación" width={220} height={220}/>
+                <img src={qrImgUrl} alt="FiguSwap QR" width={220} height={220}/>
               </div>
               <button onClick={()=>setShowQR(false)} style={{width:"100%",padding:"12px",background:"#1e2a3a",border:"1px solid #374151",borderRadius:10,color:"#e8eaf6",fontWeight:700,cursor:"pointer"}}>
-                Cerrar
+                {t.close}
               </button>
             </div>
           </div>
         );
       })()}
+      {showIosInstallHelp&&(
+        <div style={{position:"fixed",inset:0,background:"#000c",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:20,padding:24,maxWidth:360,width:"100%",textAlign:"center"}}>
+            <div style={{fontWeight:900,fontSize:18,color:"#60a5fa",marginBottom:12}}>{t.installApp}</div>
+            <div style={{textAlign:"left",fontSize:14,color:"#e8eaf6",lineHeight:1.7,marginBottom:16}}>
+              <div style={{marginBottom:8}}>1️⃣ {t.iosInstallStep1}</div>
+              <div style={{marginBottom:8}}>2️⃣ {t.iosInstallStep2}</div>
+              <div>3️⃣ {t.iosInstallStep3}</div>
+            </div>
+            <button onClick={()=>setShowIosInstallHelp(false)} style={{width:"100%",padding:"12px",background:"#1e2a3a",border:"1px solid #374151",borderRadius:10,color:"#e8eaf6",fontWeight:700,cursor:"pointer"}}>
+              {t.close}
+            </button>
+          </div>
+        </div>
+      )}
       {toast&&<div style={{position:"fixed",bottom:80,left:"50%",transform:"translateX(-50%)",background:"#111827",border:"1px solid #1e2a3a",color:"#e8eaf6",padding:"10px 20px",borderRadius:24,fontWeight:700,fontSize:13,zIndex:9999,whiteSpace:"nowrap",boxShadow:"0 4px 20px #0008"}}>{toast}</div>}
     </div>
   );
