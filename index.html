@@ -7,11 +7,21 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+    <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0a0f1e">
     <title>FiguSwap ⚽</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Registro del service worker — requisito técnico para que Chrome/Android ofrezca
+      // "Instalar app". Si falla (navegador viejo, etc.) no rompe nada, solo no se ofrece instalar.
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js").catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>
