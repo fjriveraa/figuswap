@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function Onboarding({ onChoice }) {
+export default function Onboarding({ onChoice, t }) {
   const [step, setStep] = useState("choice"); // choice | importing
 
   return (
@@ -9,7 +9,7 @@ export default function Onboarding({ onChoice }) {
       <div style={{textAlign:"center",marginBottom:40}}>
         <div style={{fontSize:60,marginBottom:8}}>⚽</div>
         <div style={{fontWeight:900,fontSize:30,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:6}}>FiguSwap</div>
-        <div style={{color:"#6b7280",fontSize:14}}>FIFA World Cup 2026™ · El marketplace de figuritas</div>
+        <div style={{color:"#6b7280",fontSize:14}}>{t?.onbSubtitle || "FIFA World Cup 2026™ · El marketplace de figuritas"}</div>
       </div>
 
       {/* Options */}
@@ -22,9 +22,9 @@ export default function Onboarding({ onChoice }) {
         >
           <div style={{fontSize:40,flexShrink:0}}>📋</div>
           <div>
-            <div style={{fontWeight:900,fontSize:16,color:"#ffd700",marginBottom:4}}>Importar mi lista</div>
-            <div style={{fontSize:13,color:"#9ca3af",lineHeight:1.4}}>Tengo una lista de figuritas.app u otra app. La importo en segundos.</div>
-            <div style={{fontSize:11,color:"#22c55e",marginTop:6,fontWeight:700}}>⚡ Recomendado — 10 segundos</div>
+            <div style={{fontWeight:900,fontSize:16,color:"#ffd700",marginBottom:4}}>{t?.onbImportTitle || "Importar mi lista"}</div>
+            <div style={{fontSize:13,color:"#9ca3af",lineHeight:1.4}}>{t?.onbImportText || "Tengo una lista de figuritas.app u otra app. La importo en segundos."}</div>
+            <div style={{fontSize:11,color:"#22c55e",marginTop:6,fontWeight:700}}>{t?.recommended || "⚡ Recomendado — 10 segundos"}</div>
           </div>
         </button>
 
@@ -35,9 +35,9 @@ export default function Onboarding({ onChoice }) {
         >
           <div style={{fontSize:40,flexShrink:0}}>📸</div>
           <div>
-            <div style={{fontWeight:900,fontSize:16,color:"#60a5fa",marginBottom:4}}>Subir fotos</div>
-            <div style={{fontSize:13,color:"#9ca3af",lineHeight:1.4}}>Fotografío mis figuritas y la IA detecta automáticamente qué tengo.</div>
-            <div style={{fontSize:11,color:"#60a5fa",marginTop:6,fontWeight:700}}>🤖 Con inteligencia artificial</div>
+            <div style={{fontWeight:900,fontSize:16,color:"#60a5fa",marginBottom:4}}>{t?.onbScanTitle || "Subir fotos"}</div>
+            <div style={{fontSize:13,color:"#9ca3af",lineHeight:1.4}}>{t?.onbScanText || "Fotografío mis figuritas y la IA detecta automáticamente qué tengo."}</div>
+            <div style={{fontSize:11,color:"#60a5fa",marginTop:6,fontWeight:700}}>{t?.withAI || "🤖 Con inteligencia artificial"}</div>
           </div>
         </button>
 
@@ -48,14 +48,14 @@ export default function Onboarding({ onChoice }) {
         >
           <div style={{fontSize:40,flexShrink:0}}>✏️</div>
           <div>
-            <div style={{fontWeight:900,fontSize:16,color:"#9ca3af",marginBottom:4}}>Empezar desde cero</div>
-            <div style={{fontSize:13,color:"#6b7280",lineHeight:1.4}}>Marco manualmente cada figurita que tengo o me falta.</div>
+            <div style={{fontWeight:900,fontSize:16,color:"#9ca3af",marginBottom:4}}>{t?.onbManualTitle || "Empezar desde cero"}</div>
+            <div style={{fontSize:13,color:"#6b7280",lineHeight:1.4}}>{t?.onbManualText || "Marco manualmente cada figurita que tengo o me falta."}</div>
           </div>
         </button>
       </div>
 
       <div style={{marginTop:24,fontSize:11,color:"#374151",textAlign:"center"}}>
-        Puedes cambiar o agregar más figuritas en cualquier momento
+        {t?.onbFooter || "Puedes cambiar o agregar más figuritas en cualquier momento"}
       </div>
     </div>
   );
