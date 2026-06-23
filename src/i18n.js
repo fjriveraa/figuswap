@@ -1421,7 +1421,8 @@ export const translations = {
     statusMissing: (count) => `❌ Faltam ${count}`,
     statusViewList: "Veja minha lista completa e conecte-se comigo:",
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Olá ${name}! 👋\n\nVi no FiguSwap que podemos trocar:\n✅ Eu tenho ${iHave} que você precisa:\n${iHaveList}${iHaveMore > 0 ? `... e mais ${iHaveMore}` : ""}\n\n🔁 Você tem ${theyHave} que eu preciso:\n${theyHaveList}${theyHaveMore > 0 ? `... e mais ${theyHaveMore}` : ""}\n\nVamos combinar? ⚽🎴`,
-  }
+  },
+
   de: {
     installApp: "📲 App installieren",
     iosInstallStep1: "Tippe auf das Teilen-Symbol (das Quadrat mit dem Pfeil nach oben) in der Safari-Leiste.",
