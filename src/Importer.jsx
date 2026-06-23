@@ -173,7 +173,7 @@ function buildAlbumFromParsed(parsed, baseAlbum) {
 // (?invite=email), el mismo que ya procesa App.jsx al abrir la app. Antes este link apuntaba a
 // una ruta /u/username que nunca existió en la app; con solo el username no había forma de generar
 // un link funcional, por eso ahora se prioriza inviteEmail cuando está disponible.
-export function generateShareText(stickers, mode = "both", username = "", inviteEmail = "") {
+export function generateShareText(stickers, mode = "both", username = "", inviteEmail = "", t = {}) {
   const lines = ["🎴 FiguSwap — FIFA World Cup 2026"];
   if (username) lines.push(`👤 ${username}`);
   lines.push("");
@@ -186,7 +186,7 @@ export function generateShareText(stickers, mode = "both", username = "", invite
       if (missing.length > 0) missingLines.push(`${team?.emoji || ""} ${code}: ${missing.join(", ")}`);
     });
     if (missingLines.length > 0) {
-      lines.push("❌ Me faltan:");
+      lines.push(t.shareMissingHeader || "❌ I need:");
       lines.push(...missingLines);
       lines.push("");
     }
@@ -200,13 +200,13 @@ export function generateShareText(stickers, mode = "both", username = "", invite
       if (repeated.length > 0) repeatedLines.push(`${team?.emoji || ""} ${code}: ${repeated.join(", ")}`);
     });
     if (repeatedLines.length > 0) {
-      lines.push("🔁 Tengo repetidas:");
+      lines.push(t.shareRepeatedHeader || "🔁 I have duplicates:");
       lines.push(...repeatedLines);
       lines.push("");
     }
   }
 
-  lines.push("📱 Únete en FiguSwap:");
+  lines.push(t.joinFiguswap || "📱 Join me on FiguSwap:");
   lines.push(inviteEmail ? `https://figuswap-theta.vercel.app?invite=${encodeURIComponent(inviteEmail)}` : `https://figuswap-theta.vercel.app`);
   return lines.join("\n");
 }
@@ -216,7 +216,7 @@ export function generateShareText(stickers, mode = "both", username = "", invite
 // por selección (generateShareText) lo supera fácilmente apenas el álbum tiene varias decenas
 // de repetidas. Esta versión usa solo totales + el link, así que siempre cabe sin importar
 // cuántas selecciones tenga el usuario.
-export function generateStatusText(stickers, username = "", inviteEmail = "") {
+export function generateStatusText(stickers, username = "", inviteEmail = "", t = {}) {
   let missingTotal = 0, repeatedTotal = 0;
   Object.values(stickers).forEach(nums => {
     Object.values(nums).forEach(s => {
@@ -231,21 +231,21 @@ export function generateStatusText(stickers, username = "", inviteEmail = "") {
     "🎴 FiguSwap — FIFA World Cup 2026",
     username ? `👤 ${username}` : "",
     "",
-    `🔁 Tengo ${repeatedTotal} repetidas disponibles para cambio o venta`,
-    `❌ Me faltan ${missingTotal}`,
+    (t.statusHaveRepeated ? t.statusHaveRepeated(repeatedTotal) : `🔁 I have ${repeatedTotal} duplicates available for trade or sale`),
+    (t.statusMissing ? t.statusMissing(missingTotal) : `❌ I need ${missingTotal}`),
     "",
-    "Mira mi lista completa y conéctate conmigo:",
+    t.statusViewList || "View my full list and connect with me:",
     link
   ].filter(Boolean).join("\n");
 }
 
 // ─── SHARE MODAL ──────────────────────────────────────────────────────────────
-export function ShareModal({ stickers, username, inviteEmail, onClose }) {
+export function ShareModal({ stickers, username, inviteEmail, onClose, t }) {
   const [mode, setMode] = useState("both");
   const [copied, setCopied] = useState(false);
   const [copiedStatus, setCopiedStatus] = useState(false);
-  const text = generateShareText(stickers, mode, username, inviteEmail);
-  const statusText = generateStatusText(stickers, username, inviteEmail);
+  const text = generateShareText(stickers, mode, username, inviteEmail, t);
+  const statusText = generateStatusText(stickers, username, inviteEmail, t);
   const STATUS_LIMIT = 700;
   const tooLongForStatus = text.length > STATUS_LIMIT;
 
@@ -271,13 +271,13 @@ export function ShareModal({ stickers, username, inviteEmail, onClose }) {
     <div style={{position:"fixed",inset:0,background:"#000b",zIndex:400,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
       <div style={{background:"#111827",borderRadius:"20px 20px 0 0",padding:24,width:"100%",maxWidth:480,border:"1px solid #1e2a3a",borderBottom:"none"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-          <span style={{fontWeight:900,fontSize:18,color:"#ffd700"}}>📤 Compartir lista</span>
+          <span style={{fontWeight:900,fontSize:18,color:"#ffd700"}}>{t?.shareList || "📤 Compartir lista"}</span>
           <button onClick={onClose} style={{background:"none",border:"none",color:"#6b7280",fontSize:20,cursor:"pointer"}}>✕</button>
         </div>
 
         {/* Mode selector */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
-          {[["both","Faltantes + Repetidas"],["missing","Solo faltantes"],["repeated","Solo repetidas"]].map(([v,l])=>(
+          {[["both",t?.shareBoth || "Faltantes + Repetidas"],["missing",t?.shareMissingOnly || "Solo faltantes"],["repeated",t?.shareRepeatedOnly || "Solo repetidas"]].map(([v,l])=>(
             <button key={v} onClick={()=>setMode(v)} style={{padding:"10px 6px",borderRadius:10,border:"1px solid",borderColor:mode===v?"#ffd700":"#1e2a3a",background:mode===v?"#ffd700":"#0a0f1e",color:mode===v?"#0a0f1e":"#9ca3af",fontWeight:700,fontSize:11,cursor:"pointer",textAlign:"center"}}>
               {l}
             </button>
@@ -289,13 +289,13 @@ export function ShareModal({ stickers, username, inviteEmail, onClose }) {
           {text}
         </div>
         <div style={{fontSize:11,color:tooLongForStatus?"#f97316":"#4a5568",marginBottom:16}}>
-          {text.length} caracteres{tooLongForStatus?" — muy largo para el Estado de WhatsApp (límite 700)":""}
+          {text.length} {t?.chars || "caracteres"}{tooLongForStatus?` — ${t?.tooLongStatus || "muy largo para el Estado de WhatsApp (límite 700)"}`:""}
         </div>
 
         {/* Actions */}
         <div style={{display:"flex",gap:10}}>
           <button onClick={copy} style={{flex:1,padding:"13px",background:copied?"#22c55e":"#1e2a3a",border:"1px solid",borderColor:copied?"#22c55e":"#374151",borderRadius:10,color:copied?"#fff":"#e8eaf6",fontWeight:700,fontSize:14,cursor:"pointer"}}>
-            {copied ? "✅ Copiado!" : "📋 Copiar"}
+            {copied ? (t?.copied || "✅ Copiado!") : (t?.copy || "📋 Copiar")}
           </button>
           <button onClick={whatsapp} style={{flex:1,padding:"13px",background:"#14532d",border:"1px solid #22c55e",borderRadius:10,color:"#86efac",fontWeight:700,fontSize:14,cursor:"pointer"}}>
             💬 WhatsApp
@@ -306,10 +306,10 @@ export function ShareModal({ stickers, username, inviteEmail, onClose }) {
             así que la lista completa de arriba casi nunca cabe. Esto da un resumen garantizado corto. */}
         <div style={{marginTop:16,paddingTop:16,borderTop:"1px solid #1e2a3a"}}>
           <div style={{fontSize:12,color:"#6b7280",marginBottom:8}}>
-            ¿Lo vas a poner en tu Estado de WhatsApp? Ahí el límite es 700 caracteres — usa este resumen corto en vez de la lista completa:
+            {t?.whatsappStatusHelp || "¿Lo vas a poner en tu Estado de WhatsApp? Ahí el límite es 700 caracteres — usa este resumen corto en vez de la lista completa:"}
           </div>
           <button onClick={copyStatus} style={{width:"100%",padding:"12px",background:copiedStatus?"#22c55e":"#1e2a3a",border:"1px solid",borderColor:copiedStatus?"#22c55e":"#374151",borderRadius:10,color:copiedStatus?"#fff":"#e8eaf6",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-            {copiedStatus ? "✅ Copiado!" : `📲 Copiar resumen para Estado (${statusText.length} caracteres)`}
+            {copiedStatus ? (t?.copied || "✅ Copiado!") : `${t?.copyStatusSummary || "📲 Copiar resumen para Estado"} (${statusText.length} ${t?.chars || "caracteres"})`}
           </button>
         </div>
       </div>
@@ -318,7 +318,7 @@ export function ShareModal({ stickers, username, inviteEmail, onClose }) {
 }
 
 // ─── IMPORTER MAIN ────────────────────────────────────────────────────────────
-export default function Importer({ onImport, onClose, currentAlbum }) {
+export default function Importer({ onImport, onClose, currentAlbum, lang="es", t }) {
   // Detecta si esto es una primera importación (álbum vacío o casi vacío). En ese caso, "fusionar"
   // y "reemplazar" no son una elección real — fusionar contra un álbum 100% "me falta" deja todo
   // en "me falta", mientras que lo correcto para una primera carga es que lo no mencionado se
@@ -335,12 +335,12 @@ export default function Importer({ onImport, onClose, currentAlbum }) {
   const [mergeMode, setMergeMode] = useState("merge"); // merge (seguro, default) | replace
 
   const handleParse = () => {
-    if (!text.trim()) { setError("Pega tu lista primero"); return; }
+    if (!text.trim()) { setError(t?.pasteFirst || "Pega tu lista primero"); return; }
     const result = parseList(text);
     const totalMissing = Object.values(result.missing).reduce((s,a)=>s+a.length,0);
     const totalRepeated = Object.values(result.repeated).reduce((s,a)=>s+a.length,0);
     if (totalMissing === 0 && totalRepeated === 0) {
-      setError("No se detectaron figuritas. Verifica el formato de tu lista.");
+      setError(t?.noStickersDetected || "No se detectaron figuritas. Verifica el formato de tu lista.");
       return;
     }
     setParsed({ ...result, totalMissing, totalRepeated });
@@ -358,7 +358,7 @@ export default function Importer({ onImport, onClose, currentAlbum }) {
     // como "have". Eso traicionaría la elección explícita del usuario. Mejor avisar y cancelar.
     // En modo "reemplazar" no aplica: ahí se pasa null a propósito.
     if (effectiveMode === "merge" && !currentAlbum) {
-      setError("No se pudo cargar tu álbum actual. Cierra y vuelve a abrir el importador para evitar perder datos por accidente.");
+      setError(t?.importSafetyError || "No se pudo cargar tu álbum actual. Cierra y vuelve a abrir el importador para evitar perder datos por accidente.");
       setStep("paste");
       return;
     }
@@ -367,12 +367,12 @@ export default function Importer({ onImport, onClose, currentAlbum }) {
     setStep("done");
   };
 
-  const EXAMPLE = `Me faltan
+  const EXAMPLE = `${t?.missing || "Me faltan"}
 FWC 🏆: 4
 MEX 🇲🇽: 6, 18, 19
 ARG 🇦🇷: 11
 
-Repetidas
+${t?.repeated || "Repetidas"}
 SCO 🏴󠁧󠁢󠁳󠁣󠁴󠁿: 5, 13
 MAR 🇲🇦: 3`;
 
@@ -381,17 +381,17 @@ MAR 🇲🇦: 3`;
     <div style={{position:"fixed",inset:0,background:"#0a0f1e",zIndex:500,display:"flex",flexDirection:"column"}}>
       <div style={{background:"#111827",borderBottom:"1px solid #1e2a3a",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
         <button onClick={onClose} style={{background:"none",border:"none",color:"#6b7280",fontSize:20,cursor:"pointer"}}>←</button>
-        <span style={{fontWeight:900,fontSize:16,color:"#ffd700"}}>📋 Importar lista</span>
+        <span style={{fontWeight:900,fontSize:16,color:"#ffd700"}}>{t?.importTitle || "📋 Importar lista"}</span>
       </div>
 
       <div style={{flex:1,overflowY:"auto",padding:16}}>
         <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:14,padding:16,marginBottom:16}}>
-          <div style={{fontWeight:700,color:"#e8eaf6",marginBottom:8}}>¿Cómo funciona?</div>
+          <div style={{fontWeight:700,color:"#e8eaf6",marginBottom:8}}>{t?.howItWorks || "¿Cómo funciona?"}</div>
           {[
-            ["1️⃣","Abre tu app actual (figuritas.app u otra)"],
-            ["2️⃣","Ve a compartir → copia tu lista de texto"],
-            ["3️⃣","Pégala aquí abajo"],
-            ["4️⃣","Tu álbum se llena automáticamente ✨"],
+            ["1️⃣",t?.importStep1 || "Abre tu app actual (figuritas.app u otra)"],
+            ["2️⃣",t?.importStep2 || "Ve a compartir → copia tu lista de texto"],
+            ["3️⃣",t?.importStep3 || "Pégala aquí abajo"],
+            ["4️⃣",t?.importStep4 || "Tu álbum se llena automáticamente ✨"],
           ].map(([ic,txt])=>(
             <div key={ic} style={{display:"flex",gap:10,marginBottom:8,alignItems:"flex-start"}}>
               <span style={{fontSize:16,flexShrink:0}}>{ic}</span>
@@ -401,24 +401,24 @@ MAR 🇲🇦: 3`;
         </div>
 
         <div style={{marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-          <span style={{fontWeight:700,color:"#e8eaf6",fontSize:14}}>Pega tu lista aquí:</span>
+          <span style={{fontWeight:700,color:"#e8eaf6",fontSize:14}}>{t?.pasteListHere || "Pega tu lista aquí:"}</span>
           <div style={{display:"flex",gap:8,flexShrink:0}}>
             <button
               onClick={async()=>{
                 try{
                   const clip=await navigator.clipboard.readText();
                   if(clip&&clip.trim()){setText(clip);setError("");}
-                  else setError("El portapapeles está vacío. Copia tu lista primero.");
+                  else setError(t?.clipboardEmpty || "El portapapeles está vacío. Copia tu lista primero.");
                 }catch{
-                  setError("No se pudo leer el portapapeles automáticamente. Mantén presionado el cuadro de abajo y selecciona \"Pegar\".");
+                  setError(t?.clipboardError || "No se pudo leer el portapapeles automáticamente. Mantén presionado el cuadro de abajo y selecciona \"Pegar\".");
                 }
               }}
               style={{fontSize:11,color:"#86efac",background:"none",border:"1px solid #14532d",borderRadius:6,padding:"3px 8px",cursor:"pointer",whiteSpace:"nowrap"}}
             >
-              📋 Pegar todo
+              {t?.pasteAll || "📋 Pegar todo"}
             </button>
             <button onClick={()=>setText(EXAMPLE)} style={{fontSize:11,color:"#60a5fa",background:"none",border:"1px solid #1e3a5f",borderRadius:6,padding:"3px 8px",cursor:"pointer",whiteSpace:"nowrap"}}>
-              Ver ejemplo
+              {t?.seeExample || "Ver ejemplo"}
             </button>
           </div>
         </div>
@@ -433,13 +433,13 @@ MAR 🇲🇦: 3`;
         {error && <div style={{color:"#ef4444",fontSize:13,marginTop:8,padding:"8px 12px",background:"#1e0a0a",borderRadius:8}}>{error}</div>}
 
         <div style={{fontSize:11,color:"#4a5568",marginTop:8}}>
-          Compatible con: figuritas.app, Panini Digital, listas de WhatsApp y cualquier formato con códigos de país
+          {t?.compatibleWith || "Compatible con: figuritas.app, Panini Digital, listas de WhatsApp y cualquier formato con códigos de país"}
         </div>
       </div>
 
       <div style={{padding:"12px 16px",borderTop:"1px solid #1e2a3a",background:"#111827"}}>
         <button onClick={handleParse} disabled={!text.trim()} style={{width:"100%",padding:"14px",background:text.trim()?"linear-gradient(135deg,#ffd700,#f59e0b)":"#1e2a3a",border:"none",borderRadius:12,color:text.trim()?"#0a0f1e":"#4a5568",fontWeight:900,fontSize:16,cursor:"pointer"}}>
-          Analizar lista →
+          {t?.analyzeList || "Analizar lista →"}
         </button>
       </div>
     </div>
@@ -450,7 +450,7 @@ MAR 🇲🇦: 3`;
     <div style={{position:"fixed",inset:0,background:"#0a0f1e",zIndex:500,display:"flex",flexDirection:"column"}}>
       <div style={{background:"#111827",borderBottom:"1px solid #1e2a3a",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
         <button onClick={()=>setStep("paste")} style={{background:"none",border:"none",color:"#6b7280",fontSize:20,cursor:"pointer"}}>←</button>
-        <span style={{fontWeight:900,fontSize:16,color:"#ffd700"}}>📋 Vista previa</span>
+        <span style={{fontWeight:900,fontSize:16,color:"#ffd700"}}>{t?.preview || "📋 Vista previa"}</span>
       </div>
 
       <div style={{flex:1,overflowY:"auto",padding:16}}>
@@ -459,19 +459,19 @@ MAR 🇲🇦: 3`;
           <div style={{background:"#0a1e0a",border:"1px solid #22c55e",borderRadius:12,padding:16,textAlign:"center"}}>
             <div style={{fontSize:28,marginBottom:4}}>❌</div>
             <div style={{fontWeight:900,fontSize:28,color:"#22c55e"}}>{parsed.totalMissing}</div>
-            <div style={{fontSize:12,color:"#4ade80"}}>figuritas faltantes detectadas</div>
+            <div style={{fontSize:12,color:"#4ade80"}}>{t?.missingDetected || "figuritas faltantes detectadas"}</div>
           </div>
           <div style={{background:"#1e0f00",border:"1px solid #f97316",borderRadius:12,padding:16,textAlign:"center"}}>
             <div style={{fontSize:28,marginBottom:4}}>🔁</div>
             <div style={{fontWeight:900,fontSize:28,color:"#f97316"}}>{parsed.totalRepeated}</div>
-            <div style={{fontSize:12,color:"#fb923c"}}>repetidas detectadas</div>
+            <div style={{fontSize:12,color:"#fb923c"}}>{t?.repeatedDetected || "repetidas detectadas"}</div>
           </div>
         </div>
 
         {/* Missing preview */}
         {Object.keys(parsed.missing).length > 0 && (
           <div style={{marginBottom:16}}>
-            <div style={{fontWeight:800,color:"#ef4444",fontSize:14,marginBottom:10}}>❌ Faltantes detectadas</div>
+            <div style={{fontWeight:800,color:"#ef4444",fontSize:14,marginBottom:10}}>{t?.missingDetectedTitle || "❌ Faltantes detectadas"}</div>
             {Object.entries(parsed.missing).slice(0,8).map(([code,nums])=>{
               const team = ALBUM[code];
               return (
@@ -484,7 +484,7 @@ MAR 🇲🇦: 3`;
             })}
             {Object.keys(parsed.missing).length > 8 && (
               <div style={{textAlign:"center",color:"#4a5568",fontSize:12,padding:"8px 0"}}>
-                +{Object.keys(parsed.missing).length - 8} selecciones más...
+                +{Object.keys(parsed.missing).length - 8} {t?.moreSelections || "selecciones más"}...
               </div>
             )}
           </div>
@@ -493,7 +493,7 @@ MAR 🇲🇦: 3`;
         {/* Repeated preview */}
         {Object.keys(parsed.repeated).length > 0 && (
           <div style={{marginBottom:16}}>
-            <div style={{fontWeight:800,color:"#f97316",fontSize:14,marginBottom:10}}>🔁 Repetidas detectadas</div>
+            <div style={{fontWeight:800,color:"#f97316",fontSize:14,marginBottom:10}}>🔁 {t?.repeatedDetected || "Repetidas detectadas"}</div>
             {Object.entries(parsed.repeated).map(([code,nums])=>{
               const team = ALBUM[code];
               return (
@@ -510,15 +510,15 @@ MAR 🇲🇦: 3`;
         {/* Líneas no reconocidas o números fuera de rango */}
         {(parsed.ignored?.length > 0 || parsed.outOfRange?.length > 0) && (
           <div style={{background:"#1e1500",border:"1px solid #fbbf24",borderRadius:12,padding:14,marginBottom:16}}>
-            <div style={{fontWeight:700,color:"#fbbf24",fontSize:13,marginBottom:8}}>⚠️ Esto no se pudo importar:</div>
+            <div style={{fontWeight:700,color:"#fbbf24",fontSize:13,marginBottom:8}}>{t?.notImported || "⚠️ Esto no se pudo importar:"}</div>
             {parsed.ignored?.length > 0 && (
               <div style={{fontSize:12,color:"#fde68a",marginBottom:parsed.outOfRange?.length>0?8:0}}>
-                Líneas no reconocidas ({parsed.ignored.length}): {parsed.ignored.slice(0,5).join(" · ")}{parsed.ignored.length>5?"...":""}
+                {t?.ignoredLines || "Líneas no reconocidas"} ({parsed.ignored.length}): {parsed.ignored.slice(0,5).join(" · ")}{parsed.ignored.length>5?"...":""}
               </div>
             )}
             {parsed.outOfRange?.length > 0 && (
               <div style={{fontSize:12,color:"#fde68a"}}>
-                Números fuera de rango ({parsed.outOfRange.length}): {parsed.outOfRange.slice(0,8).join(", ")}{parsed.outOfRange.length>8?"...":""}
+                {t?.outOfRangeNumbers || "Números fuera de rango"} ({parsed.outOfRange.length}): {parsed.outOfRange.slice(0,8).join(", ")}{parsed.outOfRange.length>8?"...":""}
               </div>
             )}
           </div>
@@ -529,19 +529,19 @@ MAR 🇲🇦: 3`;
             real — se aplica directo, sin el selector que solo generaría confusión. */}
         {isFreshAlbum ? (
           <div style={{background:"#0a1e0a",border:"1px solid #22c55e",borderRadius:12,padding:14,fontSize:13,color:"#86efac",marginBottom:16}}>
-            ✅ Como es tu primera importación, esta lista se aplica directo a tu álbum — todo lo no mencionado se marcará como "tengo".
+            {t?.firstImportHelp || "✅ Como es tu primera importación, esta lista se aplica directo a tu álbum — todo lo no mencionado se marcará como \"tengo\"."}
           </div>
         ) : (
           <div style={{marginBottom:16}}>
-            <div style={{fontWeight:700,color:"#e8eaf6",fontSize:13,marginBottom:8}}>¿Cómo aplicar esta lista?</div>
+            <div style={{fontWeight:700,color:"#e8eaf6",fontSize:13,marginBottom:8}}>{t?.howApplyList || "¿Cómo aplicar esta lista?"}</div>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               <button onClick={()=>setMergeMode("merge")} style={{textAlign:"left",padding:"12px 14px",borderRadius:10,border:"1px solid",borderColor:mergeMode==="merge"?"#22c55e":"#1e2a3a",background:mergeMode==="merge"?"#0a1e0a":"#111827",cursor:"pointer"}}>
-                <div style={{fontWeight:700,color:mergeMode==="merge"?"#22c55e":"#e8eaf6",fontSize:13}}>✅ Fusionar con mi álbum actual (recomendado)</div>
-                <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>Solo actualiza las figuritas mencionadas en esta lista; el resto de tu álbum no cambia</div>
+                <div style={{fontWeight:700,color:mergeMode==="merge"?"#22c55e":"#e8eaf6",fontSize:13}}>{t?.mergeAlbum || "✅ Fusionar con mi álbum actual (recomendado)"}</div>
+                <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>{t?.mergeAlbumHelp || "Solo actualiza las figuritas mencionadas en esta lista; el resto de tu álbum no cambia"}</div>
               </button>
               <button onClick={()=>setMergeMode("replace")} style={{textAlign:"left",padding:"12px 14px",borderRadius:10,border:"1px solid",borderColor:mergeMode==="replace"?"#ef4444":"#1e2a3a",background:mergeMode==="replace"?"#1e0a0a":"#111827",cursor:"pointer"}}>
-                <div style={{fontWeight:700,color:mergeMode==="replace"?"#ef4444":"#e8eaf6",fontSize:13}}>🔄 Reemplazar todo mi álbum</div>
-                <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>Lo no mencionado en la lista se marcará como "tengo" — usa esto solo si la lista es completa</div>
+                <div style={{fontWeight:700,color:mergeMode==="replace"?"#ef4444":"#e8eaf6",fontSize:13}}>{t?.replaceAlbum || "🔄 Reemplazar todo mi álbum"}</div>
+                <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>{t?.replaceAlbumHelp || "Lo no mencionado en la lista se marcará como \"tengo\" — usa esto solo si la lista es completa"}</div>
               </button>
             </div>
           </div>
@@ -549,17 +549,17 @@ MAR 🇲🇦: 3`;
 
         {!isFreshAlbum && mergeMode==="replace"&&(
           <div style={{background:"#0a1a2e",border:"1px solid #1e3a5f",borderRadius:12,padding:14,fontSize:13,color:"#60a5fa"}}>
-            ⚠️ Esto reemplazará tu álbum actual. Las figuritas no mencionadas se marcarán como "tengo".
+            {t?.replaceWarning || "⚠️ Esto reemplazará tu álbum actual. Las figuritas no mencionadas se marcarán como \"tengo\"."}
           </div>
         )}
       </div>
 
       <div style={{padding:"12px 16px",borderTop:"1px solid #1e2a3a",background:"#111827",display:"flex",gap:10}}>
         <button onClick={()=>setStep("paste")} style={{flex:1,padding:"13px",background:"transparent",border:"1px solid #1e2a3a",borderRadius:12,color:"#6b7280",fontWeight:700,cursor:"pointer"}}>
-          Editar
+          {t?.edit || "Editar"}
         </button>
         <button onClick={handleImport} style={{flex:2,padding:"13px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:12,color:"#0a0f1e",fontWeight:900,fontSize:15,cursor:"pointer"}}>
-          ✅ Importar al álbum
+          {t?.importToAlbum || "✅ Importar al álbum"}
         </button>
       </div>
     </div>
@@ -569,15 +569,15 @@ MAR 🇲🇦: 3`;
   return (
     <div style={{position:"fixed",inset:0,background:"#0a0f1e",zIndex:500,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
       <div style={{fontSize:64,marginBottom:16}}>🎉</div>
-      <div style={{fontWeight:900,fontSize:24,color:"#ffd700",marginBottom:8,textAlign:"center"}}>¡Álbum importado!</div>
+      <div style={{fontWeight:900,fontSize:24,color:"#ffd700",marginBottom:8,textAlign:"center"}}>{t?.importedAlbumTitle || "¡Álbum importado!"}</div>
       <div style={{color:"#9ca3af",fontSize:15,textAlign:"center",marginBottom:8}}>
-        <span style={{color:"#ef4444",fontWeight:700}}>{parsed.totalMissing} faltantes</span> y <span style={{color:"#f97316",fontWeight:700}}>{parsed.totalRepeated} repetidas</span> cargadas.
+        <span style={{color:"#ef4444",fontWeight:700}}>{parsed.totalMissing} {t?.scopeMissing || "faltantes"}</span> y <span style={{color:"#f97316",fontWeight:700}}>{parsed.totalRepeated} {t?.scopeRepeated || "repetidas"}</span> {t?.loaded || "cargadas"}.
       </div>
       <div style={{color:"#6b7280",fontSize:13,textAlign:"center",marginBottom:32}}>
-        Tu álbum digital está listo en FiguSwap.
+        {t?.albumReady || "Tu álbum digital está listo en FiguSwap."}
       </div>
       <button onClick={onClose} style={{padding:"14px 32px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:14,color:"#0a0f1e",fontWeight:900,fontSize:16,cursor:"pointer"}}>
-        Ver mi álbum →
+        {t?.viewMyAlbum || "Ver mi álbum →"}
       </button>
     </div>
   );
