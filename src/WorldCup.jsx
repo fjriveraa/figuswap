@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { getTeamName } from "./i18n";
 
 // Cada cuánto se vuelve a consultar mientras la pestaña está abierta. La caché del proxy
 // (api/worldcup.js) ya evita golpear la API externa más de una vez cada 30s, así que este
@@ -94,7 +95,7 @@ function getGroupLetter(group, teamsById) {
     || teamsById[group.teams?.[0]?.team_id]?.groups || "?";
 }
 
-function MatchRow({ match, teamsById }) {
+function MatchRow({ match, teamsById, lang, t }) {
   const home = teamsById[match.home_team_id];
   const away = teamsById[match.away_team_id];
   const status = matchStatus(match);
@@ -108,7 +109,7 @@ function MatchRow({ match, teamsById }) {
       <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
         <Flag team={home} />
         <span style={{ fontSize: 13, color: "#e8eaf6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {home?.name_en || match.home_team_name_en || match.home_team_label || "Por confirmar"}
+          {(home?.fifa_code&&getTeamName(home.fifa_code,lang)) || home?.name_en || match.home_team_name_en || match.home_team_label || (t?.toBeConfirmed||"Por confirmar")}
         </span>
       </div>
 
@@ -130,7 +131,7 @@ function MatchRow({ match, teamsById }) {
 
       <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end", minWidth: 0 }}>
         <span style={{ fontSize: 13, color: "#e8eaf6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "right" }}>
-          {away?.name_en || match.away_team_name_en || match.away_team_label || "Por confirmar"}
+          {(away?.fifa_code&&getTeamName(away.fifa_code,lang)) || away?.name_en || match.away_team_name_en || match.away_team_label || (t?.toBeConfirmed||"Por confirmar")}
         </span>
         <Flag team={away} />
       </div>
@@ -138,7 +139,7 @@ function MatchRow({ match, teamsById }) {
   );
 }
 
-function GroupTable({ group, teamsById, games, t }) {
+function GroupTable({ group, teamsById, games, t, lang }) {
   // Misma API, mismo patrón: los números pueden llegar como texto, incluido el string "null".
   const toNum = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
   const rows = (group.teams || []).map((gt) => {
@@ -164,7 +165,7 @@ function GroupTable({ group, teamsById, games, t }) {
       {rows.map((r, i) => (
         <div key={r.team_id} style={{ display: "grid", gridTemplateColumns: "1fr 28px 28px 28px 28px 32px", gap: 4, alignItems: "center", padding: "6px 4px", background: i < 2 ? "#0a1a0a" : "transparent", borderRadius: 6 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#e8eaf6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            <Flag team={r.team} />{r.team?.name_en || r.team?.fifa_code || "—"}
+            <Flag team={r.team} />{(r.team?.fifa_code&&getTeamName(r.team.fifa_code,lang)) || r.team?.name_en || r.team?.fifa_code || "—"}
           </span>
           <span style={{ textAlign: "center", fontSize: 12, color: "#9ca3af" }}>{r.played}</span>
           <span style={{ textAlign: "center", fontSize: 12, color: "#9ca3af" }}>{r.gf}</span>
@@ -261,14 +262,14 @@ export default function WorldCup({ lang="es", t }) {
           {subTab === "calendar" && Object.entries(gamesByDate).map(([date, matches]) => (
             <div key={date} style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", marginBottom: 4, textTransform: "uppercase" }}>{date}</div>
-              {matches.map((m) => <MatchRow key={m.id} match={m} teamsById={teamsById} />)}
+              {matches.map((m) => <MatchRow key={m.id} match={m} teamsById={teamsById} lang={lang} t={t} />)}
             </div>
           ))}
 
           {subTab === "table" && [...groups]
             .sort((a, b) => getGroupLetter(a, teamsById).localeCompare(getGroupLetter(b, teamsById)))
             .map((g, i) => (
-              <GroupTable key={g.group || g.teams?.[0]?.team_id || i} group={g} teamsById={teamsById} games={games} t={t} />
+              <GroupTable key={g.group || g.teams?.[0]?.team_id || i} group={g} teamsById={teamsById} games={games} t={t} lang={lang} />
             ))}
 
           {subTab === "scorers" && (() => {
@@ -288,7 +289,7 @@ export default function WorldCup({ lang="es", t }) {
                       <div style={{ fontSize: 13, color: "#e8eaf6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                         <Flag team={teamsByName[s.team]} />
-                        <span style={{ fontSize: 10, color: "#6b7280" }}>{s.team || "—"}</span>
+                        <span style={{ fontSize: 10, color: "#6b7280" }}>{(teamsByName[s.team]?.fifa_code&&getTeamName(teamsByName[s.team].fifa_code,lang)) || s.team || "—"}</span>
                       </div>
                     </div>
                     <span style={{ fontWeight: 900, fontSize: 16, color: "#ffd700" }}>{s.goals}</span>
