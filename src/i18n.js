@@ -2,6 +2,7 @@
 
 export const translations = {
   es: {
+    toBeConfirmed: "Por confirmar",
     installApp: "📲 Instalar app",
     iosInstallStep1: "Toca el botón Compartir (el cuadrado con la flecha hacia arriba) en la barra de Safari.",
     iosInstallStep2: "Busca y selecciona \"Agregar a inicio\" en la lista de opciones.",
@@ -286,6 +287,7 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Hola ${name}! 👋\n\nVi en FiguSwap que podemos intercambiar:\n✅ Yo tengo ${iHave} que tú necesitas:\n${iHaveList}${iHaveMore > 0 ? `... y ${iHaveMore} más` : ""}\n\n🔁 Tú tienes ${theyHave} que yo necesito:\n${theyHaveList}${theyHaveMore > 0 ? `... y ${theyHaveMore} más` : ""}\n\n¿Coordinamos? ⚽🎴`,
   },
   en: {
+    toBeConfirmed: "To be confirmed",
     installApp: "📲 Install app",
     iosInstallStep1: "Tap the Share button (the square with an arrow pointing up) in the Safari toolbar.",
     iosInstallStep2: "Find and select \"Add to Home Screen\" from the list of options.",
@@ -571,6 +573,7 @@ export const translations = {
   },
 
   it: {
+    toBeConfirmed: "Da confermare",
     installApp: "📲 Installa app",
     iosInstallStep1: "Tocca il pulsante Condividi (il quadrato con la freccia verso l'alto) nella barra di Safari.",
     iosInstallStep2: "Trova e seleziona \"Aggiungi alla schermata Home\" dall'elenco delle opzioni.",
@@ -855,6 +858,7 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Ciao ${name}! 👋\n\nHo visto su FiguSwap che possiamo scambiare:\n✅ Io ho ${iHave} che ti servono:\n${iHaveList}${iHaveMore > 0 ? `... e altre ${iHaveMore}` : ""}\n\n🔁 Tu hai ${theyHave} che mi servono:\n${theyHaveList}${theyHaveMore > 0 ? `... e altre ${theyHaveMore}` : ""}\n\nCi organizziamo? ⚽🎴`,
   },
   fr: {
+    toBeConfirmed: "À confirmer",
     installApp: "📲 Installer l'app",
     iosInstallStep1: "Appuie sur le bouton Partager (le carré avec une flèche vers le haut) dans la barre Safari.",
     iosInstallStep2: "Trouve et sélectionne \"Sur l'écran d'accueil\" dans la liste d'options.",
@@ -1139,6 +1143,7 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Salut ${name} ! 👋\n\nJ'ai vu sur FiguSwap que nous pouvons échanger :\n✅ J'ai ${iHave} que tu cherches :\n${iHaveList}${iHaveMore > 0 ? `... et ${iHaveMore} de plus` : ""}\n\n🔁 Tu as ${theyHave} que je cherche :\n${theyHaveList}${theyHaveMore > 0 ? `... et ${theyHaveMore} de plus` : ""}\n\nOn organise ça ? ⚽🎴`,
   },
   pt: {
+    toBeConfirmed: "A confirmar",
     installApp: "📲 Instalar app",
     iosInstallStep1: "Toque no botão Compartilhar (o quadrado com a seta para cima) na barra do Safari.",
     iosInstallStep2: "Encontre e selecione \"Adicionar à Tela de Início\" na lista de opções.",
@@ -1424,6 +1429,7 @@ export const translations = {
   },
 
   de: {
+    toBeConfirmed: "Noch offen",
     installApp: "📲 App installieren",
     iosInstallStep1: "Tippe auf das Teilen-Symbol (das Quadrat mit dem Pfeil nach oben) in der Safari-Leiste.",
     iosInstallStep2: "Suche und wähle \"Zum Home-Bildschirm\" aus der Liste der Optionen.",
@@ -1704,6 +1710,7 @@ export const translations = {
   },
 
   ar: {
+    toBeConfirmed: "لم يتحدد بعد",
     installApp: "📲 تثبيت التطبيق",
     iosInstallStep1: "اضغط على زر المشاركة (المربع مع السهم للأعلى) في شريط Safari.",
     iosInstallStep2: "ابحث عن \"إضافة إلى الشاشة الرئيسية\" واخترها من قائمة الخيارات.",
@@ -1995,4 +2002,66 @@ export function getInitialLang() {
   if (browserLang.startsWith("fr")) return "fr";
   if (browserLang.startsWith("pt")) return "pt";
   return browserLang.startsWith("es") ? "es" : "en";
+}
+
+// Nombres de los 48 equipos + FWC/CC en los 7 idiomas, separados de las 'translations'
+// porque son nombres propios (datos), no frases de interfaz. Se usan en Álbum, Escáner,
+// Importador y Mundial para que el nombre del país cambie con el idioma seleccionado.
+export const teamNames = {
+  FWC:{es:"FIFA World Cup",en:"FIFA World Cup",it:"FIFA World Cup",fr:"FIFA World Cup",pt:"FIFA World Cup",de:"FIFA World Cup",ar:"كأس العالم FIFA"},
+  CC:{es:"Coca-Cola",en:"Coca-Cola",it:"Coca-Cola",fr:"Coca-Cola",pt:"Coca-Cola",de:"Coca-Cola",ar:"كوكا كولا"},
+  MEX:{es:"México",en:"Mexico",it:"Messico",fr:"Mexique",pt:"México",de:"Mexiko",ar:"المكسيك"},
+  RSA:{es:"Sudáfrica",en:"South Africa",it:"Sudafrica",fr:"Afrique du Sud",pt:"África do Sul",de:"Südafrika",ar:"جنوب أفريقيا"},
+  KOR:{es:"Corea del Sur",en:"South Korea",it:"Corea del Sud",fr:"Corée du Sud",pt:"Coreia do Sul",de:"Südkorea",ar:"كوريا الجنوبية"},
+  CZE:{es:"Chequia",en:"Czechia",it:"Cechia",fr:"Tchéquie",pt:"Chéquia",de:"Tschechien",ar:"التشيك"},
+  CAN:{es:"Canadá",en:"Canada",it:"Canada",fr:"Canada",pt:"Canadá",de:"Kanada",ar:"كندا"},
+  BIH:{es:"Bosnia y Herzegovina",en:"Bosnia and Herzegovina",it:"Bosnia ed Erzegovina",fr:"Bosnie-Herzégovine",pt:"Bósnia e Herzegovina",de:"Bosnien und Herzegowina",ar:"البوسنة والهرسك"},
+  QAT:{es:"Catar",en:"Qatar",it:"Qatar",fr:"Qatar",pt:"Catar",de:"Katar",ar:"قطر"},
+  SUI:{es:"Suiza",en:"Switzerland",it:"Svizzera",fr:"Suisse",pt:"Suíça",de:"Schweiz",ar:"سويسرا"},
+  BRA:{es:"Brasil",en:"Brazil",it:"Brasile",fr:"Brésil",pt:"Brasil",de:"Brasilien",ar:"البرازيل"},
+  MAR:{es:"Marruecos",en:"Morocco",it:"Marocco",fr:"Maroc",pt:"Marrocos",de:"Marokko",ar:"المغرب"},
+  HAI:{es:"Haití",en:"Haiti",it:"Haiti",fr:"Haïti",pt:"Haiti",de:"Haiti",ar:"هايتي"},
+  SCO:{es:"Escocia",en:"Scotland",it:"Scozia",fr:"Écosse",pt:"Escócia",de:"Schottland",ar:"اسكتلندا"},
+  USA:{es:"Estados Unidos",en:"USA",it:"Stati Uniti",fr:"États-Unis",pt:"Estados Unidos",de:"USA",ar:"الولايات المتحدة"},
+  PAR:{es:"Paraguay",en:"Paraguay",it:"Paraguay",fr:"Paraguay",pt:"Paraguai",de:"Paraguay",ar:"باراغواي"},
+  AUS:{es:"Australia",en:"Australia",it:"Australia",fr:"Australie",pt:"Austrália",de:"Australien",ar:"أستراليا"},
+  TUR:{es:"Turquía",en:"Türkiye",it:"Turchia",fr:"Turquie",pt:"Turquia",de:"Türkei",ar:"تركيا"},
+  GER:{es:"Alemania",en:"Germany",it:"Germania",fr:"Allemagne",pt:"Alemanha",de:"Deutschland",ar:"ألمانيا"},
+  CUW:{es:"Curazao",en:"Curaçao",it:"Curaçao",fr:"Curaçao",pt:"Curaçao",de:"Curaçao",ar:"كوراساو"},
+  CIV:{es:"Costa de Marfil",en:"Ivory Coast",it:"Costa d'Avorio",fr:"Côte d'Ivoire",pt:"Costa do Marfim",de:"Elfenbeinküste",ar:"ساحل العاج"},
+  ECU:{es:"Ecuador",en:"Ecuador",it:"Ecuador",fr:"Équateur",pt:"Equador",de:"Ecuador",ar:"الإكوادور"},
+  NED:{es:"Países Bajos",en:"Netherlands",it:"Paesi Bassi",fr:"Pays-Bas",pt:"Países Baixos",de:"Niederlande",ar:"هولندا"},
+  JPN:{es:"Japón",en:"Japan",it:"Giappone",fr:"Japon",pt:"Japão",de:"Japan",ar:"اليابان"},
+  SWE:{es:"Suecia",en:"Sweden",it:"Svezia",fr:"Suède",pt:"Suécia",de:"Schweden",ar:"السويد"},
+  TUN:{es:"Túnez",en:"Tunisia",it:"Tunisia",fr:"Tunisie",pt:"Tunísia",de:"Tunesien",ar:"تونس"},
+  BEL:{es:"Bélgica",en:"Belgium",it:"Belgio",fr:"Belgique",pt:"Bélgica",de:"Belgien",ar:"بلجيكا"},
+  EGY:{es:"Egipto",en:"Egypt",it:"Egitto",fr:"Égypte",pt:"Egito",de:"Ägypten",ar:"مصر"},
+  IRN:{es:"Irán",en:"IR Iran",it:"Iran",fr:"Iran",pt:"Irã",de:"Iran",ar:"إيران"},
+  NZL:{es:"Nueva Zelanda",en:"New Zealand",it:"Nuova Zelanda",fr:"Nouvelle-Zélande",pt:"Nova Zelândia",de:"Neuseeland",ar:"نيوزيلندا"},
+  ESP:{es:"España",en:"Spain",it:"Spagna",fr:"Espagne",pt:"Espanha",de:"Spanien",ar:"إسبانيا"},
+  CPV:{es:"Cabo Verde",en:"Cape Verde",it:"Capo Verde",fr:"Cap-Vert",pt:"Cabo Verde",de:"Kap Verde",ar:"الرأس الأخضر"},
+  KSA:{es:"Arabia Saudita",en:"Saudi Arabia",it:"Arabia Saudita",fr:"Arabie Saoudite",pt:"Arábia Saudita",de:"Saudi-Arabien",ar:"السعودية"},
+  URU:{es:"Uruguay",en:"Uruguay",it:"Uruguay",fr:"Uruguay",pt:"Uruguai",de:"Uruguay",ar:"أوروغواي"},
+  FRA:{es:"Francia",en:"France",it:"Francia",fr:"France",pt:"França",de:"Frankreich",ar:"فرنسا"},
+  SEN:{es:"Senegal",en:"Senegal",it:"Senegal",fr:"Sénégal",pt:"Senegal",de:"Senegal",ar:"السنغال"},
+  IRQ:{es:"Irak",en:"Iraq",it:"Iraq",fr:"Irak",pt:"Iraque",de:"Irak",ar:"العراق"},
+  NOR:{es:"Noruega",en:"Norway",it:"Norvegia",fr:"Norvège",pt:"Noruega",de:"Norwegen",ar:"النرويج"},
+  ARG:{es:"Argentina",en:"Argentina",it:"Argentina",fr:"Argentine",pt:"Argentina",de:"Argentinien",ar:"الأرجنتين"},
+  ALG:{es:"Argelia",en:"Algeria",it:"Algeria",fr:"Algérie",pt:"Argélia",de:"Algerien",ar:"الجزائر"},
+  AUT:{es:"Austria",en:"Austria",it:"Austria",fr:"Autriche",pt:"Áustria",de:"Österreich",ar:"النمسا"},
+  JOR:{es:"Jordania",en:"Jordan",it:"Giordania",fr:"Jordanie",pt:"Jordânia",de:"Jordanien",ar:"الأردن"},
+  POR:{es:"Portugal",en:"Portugal",it:"Portogallo",fr:"Portugal",pt:"Portugal",de:"Portugal",ar:"البرتغال"},
+  COD:{es:"RD Congo",en:"DR Congo",it:"RD Congo",fr:"RD Congo",pt:"RD Congo",de:"DR Kongo",ar:"الكونغو الديمقراطية"},
+  UZB:{es:"Uzbekistán",en:"Uzbekistan",it:"Uzbekistan",fr:"Ouzbékistan",pt:"Uzbequistão",de:"Usbekistan",ar:"أوزبكستان"},
+  COL:{es:"Colombia",en:"Colombia",it:"Colombia",fr:"Colombie",pt:"Colômbia",de:"Kolumbien",ar:"كولومبيا"},
+  ENG:{es:"Inglaterra",en:"England",it:"Inghilterra",fr:"Angleterre",pt:"Inglaterra",de:"England",ar:"إنجلترا"},
+  CRO:{es:"Croacia",en:"Croatia",it:"Croazia",fr:"Croatie",pt:"Croácia",de:"Kroatien",ar:"كرواتيا"},
+  GHA:{es:"Ghana",en:"Ghana",it:"Ghana",fr:"Ghana",pt:"Gana",de:"Ghana",ar:"غانا"},
+  PAN:{es:"Panamá",en:"Panama",it:"Panama",fr:"Panama",pt:"Panamá",de:"Panama",ar:"بنما"},
+};
+
+// Devuelve el nombre del equipo en el idioma actual, con respaldo seguro a inglés
+// y al código mismo si por algún motivo faltara (nunca debería pasar, pero no rompe nada).
+export function getTeamName(code, lang) {
+  return teamNames[code]?.[lang] || teamNames[code]?.en || code;
 }
