@@ -1,6 +1,72 @@
 import { useState, useEffect, useCallback } from "react";
 import { getTeamName } from "./i18n";
 
+// Mapeo real de los 16 estadios del Mundial 2026 a su zona horaria IANA — confirmado contra
+// el archivo de datos oficial de la API (football.stadiums.json). Esto es lo que permite
+// convertir la hora del estadio a la hora real del dispositivo de quien mira, sin adivinar:
+// IANA ya sabe, para cada zona, si aplica horario de verano en la fecha exacta del partido
+// (ej. México no aplica DST desde 2023, EE.UU./Canadá sí) — por eso no basta con un offset fijo.
+const STADIUM_TIMEZONES = {
+  "1": "America/Mexico_City",   // Estadio Azteca, Ciudad de México
+  "2": "America/Mexico_City",   // Estadio Akron, Guadalajara
+  "3": "America/Monterrey",     // Estadio BBVA, Monterrey
+  "4": "America/Chicago",       // AT&T Stadium, Dallas
+  "5": "America/Chicago",       // NRG Stadium, Houston
+  "6": "America/Chicago",       // Arrowhead Stadium, Kansas City
+  "7": "America/New_York",      // Mercedes-Benz Stadium, Atlanta
+  "8": "America/New_York",      // Hard Rock Stadium, Miami
+  "9": "America/New_York",      // Gillette Stadium, Boston
+  "10": "America/New_York",     // Lincoln Financial Field, Philadelphia
+  "11": "America/New_York",     // MetLife Stadium, Nueva York/Nueva Jersey
+  "12": "America/Toronto",      // BMO Field, Toronto
+  "13": "America/Vancouver",    // BC Place, Vancouver
+  "14": "America/Los_Angeles",  // Lumen Field, Seattle
+  "15": "America/Los_Angeles",  // Levi's Stadium, San Francisco Bay Area
+  "16": "America/Los_Angeles",  // SoFi Stadium, Los Ángeles
+};
+
+// Calcula el offset (en minutos) de una zona horaria respecto a UTC, para una fecha concreta —
+// "para una fecha concreta" es la parte importante: el mismo lugar puede tener offsets distintos
+// en junio (verano) vs. diciembre (invierno), y esto lo resuelve solo, usando Intl del navegador.
+function getTzOffsetMinutes(date, timeZone) {
+  const utcDate = new Date(date.toLocaleString("en-US", { timeZone: "UTC" }));
+  const tzDate = new Date(date.toLocaleString("en-US", { timeZone }));
+  return (tzDate.getTime() - utcDate.getTime()) / 60000;
+}
+
+// Convierte "MM/DD/YYYY HH:mm" (hora local del estadio, como la manda la API) a un objeto Date
+// con el instante UTC real y correcto. A partir de ahí, cualquier .toLocaleString() del navegador
+// ya muestra automáticamente la hora correcta de quien esté mirando, sin más conversión manual.
+function stadiumTimeToDate(localDateStr, stadiumId) {
+  if (!localDateStr) return null;
+  const m = localDateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/);
+  if (!m) return null;
+  const [, month, day, year, hour, minute] = m;
+  const timeZone = STADIUM_TIMEZONES[String(stadiumId)] || "America/New_York";
+  // Paso 1: armar un Date "ingenuo" tratando esos números como si ya fueran UTC — solo para
+  // tener un punto de partida con el que calcular el offset correcto de esa fecha específica.
+  const naiveUtc = new Date(`${year}-${month}-${day}T${hour}:${minute}:00Z`);
+  const offsetMin = getTzOffsetMinutes(naiveUtc, timeZone);
+  // Paso 2: restar ese offset — así el resultado es el instante UTC real que corresponde a
+  // "esa hora, en esa zona", no en UTC.
+  return new Date(naiveUtc.getTime() - offsetMin * 60000);
+}
+
+const LOCALE_BY_LANG = { es:"es-ES", en:"en-US", it:"it-IT", fr:"fr-FR", pt:"pt-BR", de:"de-DE", ar:"ar-SA" };
+
+// Formatea un Date real (ya en UTC correcto) en la hora LOCAL del dispositivo que está mirando
+// — sin pasar ninguna opción de timeZone aquí a propósito: al omitirla, el navegador usa la
+// zona horaria del dispositivo automáticamente, sea cual sea (Honduras, España, Brasil, etc.).
+function formatViewerDateTime(date, lang) {
+  if (!date || isNaN(date.getTime())) return null;
+  const locale = LOCALE_BY_LANG[lang] || "es-ES";
+  return {
+    dayLabel: date.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" }),
+    timeLabel: date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }),
+    dayKey: date.toLocaleDateString("en-CA"), // YYYY-MM-DD estable, para agrupar sin ambigüedad
+  };
+}
+
 // Cada cuánto se vuelve a consultar mientras la pestaña está abierta. La caché del proxy
 // (api/worldcup.js) ya evita golpear la API externa más de una vez cada 30s, así que este
 // intervalo solo controla qué tan "viva" se siente la pantalla para el usuario.
@@ -103,6 +169,8 @@ function MatchRow({ match, teamsById, lang, t }) {
   // Fix: home_score/away_score llegan como texto, y algunos partidos futuros mandan el
   // string literal "null" en vez de un null real — Number("null") es NaN, así que se cubre aquí.
   const toScore = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+  const viewerDate = stadiumTimeToDate(match.local_date, match.stadium_id);
+  const viewerTime = formatViewerDateTime(viewerDate, lang);
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 4px", borderBottom: "1px solid #1e2a3a" }}>
@@ -120,6 +188,9 @@ function MatchRow({ match, teamsById, lang, t }) {
           </div>
         ) : (
           <div style={{ fontSize: 12, color: "#4a5568", fontWeight: 700 }}>vs</div>
+        )}
+        {!hasScore && viewerTime && (
+          <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>{viewerTime.timeLabel}</div>
         )}
         {status === "live" && (
           <div style={{ fontSize: 9, fontWeight: 800, color: "#ef4444", marginTop: 2 }}>🔴 EN VIVO</div>
@@ -215,12 +286,23 @@ export default function WorldCup({ lang="es", t }) {
   const teamsByName = {};
   teams.forEach((t) => { if (t.name_en) teamsByName[t.name_en] = t; });
 
-  const sortedGames = [...games].sort((a, b) => new Date(a.local_date) - new Date(b.local_date));
+  const sortedGames = [...games].sort((a, b) => {
+    const da = stadiumTimeToDate(a.local_date, a.stadium_id);
+    const db = stadiumTimeToDate(b.local_date, b.stadium_id);
+    if (!da || !db) return 0;
+    return da - db;
+  });
   const gamesByDate = {};
+  const dateLabels = {};
   sortedGames.forEach((g) => {
-    const key = g.local_date || "Fecha por confirmar";
+    const viewerDate = stadiumTimeToDate(g.local_date, g.stadium_id);
+    const viewerTime = formatViewerDateTime(viewerDate, lang);
+    // Si no se pudo convertir (fecha "por confirmar" o formato inesperado), se agrupa aparte
+    // en vez de perder el partido — mejor mostrarlo sin fecha que no mostrarlo.
+    const key = viewerTime?.dayKey || (t?.toBeConfirmed || "Fecha por confirmar");
     if (!gamesByDate[key]) gamesByDate[key] = [];
     gamesByDate[key].push(g);
+    if (viewerTime) dateLabels[key] = viewerTime.dayLabel;
   });
 
   return (
@@ -259,12 +341,19 @@ export default function WorldCup({ lang="es", t }) {
             </div>
           )}
 
-          {subTab === "calendar" && Object.entries(gamesByDate).map(([date, matches]) => (
-            <div key={date} style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", marginBottom: 4, textTransform: "uppercase" }}>{date}</div>
-              {matches.map((m) => <MatchRow key={m.id} match={m} teamsById={teamsById} lang={lang} t={t} />)}
-            </div>
-          ))}
+          {subTab === "calendar" && (
+            <>
+              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 12 }}>
+                🕐 {t?.viewerTimeNotice || "Los horarios ya están convertidos a la hora de tu dispositivo."}
+              </div>
+              {Object.entries(gamesByDate).map(([date, matches]) => (
+                <div key={date} style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", marginBottom: 4, textTransform: "uppercase" }}>{dateLabels[date] || date}</div>
+                  {matches.map((m) => <MatchRow key={m.id} match={m} teamsById={teamsById} lang={lang} t={t} />)}
+                </div>
+              ))}
+            </>
+          )}
 
           {subTab === "table" && [...groups]
             .sort((a, b) => getGroupLetter(a, teamsById).localeCompare(getGroupLetter(b, teamsById)))
