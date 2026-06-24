@@ -2,6 +2,8 @@
 
 export const translations = {
   es: {
+    viewerTimeNotice: "Los horarios ya están convertidos a la hora de tu dispositivo.",
+    stadiumTimeNotice: "Los horarios se muestran en la hora local de cada estadio (varían entre EE.UU., México y Canadá), no en tu hora local.",
     specialsLabel: "Especiales",
     toBeConfirmed: "Por confirmar",
     installApp: "📲 Instalar app",
@@ -288,6 +290,8 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Hola ${name}! 👋\n\nVi en FiguSwap que podemos intercambiar:\n✅ Yo tengo ${iHave} que tú necesitas:\n${iHaveList}${iHaveMore > 0 ? `... y ${iHaveMore} más` : ""}\n\n🔁 Tú tienes ${theyHave} que yo necesito:\n${theyHaveList}${theyHaveMore > 0 ? `... y ${theyHaveMore} más` : ""}\n\n¿Coordinamos? ⚽🎴`,
   },
   en: {
+    viewerTimeNotice: "Times are already converted to your device's local time.",
+    stadiumTimeNotice: "Times are shown in each stadium's local time (which varies across the US, Mexico, and Canada), not your local time.",
     specialsLabel: "Specials",
     toBeConfirmed: "To be confirmed",
     installApp: "📲 Install app",
@@ -575,6 +579,8 @@ export const translations = {
   },
 
   it: {
+    viewerTimeNotice: "Gli orari sono già convertiti nell'ora locale del tuo dispositivo.",
+    stadiumTimeNotice: "Gli orari sono mostrati nell'ora locale di ciascuno stadio (varia tra USA, Messico e Canada), non nella tua ora locale.",
     specialsLabel: "Speciali",
     toBeConfirmed: "Da confermare",
     installApp: "📲 Installa app",
@@ -861,6 +867,8 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Ciao ${name}! 👋\n\nHo visto su FiguSwap che possiamo scambiare:\n✅ Io ho ${iHave} che ti servono:\n${iHaveList}${iHaveMore > 0 ? `... e altre ${iHaveMore}` : ""}\n\n🔁 Tu hai ${theyHave} che mi servono:\n${theyHaveList}${theyHaveMore > 0 ? `... e altre ${theyHaveMore}` : ""}\n\nCi organizziamo? ⚽🎴`,
   },
   fr: {
+    viewerTimeNotice: "Les horaires sont déjà convertis à l'heure locale de ton appareil.",
+    stadiumTimeNotice: "Les horaires sont affichés selon l'heure locale de chaque stade (variable entre les États-Unis, le Mexique et le Canada), pas selon ton heure locale.",
     specialsLabel: "Spéciales",
     toBeConfirmed: "À confirmer",
     installApp: "📲 Installer l'app",
@@ -1147,6 +1155,8 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Salut ${name} ! 👋\n\nJ'ai vu sur FiguSwap que nous pouvons échanger :\n✅ J'ai ${iHave} que tu cherches :\n${iHaveList}${iHaveMore > 0 ? `... et ${iHaveMore} de plus` : ""}\n\n🔁 Tu as ${theyHave} que je cherche :\n${theyHaveList}${theyHaveMore > 0 ? `... et ${theyHaveMore} de plus` : ""}\n\nOn organise ça ? ⚽🎴`,
   },
   pt: {
+    viewerTimeNotice: "Os horários já estão convertidos para o horário local do seu dispositivo.",
+    stadiumTimeNotice: "Os horários são mostrados no horário local de cada estádio (que varia entre EUA, México e Canadá), não no seu horário local.",
     specialsLabel: "Especiais",
     toBeConfirmed: "A confirmar",
     installApp: "📲 Instalar app",
@@ -1434,6 +1444,8 @@ export const translations = {
   },
 
   de: {
+    viewerTimeNotice: "Die Zeiten sind bereits in die Ortszeit deines Geräts umgerechnet.",
+    stadiumTimeNotice: "Die Zeiten werden in der Ortszeit des jeweiligen Stadions angezeigt (unterschiedlich zwischen USA, Mexiko und Kanada), nicht in deiner Zeitzone.",
     specialsLabel: "Spezial",
     toBeConfirmed: "Noch offen",
     installApp: "📲 App installieren",
@@ -1716,6 +1728,8 @@ export const translations = {
   },
 
   ar: {
+    viewerTimeNotice: "تم تحويل الأوقات بالفعل إلى التوقيت المحلي لجهازك.",
+    stadiumTimeNotice: "تُعرض الأوقات بالتوقيت المحلي لكل ملعب (يختلف بين الولايات المتحدة والمكسيك وكندا)، وليس بتوقيتك المحلي.",
     specialsLabel: "خاصة",
     toBeConfirmed: "لم يتحدد بعد",
     installApp: "📲 تثبيت التطبيق",
