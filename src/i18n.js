@@ -2,6 +2,7 @@
 
 export const translations = {
   es: {
+    specialsLabel: "Especiales",
     toBeConfirmed: "Por confirmar",
     installApp: "📲 Instalar app",
     iosInstallStep1: "Toca el botón Compartir (el cuadrado con la flecha hacia arriba) en la barra de Safari.",
@@ -287,6 +288,7 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Hola ${name}! 👋\n\nVi en FiguSwap que podemos intercambiar:\n✅ Yo tengo ${iHave} que tú necesitas:\n${iHaveList}${iHaveMore > 0 ? `... y ${iHaveMore} más` : ""}\n\n🔁 Tú tienes ${theyHave} que yo necesito:\n${theyHaveList}${theyHaveMore > 0 ? `... y ${theyHaveMore} más` : ""}\n\n¿Coordinamos? ⚽🎴`,
   },
   en: {
+    specialsLabel: "Specials",
     toBeConfirmed: "To be confirmed",
     installApp: "📲 Install app",
     iosInstallStep1: "Tap the Share button (the square with an arrow pointing up) in the Safari toolbar.",
@@ -573,6 +575,7 @@ export const translations = {
   },
 
   it: {
+    specialsLabel: "Speciali",
     toBeConfirmed: "Da confermare",
     installApp: "📲 Installa app",
     iosInstallStep1: "Tocca il pulsante Condividi (il quadrato con la freccia verso l'alto) nella barra di Safari.",
@@ -858,6 +861,7 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Ciao ${name}! 👋\n\nHo visto su FiguSwap che possiamo scambiare:\n✅ Io ho ${iHave} che ti servono:\n${iHaveList}${iHaveMore > 0 ? `... e altre ${iHaveMore}` : ""}\n\n🔁 Tu hai ${theyHave} che mi servono:\n${theyHaveList}${theyHaveMore > 0 ? `... e altre ${theyHaveMore}` : ""}\n\nCi organizziamo? ⚽🎴`,
   },
   fr: {
+    specialsLabel: "Spéciales",
     toBeConfirmed: "À confirmer",
     installApp: "📲 Installer l'app",
     iosInstallStep1: "Appuie sur le bouton Partager (le carré avec une flèche vers le haut) dans la barre Safari.",
@@ -1143,6 +1147,7 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Salut ${name} ! 👋\n\nJ'ai vu sur FiguSwap que nous pouvons échanger :\n✅ J'ai ${iHave} que tu cherches :\n${iHaveList}${iHaveMore > 0 ? `... et ${iHaveMore} de plus` : ""}\n\n🔁 Tu as ${theyHave} que je cherche :\n${theyHaveList}${theyHaveMore > 0 ? `... et ${theyHaveMore} de plus` : ""}\n\nOn organise ça ? ⚽🎴`,
   },
   pt: {
+    specialsLabel: "Especiais",
     toBeConfirmed: "A confirmar",
     installApp: "📲 Instalar app",
     iosInstallStep1: "Toque no botão Compartilhar (o quadrado com a seta para cima) na barra do Safari.",
@@ -1429,6 +1434,7 @@ export const translations = {
   },
 
   de: {
+    specialsLabel: "Spezial",
     toBeConfirmed: "Noch offen",
     installApp: "📲 App installieren",
     iosInstallStep1: "Tippe auf das Teilen-Symbol (das Quadrat mit dem Pfeil nach oben) in der Safari-Leiste.",
@@ -1710,6 +1716,7 @@ export const translations = {
   },
 
   ar: {
+    specialsLabel: "خاصة",
     toBeConfirmed: "لم يتحدد بعد",
     installApp: "📲 تثبيت التطبيق",
     iosInstallStep1: "اضغط على زر المشاركة (المربع مع السهم للأعلى) في شريط Safari.",
