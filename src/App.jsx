@@ -49,20 +49,22 @@ const ALBUM_ORDER = [
   "ENG","CRO","GHA","PAN",
 ];
 
+// Solo guarda la letra (o "special" para FWC/CC) — el texto "Grupo"/"Especiales" se construye
+// al mostrarlo, usando la traducción del idioma activo, no un string fijo en español.
 const GROUPS = {
-  FWC:"Especiales", CC:"Especiales",
-  MEX:"Grupo A", RSA:"Grupo A", KOR:"Grupo A", CZE:"Grupo A",
-  CAN:"Grupo B", BIH:"Grupo B", QAT:"Grupo B", SUI:"Grupo B",
-  BRA:"Grupo C", MAR:"Grupo C", HAI:"Grupo C", SCO:"Grupo C",
-  USA:"Grupo D", PAR:"Grupo D", AUS:"Grupo D", TUR:"Grupo D",
-  GER:"Grupo E", CUW:"Grupo E", CIV:"Grupo E", ECU:"Grupo E",
-  NED:"Grupo F", JPN:"Grupo F", SWE:"Grupo F", TUN:"Grupo F",
-  BEL:"Grupo G", EGY:"Grupo G", IRN:"Grupo G", NZL:"Grupo G",
-  ESP:"Grupo H", CPV:"Grupo H", KSA:"Grupo H", URU:"Grupo H",
-  FRA:"Grupo I", SEN:"Grupo I", IRQ:"Grupo I", NOR:"Grupo I",
-  ARG:"Grupo J", ALG:"Grupo J", AUT:"Grupo J", JOR:"Grupo J",
-  POR:"Grupo K", COD:"Grupo K", UZB:"Grupo K", COL:"Grupo K",
-  ENG:"Grupo L", CRO:"Grupo L", GHA:"Grupo L", PAN:"Grupo L",
+  FWC:"special", CC:"special",
+  MEX:"A", RSA:"A", KOR:"A", CZE:"A",
+  CAN:"B", BIH:"B", QAT:"B", SUI:"B",
+  BRA:"C", MAR:"C", HAI:"C", SCO:"C",
+  USA:"D", PAR:"D", AUS:"D", TUR:"D",
+  GER:"E", CUW:"E", CIV:"E", ECU:"E",
+  NED:"F", JPN:"F", SWE:"F", TUN:"F",
+  BEL:"G", EGY:"G", IRN:"G", NZL:"G",
+  ESP:"H", CPV:"H", KSA:"H", URU:"H",
+  FRA:"I", SEN:"I", IRQ:"I", NOR:"I",
+  ARG:"J", ALG:"J", AUT:"J", JOR:"J",
+  POR:"K", COD:"K", UZB:"K", COL:"K",
+  ENG:"L", CRO:"L", GHA:"L", PAN:"L",
 };
 
 // Nombres reales de cada figurita (jugador/escudo/foto de equipo/especial), compilados
@@ -618,7 +620,7 @@ function TeamSection({code,stickers,tab,onAction,t,stateMap,lang}) {
         <span style={{fontSize:26}}>{team.emoji}</span>
         <div style={{flex:1,textAlign:"left"}}>
           <div style={{fontWeight:800,fontSize:15,color:complete?"#86efac":"#e8eaf6"}}>{getTeamName(code,lang)}</div>
-          <div style={{fontSize:11,color:"#4a5568",marginTop:1}}>{GROUPS[code]||""}{team.page?` · ${t.pageAbbr} ${team.page}`:""}</div>
+          <div style={{fontSize:11,color:"#4a5568",marginTop:1}}>{GROUPS[code]==="special"?(t.specialsLabel||"Especiales"):GROUPS[code]?`${t.group||"Grupo"} ${GROUPS[code]}`:""}{team.page?` · ${t.pageAbbr} ${team.page}`:""}</div>
           <div style={{fontSize:12,color:"#6b7280",marginTop:2}}>
             {tab==="missing"&&`❌ ${visibleNums.length} ${t.scopeMissing}`}
             {tab==="repeated"&&`🔁 ${visibleNums.length} ${t.scopeRepeated}`}
