@@ -3,7 +3,7 @@ import Importer, { ShareModal } from "./Importer.jsx";
 import Onboarding from "./Onboarding.jsx";
 import Scanner from "./Scanner.jsx";
 import WorldCup from "./WorldCup.jsx";
-import { translations, getInitialLang } from "./i18n";
+import { translations, getInitialLang, getTeamName } from "./i18n";
 
 const SUPABASE_URL = "https://fythsgiofvodukjzutat.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5dGhzZ2lvZnZvZHVranp1dGF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NTIyMDgsImV4cCI6MjA5NzEyODIwOH0.HaG8yQgc2BzEGnlaNXFWaLZ0c_Oa6CvhwcVjHj99-AY";
@@ -493,7 +493,7 @@ function AuthPage({onAuth,onClose,inviterWhatsapp,t=translations.es}) {
 }
 
 // ─── STICKER CELL — TAP TO CYCLE ─────────────────────────────────────────────
-function StickerCell({code,num,data,onAction,t,stateMap}) {
+function StickerCell({code,num,data,onAction,t,stateMap,lang}) {
   const pressTimer = useRef(null);
   const longPressed = useRef(false);
   const [pressing,setPressing]=useState(false);
@@ -572,7 +572,7 @@ function StickerCell({code,num,data,onAction,t,stateMap}) {
           <div onClick={e=>e.stopPropagation()} style={{background:"#111827",borderRadius:"20px 20px 0 0",padding:24,width:"100%",maxWidth:480,border:"1px solid #1e2a3a",borderBottom:"none"}}>
             <div style={{textAlign:"center",marginBottom:16}}>
               <div style={{fontSize:26}}>{ALBUM[code]?.emoji}</div>
-              <div style={{fontWeight:900,fontSize:17,color:"#fff"}}>{ALBUM[code]?.name} <span style={{color:"#ffd700"}}>#{num}</span></div>
+              <div style={{fontWeight:900,fontSize:17,color:"#fff"}}>{getTeamName(code,lang)} <span style={{color:"#ffd700"}}>#{num}</span></div>
               {STICKER_NAMES[code]?.[num]&&(
                 <div style={{fontSize:13,color:"#9ca3af",marginTop:2}}>{STICKER_NAMES[code][num]}</div>
               )}
@@ -603,7 +603,7 @@ function StickerCell({code,num,data,onAction,t,stateMap}) {
 }
 
 // ─── TEAM SECTION ─────────────────────────────────────────────────────────────
-function TeamSection({code,stickers,tab,onAction,t,stateMap}) {
+function TeamSection({code,stickers,tab,onAction,t,stateMap,lang}) {
   const [expanded,setExpanded]=useState(false);
   const team=ALBUM[code];
   const allNums=Object.keys(stickers).map(Number);
@@ -617,7 +617,7 @@ function TeamSection({code,stickers,tab,onAction,t,stateMap}) {
       <button onClick={()=>setExpanded(!expanded)} style={{width:"100%",padding:"14px 16px",background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
         <span style={{fontSize:26}}>{team.emoji}</span>
         <div style={{flex:1,textAlign:"left"}}>
-          <div style={{fontWeight:800,fontSize:15,color:complete?"#86efac":"#e8eaf6"}}>{team.name}</div>
+          <div style={{fontWeight:800,fontSize:15,color:complete?"#86efac":"#e8eaf6"}}>{getTeamName(code,lang)}</div>
           <div style={{fontSize:11,color:"#4a5568",marginTop:1}}>{GROUPS[code]||""}{team.page?` · ${t.pageAbbr} ${team.page}`:""}</div>
           <div style={{fontSize:12,color:"#6b7280",marginTop:2}}>
             {tab==="missing"&&`❌ ${visibleNums.length} ${t.scopeMissing}`}
@@ -641,7 +641,7 @@ function TeamSection({code,stickers,tab,onAction,t,stateMap}) {
           )}
           {tab==="all"&&<div style={{fontSize:11,color:"#4a5568",marginBottom:10}}>{t.tapToCycleHoldSubtract}</div>}
           <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginBottom:14}}>
-            {visibleNums.map(n=>(<StickerCell key={n} code={code} num={n} data={stickers[n]} onAction={onAction} t={t} stateMap={stateMap}/>))}
+            {visibleNums.map(n=>(<StickerCell key={n} code={code} num={n} data={stickers[n]} onAction={onAction} t={t} stateMap={stateMap} lang={lang}/>))}
           </div>
         </div>
       )}
@@ -743,17 +743,17 @@ function ContactsPage({myEmail,myToken,myStickers,onClose,t,lang}) {
   };
 
   return (
-    <div style={{position:"fixed",inset:0,background:"#0a0f1e",zIndex:500,display:"flex",flexDirection:"column"}}>
-      <div style={{background:"#111827",borderBottom:"1px solid #1e2a3a",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
+    <div>
+      <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:12,marginBottom:16,padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
         <button onClick={onClose} style={{background:"none",border:"none",color:"#6b7280",fontSize:20,cursor:"pointer"}}>←</button>
         <span style={{fontWeight:900,fontSize:16,color:"#ffd700"}}>{t.myNetworkTitle}</span>
         {pending.length>0&&<span style={{background:"#ef4444",color:"#fff",fontSize:11,fontWeight:800,borderRadius:20,padding:"2px 8px"}}>{pending.length} {pending.length>1?t.newPlural:t.newSingular}</span>}
         <span style={{marginLeft:"auto",fontSize:12,color:"#6b7280"}}>{contacts.length} {t.friendsCount}</span>
       </div>
 
-      {actionMsg&&<div style={{background:"#052e16",borderBottom:"1px solid #22c55e",padding:"10px 16px",fontSize:13,color:"#86efac",fontWeight:700}}>{actionMsg}</div>}
+      {actionMsg&&<div style={{background:"#052e16",border:"1px solid #22c55e",borderRadius:10,padding:"10px 16px",fontSize:13,color:"#86efac",fontWeight:700,marginBottom:16}}>{actionMsg}</div>}
 
-      <div style={{flex:1,overflowY:"auto",padding:16}}>
+      <div>
 
         {/* SOLICITUDES PENDIENTES */}
         {pending.length>0&&(
@@ -1228,7 +1228,7 @@ function FiguSwapInner() {
         }
       };
     });
-    showToastMsg(customToast || `${stateMap[state].emoji} ${ALBUM[code].name} #${num} → ${stateMap[state].label}${state==="repeated"&&qty>1?` ×${qty}`:""}`);
+    showToastMsg(customToast || `${stateMap[state].emoji} ${getTeamName(code,lang)} #${num} → ${stateMap[state].label}${state==="repeated"&&qty>1?` ×${qty}`:""}`);
   };
 
   // Fix: filter considers tab when checking if team has visible stickers
@@ -1241,7 +1241,7 @@ function FiguSwapInner() {
     // Ahora también busca por nombre de jugador/escudo/foto de equipo (ej. "Messi"
     // encuentra Argentina), no solo por nombre de selección o código de 3 letras.
     const matchesPlayerName=q!==""&&Object.values(STICKER_NAMES[code]||{}).some(n=>n.toLowerCase().includes(q));
-    const matchSearch=search===""||team.name.toLowerCase().includes(q)||code.toLowerCase().includes(q)||matchesPlayerName;
+    const matchSearch=search===""||team.name.toLowerCase().includes(q)||getTeamName(code,lang).toLowerCase().includes(q)||code.toLowerCase().includes(q)||matchesPlayerName;
     if(!matchSearch)return false;
     if(albumTab==="missing")return Object.values(ts).some(s=>s.state==="missing");
     if(albumTab==="repeated")return Object.values(ts).some(s=>TRADEABLE_STATES.includes(s.state));
@@ -1390,7 +1390,7 @@ function FiguSwapInner() {
               </div>
             )}
 
-            {filtered.map(([code,ts])=>(<TeamSection key={code} code={code} stickers={ts} tab={albumTab} onAction={handleAction} t={t} stateMap={stateMap}/>))}
+            {filtered.map(([code,ts])=>(<TeamSection key={code} code={code} stickers={ts} tab={albumTab} onAction={handleAction} t={t} stateMap={stateMap} lang={lang}/>))}
           </>
         )}
 
