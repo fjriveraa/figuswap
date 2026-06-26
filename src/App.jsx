@@ -395,6 +395,20 @@ const sbAuth = {
   async signOut(token) {
     await fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:"POST",headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${token}`}});
   },
+  // Llama a la Edge Function delete-account (supabase/functions/delete-account) — esa función,
+  // no este código del cliente, es la que de verdad borra álbum/contactos/cuenta con la
+  // service role key. Aquí solo se manda el token para que la función confirme quién eres.
+  async deleteAccount(token) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-account`,{
+        method:"POST",
+        headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"}
+      });
+      const result = await res.json().catch(()=>({}));
+      if(!res.ok) return {ok:false, error:result.error||"No se pudo eliminar la cuenta."};
+      return {ok:true};
+    } catch { return {ok:false, error:"Error de conexión."}; }
+  },
   getTokenFromHash() {
     const hash=window.location.hash;
     if(!hash||!hash.includes("access_token"))return null;
@@ -444,8 +458,8 @@ function AuthPage({onAuth,onClose,inviterWhatsapp,t=translations.es}) {
       {onClose&&(
         <button onClick={onClose} style={{position:"absolute",top:16,right:16,background:"none",border:"none",color:"#6b7280",fontSize:24,cursor:"pointer",padding:8}}>✕</button>
       )}
-      <img src="/icon-512.png" alt="FiguSwap" style={{width:64,height:64,borderRadius:14,marginBottom:8}}/>
-      <div style={{fontWeight:900,fontSize:28,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:4}}>FiguSwap</div>
+      <img src="/icon-512.png" alt="FiguSwitch" style={{width:64,height:64,borderRadius:14,marginBottom:8}}/>
+      <div style={{fontWeight:900,fontSize:28,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:4}}>FiguSwitch</div>
       <div style={{color:"#6b7280",fontSize:13,marginBottom:inviterWhatsapp?16:28,textAlign:"center"}}>{t.appSubtitle}</div>
       {/* Si la persona entró desde el QR de alguien (escaneado en persona), le damos la opción
           de escribirle de inmediato por WhatsApp, sin esperar a terminar de registrarse. */}
@@ -907,7 +921,7 @@ function ContactsPage({myEmail,myToken,myStickers,onClose,t,lang}) {
                           )}
                           <button onClick={()=>{
                             const name=album?.username||email.split("@")[0];
-                            const text=`Hola ${name}! 👋\n\nVi en FiguSwap que podemos intercambiar:\n✅ Yo tengo ${matches.iHave.length} que tú necesitas:\n${matches.iHave.slice(0,5).map(s=>`${s.code} #${s.num}`).join(", ")}${matches.iHave.length>5?`... y ${matches.iHave.length-5} más`:""}\n\n🔁 Tú tienes ${matches.theyHave.length} que yo necesito:\n${matches.theyHave.slice(0,5).map(s=>`${s.code} #${s.num}`).join(", ")}${matches.theyHave.length>5?`... y ${matches.theyHave.length-5} más`:""}\n\n¿Coordinamos? ⚽🎴`;
+                            const text=`Hola ${name}! 👋\n\nVi en FiguSwitch que podemos intercambiar:\n✅ Yo tengo ${matches.iHave.length} que tú necesitas:\n${matches.iHave.slice(0,5).map(s=>`${s.code} #${s.num}`).join(", ")}${matches.iHave.length>5?`... y ${matches.iHave.length-5} más`:""}\n\n🔁 Tú tienes ${matches.theyHave.length} que yo necesito:\n${matches.theyHave.slice(0,5).map(s=>`${s.code} #${s.num}`).join(", ")}${matches.theyHave.length>5?`... y ${matches.theyHave.length-5} más`:""}\n\n¿Coordinamos? ⚽🎴`;
                             // Si el contacto compartió su WhatsApp en su Perfil, abrimos su chat directo;
                             // si no, igual funciona con el selector genérico de contactos como antes.
                             const phoneDigits=(album?.whatsapp_number||"").replace(/[^\d]/g,"");
@@ -1026,6 +1040,9 @@ function FiguSwapInner() {
   const [resetBackup,setResetBackup]=useState(null); // {snapshot, label}
   const [importBackup,setImportBackup]=useState(null);
   const [showFullResetConfirm,setShowFullResetConfirm]=useState(false);
+  const [showDeleteAccountConfirm,setShowDeleteAccountConfirm]=useState(false);
+  const [deletingAccount,setDeletingAccount]=useState(false);
+  const [deleteAccountError,setDeleteAccountError]=useState("");
 
   // Reinicia TODAS las figuritas en estado tradeable (repetida/venta/cambio/subasta) a "have".
   // Guarda un respaldo completo antes de tocar nada, y manda directo al Scanner para que el
@@ -1274,7 +1291,7 @@ function FiguSwapInner() {
 
   if(checkingSession)return (
     <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <img src="/icon-512.png" alt="FiguSwap" style={{width:48,height:48,borderRadius:10}}/>
+      <img src="/icon-512.png" alt="FiguSwitch" style={{width:48,height:48,borderRadius:10}}/>
     </div>
   );
   if(showAuthOverlay)return (
@@ -1306,7 +1323,7 @@ function FiguSwapInner() {
   // hasta que loadedAlbum sea true. La carga real toma ~200-500ms, así que esto es casi imperceptible.
   if(!loadedAlbum)return (
     <div style={{minHeight:"100vh",background:"#0a0f1e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10}}>
-      <img src="/icon-512.png" alt="FiguSwap" style={{width:48,height:48,borderRadius:10}}/>
+      <img src="/icon-512.png" alt="FiguSwitch" style={{width:48,height:48,borderRadius:10}}/>
       <div style={{fontSize:13,color:"#6b7280"}}>{t.loadingAlbum}</div>
     </div>
   );
@@ -1317,8 +1334,8 @@ function FiguSwapInner() {
     <div style={{minHeight:"100vh",background:"#0a0f1e",color:"#e8eaf6",fontFamily:"'Segoe UI',system-ui,sans-serif",paddingBottom:72}}>
       <div style={{background:"linear-gradient(135deg,#0a0f1e,#111827)",borderBottom:"1px solid #1e2a3a",padding:"12px 16px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:720,margin:"0 auto",display:"flex",alignItems:"center",gap:10}}>
-          <img src="/icon-512.png" alt="FiguSwap" style={{width:28,height:28,borderRadius:6}}/>
-          <span style={{fontWeight:900,fontSize:18,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>FiguSwap</span>
+          <img src="/icon-512.png" alt="FiguSwitch" style={{width:28,height:28,borderRadius:6}}/>
+          <span style={{fontWeight:900,fontSize:18,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>FiguSwitch</span>
           {saving&&<span style={{fontSize:10,color:"#4a5568",marginLeft:2}}>💾</span>}
           <select value={lang} onChange={e=>changeLang(e.target.value)} style={{marginLeft:8,border:"1px solid #1e2a3a",borderRadius:8,background:"#111827",color:"#e8eaf6",fontWeight:800,fontSize:11,padding:"6px 8px"}}>
             <option value="es">ES</option>
@@ -1527,6 +1544,47 @@ function FiguSwapInner() {
               </button>
             )}
 
+            {/* Eliminar cuenta — requisito obligatorio de Google Play para cualquier app que
+                permita crear cuentas. Para invitado, solo borra el álbum local (no hay cuenta
+                real que eliminar). Confirmación de dos pasos para evitar borrados accidentales. */}
+            {!showDeleteAccountConfirm ? (
+              <button onClick={()=>{setShowDeleteAccountConfirm(true);setDeleteAccountError("");}} style={{width:"100%",padding:"12px",background:"transparent",border:"1px solid #374151",borderRadius:10,color:"#6b7280",fontWeight:700,cursor:"pointer",fontSize:13,marginBottom:12}}>
+                {isGuest?(t.deleteGuestAlbum||"🗑️ Borrar mi álbum de invitado"):(t.deleteAccount||"🗑️ Eliminar mi cuenta")}
+              </button>
+            ) : (
+              <div style={{background:"#1e0a0a",border:"1px solid #ef4444",borderRadius:12,padding:14,marginBottom:12}}>
+                <div style={{color:"#fca5a5",fontWeight:700,fontSize:13,marginBottom:8}}>
+                  {isGuest
+                    ? (t.deleteGuestWarning||"⚠️ Esta acción es permanente. Se borrará tu álbum guardado en este dispositivo. No se puede deshacer.")
+                    : (t.deleteAccountWarning||"⚠️ Esta acción es permanente. Se eliminará tu cuenta, tu álbum y tus contactos. No se puede deshacer.")}
+                </div>
+                {deleteAccountError&&<div style={{color:"#ef4444",fontSize:12,marginBottom:8}}>{deleteAccountError}</div>}
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>setShowDeleteAccountConfirm(false)} disabled={deletingAccount} style={{flex:1,padding:"10px",background:"transparent",border:"1px solid #374151",borderRadius:8,color:"#9ca3af",fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.cancel}</button>
+                  <button onClick={async()=>{
+                    if(isGuest){
+                      localStorage.removeItem("figuswap_guest_stickers");
+                      localStorage.removeItem("figuswap_guest_scans");
+                      window.location.href="/";
+                      return;
+                    }
+                    setDeletingAccount(true);
+                    setDeleteAccountError("");
+                    const result=await sbAuth.deleteAccount(session.token);
+                    if(result.ok){
+                      sbAuth.clearSession();
+                      window.location.href="/";
+                    } else {
+                      setDeleteAccountError(result.error);
+                      setDeletingAccount(false);
+                    }
+                  }} disabled={deletingAccount} style={{flex:1,padding:"10px",background:"#ef4444",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:13,cursor:deletingAccount?"not-allowed":"pointer",opacity:deletingAccount?0.7:1}}>
+                    {deletingAccount?"⏳ ...":(t.deleteConfirm||"Sí, eliminar definitivamente")}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {!showResetConfirm ? (
               <button onClick={()=>setShowResetConfirm(true)} style={{width:"100%",padding:"12px",background:"transparent",border:"1px solid #374151",borderRadius:10,color:"#6b7280",fontWeight:700,cursor:"pointer",fontSize:13}}>
                 {t.resetRepeatedConfirm.replace(t.yes + ", ", "🔄 ")}
@@ -1636,7 +1694,7 @@ function FiguSwapInner() {
                 {phoneDigits?` ${t.qrWhatsappWith}`:` ${t.qrWhatsappWithout}`}
               </div>
               <div style={{background:"#fff",borderRadius:12,padding:12,display:"inline-block",marginBottom:16}}>
-                <img src={qrImgUrl} alt="FiguSwap QR" width={220} height={220}/>
+                <img src={qrImgUrl} alt="FiguSwitch QR" width={220} height={220}/>
               </div>
               <button onClick={()=>setShowQR(false)} style={{width:"100%",padding:"12px",background:"#1e2a3a",border:"1px solid #374151",borderRadius:10,color:"#e8eaf6",fontWeight:700,cursor:"pointer"}}>
                 {t.close}
