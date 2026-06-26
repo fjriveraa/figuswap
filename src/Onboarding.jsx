@@ -8,7 +8,7 @@ export default function Onboarding({ onChoice, t }) {
       {/* Logo */}
       <div style={{textAlign:"center",marginBottom:40}}>
         <div style={{fontSize:60,marginBottom:8}}>⚽</div>
-        <div style={{fontWeight:900,fontSize:30,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:6}}>FiguSwap</div>
+        <div style={{fontWeight:900,fontSize:30,background:"linear-gradient(90deg,#ffd700,#f59e0b)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:6}}>FiguSwitch</div>
         <div style={{color:"#6b7280",fontSize:14}}>{t?.onbSubtitle || "FIFA World Cup 2026™ · El marketplace de figuritas"}</div>
       </div>
 
@@ -23,7 +23,7 @@ export default function Onboarding({ onChoice, t }) {
           <div style={{fontSize:40,flexShrink:0}}>📋</div>
           <div>
             <div style={{fontWeight:900,fontSize:16,color:"#ffd700",marginBottom:4}}>{t?.onbImportTitle || "Importar mi lista"}</div>
-            <div style={{fontSize:13,color:"#9ca3af",lineHeight:1.4}}>{t?.onbImportText || "Tengo una lista de figuritas.app u otra app. La importo en segundos."}</div>
+            <div style={{fontSize:13,color:"#9ca3af",lineHeight:1.4}}>{t?.onbImportText || "Tengo una lista de otra app. La importo en segundos."}</div>
             <div style={{fontSize:11,color:"#22c55e",marginTop:6,fontWeight:700}}>{t?.recommended || "⚡ Recomendado — 10 segundos"}</div>
           </div>
         </button>
