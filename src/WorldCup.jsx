@@ -372,7 +372,7 @@ export default function WorldCup({ lang="es", t }) {
             return (
               <div>
                 <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 10 }}>
-                  {t?.sourceDataWarning || "⚠️ Algunos nombres pueden venir mal escritos para selecciones más chicas — es un problema de los datos de origen, no de FiguSwap."}
+                  {t?.sourceDataWarning || "⚠️ Algunos nombres pueden venir mal escritos para selecciones más chicas — es un problema de los datos de origen, no de FiguSwitch."}
                 </div>
                 {scorers.map((s, i) => (
                   <div key={s.name + i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 4px", borderBottom: "1px solid #1e2a3a" }}>
