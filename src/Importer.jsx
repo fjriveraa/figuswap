@@ -174,7 +174,7 @@ function buildAlbumFromParsed(parsed, baseAlbum) {
 // una ruta /u/username que nunca existió en la app; con solo el username no había forma de generar
 // un link funcional, por eso ahora se prioriza inviteEmail cuando está disponible.
 export function generateShareText(stickers, mode = "both", username = "", inviteEmail = "", t = {}) {
-  const lines = ["🎴 FiguSwap — FIFA World Cup 2026"];
+  const lines = ["🎴 FiguSwitch — FIFA World Cup 2026"];
   if (username) lines.push(`👤 ${username}`);
   lines.push("");
 
@@ -206,7 +206,7 @@ export function generateShareText(stickers, mode = "both", username = "", invite
     }
   }
 
-  lines.push(t.joinFiguswap || "📱 Join me on FiguSwap:");
+  lines.push(t.joinFiguswap || "📱 Join me on FiguSwitch:");
   lines.push(inviteEmail ? `https://figuswap-theta.vercel.app?invite=${encodeURIComponent(inviteEmail)}` : `https://figuswap-theta.vercel.app`);
   return lines.join("\n");
 }
@@ -228,7 +228,7 @@ export function generateStatusText(stickers, username = "", inviteEmail = "", t 
     ? `https://figuswap-theta.vercel.app?invite=${encodeURIComponent(inviteEmail)}`
     : `https://figuswap-theta.vercel.app`;
   return [
-    "🎴 FiguSwap — FIFA World Cup 2026",
+    "🎴 FiguSwitch — FIFA World Cup 2026",
     username ? `👤 ${username}` : "",
     "",
     (t.statusHaveRepeated ? t.statusHaveRepeated(repeatedTotal) : `🔁 I have ${repeatedTotal} duplicates available for trade or sale`),
@@ -388,7 +388,7 @@ MAR 🇲🇦: 3`;
         <div style={{background:"#111827",border:"1px solid #1e2a3a",borderRadius:14,padding:16,marginBottom:16}}>
           <div style={{fontWeight:700,color:"#e8eaf6",marginBottom:8}}>{t?.howItWorks || "¿Cómo funciona?"}</div>
           {[
-            ["1️⃣",t?.importStep1 || "Abre tu app actual (figuritas.app u otra)"],
+            ["1️⃣",t?.importStep1 || "Abre tu app actual"],
             ["2️⃣",t?.importStep2 || "Ve a compartir → copia tu lista de texto"],
             ["3️⃣",t?.importStep3 || "Pégala aquí abajo"],
             ["4️⃣",t?.importStep4 || "Tu álbum se llena automáticamente ✨"],
@@ -433,7 +433,7 @@ MAR 🇲🇦: 3`;
         {error && <div style={{color:"#ef4444",fontSize:13,marginTop:8,padding:"8px 12px",background:"#1e0a0a",borderRadius:8}}>{error}</div>}
 
         <div style={{fontSize:11,color:"#4a5568",marginTop:8}}>
-          {t?.compatibleWith || "Compatible con: figuritas.app, Panini Digital, listas de WhatsApp y cualquier formato con códigos de país"}
+          {t?.compatibleWith || "Compatible con: Panini Digital, listas de WhatsApp y cualquier formato con códigos de país"}
         </div>
       </div>
 
@@ -574,7 +574,7 @@ MAR 🇲🇦: 3`;
         <span style={{color:"#ef4444",fontWeight:700}}>{parsed.totalMissing} {t?.scopeMissing || "faltantes"}</span> y <span style={{color:"#f97316",fontWeight:700}}>{parsed.totalRepeated} {t?.scopeRepeated || "repetidas"}</span> {t?.loaded || "cargadas"}.
       </div>
       <div style={{color:"#6b7280",fontSize:13,textAlign:"center",marginBottom:32}}>
-        {t?.albumReady || "Tu álbum digital está listo en FiguSwap."}
+        {t?.albumReady || "Tu álbum digital está listo en FiguSwitch."}
       </div>
       <button onClick={onClose} style={{padding:"14px 32px",background:"linear-gradient(135deg,#ffd700,#f59e0b)",border:"none",borderRadius:14,color:"#0a0f1e",fontWeight:900,fontSize:16,cursor:"pointer"}}>
         {t?.viewMyAlbum || "Ver mi álbum →"}
