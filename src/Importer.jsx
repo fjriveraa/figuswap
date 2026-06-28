@@ -180,7 +180,10 @@ export function generateShareText(stickers, mode = "both", username = "", invite
 
   if (mode === "missing" || mode === "both") {
     const missingLines = [];
-    Object.entries(stickers).forEach(([code, nums]) => {
+    // Fix: el orden de Object.entries() sobre un álbum cargado desde la base de datos no
+    // está garantizado que coincida con el orden de páginas — se ordena explícito aquí,
+    // igual que ya se hace en Red para los matches de intercambio.
+    Object.entries(stickers).sort((a,b)=>Object.keys(ALBUM).indexOf(a[0])-Object.keys(ALBUM).indexOf(b[0])).forEach(([code, nums]) => {
       const team = ALBUM[code];
       const missing = Object.entries(nums).filter(([,s]) => s.state === "missing").map(([n]) => parseInt(n)).sort((a,b)=>a-b);
       if (missing.length > 0) missingLines.push(`${team?.emoji || ""} ${code}: ${missing.join(", ")}`);
@@ -194,7 +197,7 @@ export function generateShareText(stickers, mode = "both", username = "", invite
 
   if (mode === "repeated" || mode === "both") {
     const repeatedLines = [];
-    Object.entries(stickers).forEach(([code, nums]) => {
+    Object.entries(stickers).sort((a,b)=>Object.keys(ALBUM).indexOf(a[0])-Object.keys(ALBUM).indexOf(b[0])).forEach(([code, nums]) => {
       const team = ALBUM[code];
       const repeated = Object.entries(nums).filter(([,s]) => s.state === "repeated").map(([n]) => parseInt(n)).sort((a,b)=>a-b);
       if (repeated.length > 0) repeatedLines.push(`${team?.emoji || ""} ${code}: ${repeated.join(", ")}`);
@@ -472,7 +475,10 @@ MAR 🇲🇦: 3`;
         {Object.keys(parsed.missing).length > 0 && (
           <div style={{marginBottom:16}}>
             <div style={{fontWeight:800,color:"#ef4444",fontSize:14,marginBottom:10}}>{t?.missingDetectedTitle || "❌ Faltantes detectadas"}</div>
-            {Object.entries(parsed.missing).slice(0,8).map(([code,nums])=>{
+            {/* Fix: antes esto recorría en el orden en que aparecían en el texto pegado
+                (a menudo alfabético, según cómo lo exportó la otra app) — ahora respeta
+                el orden real de páginas del álbum físico, igual que en el resto de la app. */}
+            {Object.entries(parsed.missing).sort((a,b)=>Object.keys(ALBUM).indexOf(a[0])-Object.keys(ALBUM).indexOf(b[0])).slice(0,8).map(([code,nums])=>{
               const team = ALBUM[code];
               return (
                 <div key={code} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"#111827",borderRadius:8,marginBottom:6}}>
@@ -494,7 +500,7 @@ MAR 🇲🇦: 3`;
         {Object.keys(parsed.repeated).length > 0 && (
           <div style={{marginBottom:16}}>
             <div style={{fontWeight:800,color:"#f97316",fontSize:14,marginBottom:10}}>🔁 {t?.repeatedDetected || "Repetidas detectadas"}</div>
-            {Object.entries(parsed.repeated).map(([code,nums])=>{
+            {Object.entries(parsed.repeated).sort((a,b)=>Object.keys(ALBUM).indexOf(a[0])-Object.keys(ALBUM).indexOf(b[0])).map(([code,nums])=>{
               const team = ALBUM[code];
               return (
                 <div key={code} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"#111827",borderRadius:8,marginBottom:6}}>
