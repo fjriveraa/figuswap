@@ -207,7 +207,7 @@ export function generateShareText(stickers, mode = "both", username = "", invite
   }
 
   lines.push(t.joinFiguswap || "📱 Join me on FiguSwitch:");
-  lines.push(inviteEmail ? `https://figuswap-theta.vercel.app?invite=${encodeURIComponent(inviteEmail)}` : `https://figuswap-theta.vercel.app`);
+  lines.push(inviteEmail ? `${window.location.origin}?invite=${encodeURIComponent(inviteEmail)}` : window.location.origin);
   return lines.join("\n");
 }
 
@@ -225,8 +225,8 @@ export function generateStatusText(stickers, username = "", inviteEmail = "", t 
     });
   });
   const link = inviteEmail
-    ? `https://figuswap-theta.vercel.app?invite=${encodeURIComponent(inviteEmail)}`
-    : `https://figuswap-theta.vercel.app`;
+    ? `${window.location.origin}?invite=${encodeURIComponent(inviteEmail)}`
+    : window.location.origin;
   return [
     "🎴 FiguSwitch — FIFA World Cup 2026",
     username ? `👤 ${username}` : "",
