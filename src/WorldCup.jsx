@@ -289,6 +289,18 @@ export default function WorldCup({ lang="es", t }) {
   const teamsByName = {};
   teams.forEach((t) => { if (t.name_en) teamsByName[t.name_en] = t; });
 
+  // Mapea el campo "type" real de la API a la etiqueta de etapa que se muestra como encabezado.
+  // El orden aquí también define el orden cronológico esperado del torneo, de grupos a la final.
+  const STAGE_LABELS = {
+    group:  { emoji: "🔵", key: "stageGroup",  fallback: "Fase de grupos" },
+    r32:    { emoji: "🔹", key: "stageR32",    fallback: "Dieciseisavos de final" },
+    r16:    { emoji: "🔹", key: "stageR16",    fallback: "Octavos de final" },
+    qf:     { emoji: "🔹", key: "stageQF",     fallback: "Cuartos de final" },
+    sf:     { emoji: "🔹", key: "stageSF",     fallback: "Semifinales" },
+    third:  { emoji: "🥉", key: "stageThird",  fallback: "Partido por el tercer lugar" },
+    final:  { emoji: "🏆", key: "stageFinal",  fallback: "Final" },
+  };
+
   const sortedGames = [...games].sort((a, b) => {
     const da = stadiumTimeToDate(a.local_date, a.stadium_id);
     const db = stadiumTimeToDate(b.local_date, b.stadium_id);
@@ -297,6 +309,8 @@ export default function WorldCup({ lang="es", t }) {
   });
   const gamesByDate = {};
   const dateLabels = {};
+  const stageChangeAt = {}; // dayKey -> info de la etapa, solo en la fecha donde empieza
+  let lastStage = null;
   sortedGames.forEach((g) => {
     const viewerDate = stadiumTimeToDate(g.local_date, g.stadium_id);
     const viewerTime = formatViewerDateTime(viewerDate, lang);
@@ -306,6 +320,13 @@ export default function WorldCup({ lang="es", t }) {
     if (!gamesByDate[key]) gamesByDate[key] = [];
     gamesByDate[key].push(g);
     if (viewerTime) dateLabels[key] = viewerTime.dayLabel;
+    // Apenas cambia la etapa respecto al partido anterior (en orden cronológico real), se marca
+    // esa fecha como el punto donde debe aparecer el encabezado nuevo — así el calendario va
+    // mostrando solo, sin configuración manual, en qué momento se pasa de grupos a eliminatorias.
+    if (g.type && g.type !== lastStage) {
+      stageChangeAt[key] = STAGE_LABELS[g.type] || null;
+      lastStage = g.type;
+    }
   });
 
   return (
@@ -350,9 +371,17 @@ export default function WorldCup({ lang="es", t }) {
                 🕐 {t?.viewerTimeNotice || "Los horarios ya están convertidos a la hora de tu dispositivo."}
               </div>
               {Object.entries(gamesByDate).map(([date, matches]) => (
-                <div key={date} style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", marginBottom: 4, textTransform: "uppercase" }}>{dateLabels[date] || date}</div>
-                  {matches.map((m) => <MatchRow key={m.id} match={m} teamsById={teamsById} lang={lang} t={t} />)}
+                <div key={date}>
+                  {stageChangeAt[date] && (
+                    <div style={{ fontSize: 15, fontWeight: 900, color: "#ffd700", margin: "20px 0 10px", paddingTop: 12, borderTop: "1px solid #1e2a3a", display: "flex", alignItems: "center", gap: 8 }}>
+                      <span>{stageChangeAt[date].emoji}</span>
+                      <span>{t?.[stageChangeAt[date].key] || stageChangeAt[date].fallback}</span>
+                    </div>
+                  )}
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", marginBottom: 4, textTransform: "uppercase" }}>{dateLabels[date] || date}</div>
+                    {matches.map((m) => <MatchRow key={m.id} match={m} teamsById={teamsById} lang={lang} t={t} />)}
+                  </div>
                 </div>
               ))}
             </>
