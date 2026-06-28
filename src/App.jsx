@@ -333,6 +333,22 @@ const db = {
     } catch { return false; }
   },
 
+  // Elimina una conexión YA ACEPTADA por completo, en ambas direcciones — esto corta de
+  // inmediato la visibilidad mutua de álbum/WhatsApp. Es la salvaguarda real ante alguien
+  // problemático: la política de bloquear/reportar de Google aplica a mensajería directa
+  // dentro de la app (que FiguSwitch no tiene), pero esto cubre el riesgo real que sí existe.
+  async removeContact(token, myEmail, contactEmail) {
+    const headers=this.h(token);
+    if(!headers) return false;
+    try {
+      const filter=`or=(and(user_email.eq.${encodeURIComponent(myEmail)},contact_email.eq.${encodeURIComponent(contactEmail)}),and(user_email.eq.${encodeURIComponent(contactEmail)},contact_email.eq.${encodeURIComponent(myEmail)}))`;
+      await fetch(`${SUPABASE_URL}/rest/v1/contacts?${filter}`, {
+        method:"DELETE", headers:{...headers, Prefer:"return=minimal"}
+      });
+      return true;
+    } catch { return false; }
+  },
+
   async getPendingRequests(token, myEmail) {
     const headers=this.h(token);
     if(!headers) return [];
@@ -668,6 +684,7 @@ function ContactsPage({myEmail,myToken,myStickers,onClose,t,lang}) {
   const [addEmail,setAddEmail]=useState("");
   const [adding,setAdding]=useState(false);
   const [selected,setSelected]=useState(null);
+  const [confirmRemove,setConfirmRemove]=useState(null); // email del contacto a eliminar, o null
   const [copied,setCopied]=useState(false);
   const [actionMsg,setActionMsg]=useState("");
 
@@ -724,6 +741,14 @@ function ContactsPage({myEmail,myToken,myStickers,onClose,t,lang}) {
   const rejectReq=async(requesterEmail)=>{
     await db.rejectRequest(myToken,myEmail,requesterEmail);
     showMsg(t.requestRejected);
+    await load();
+  };
+
+  const removeContact=async(contactEmail)=>{
+    await db.removeContact(myToken,myEmail,contactEmail);
+    showMsg(t.contactRemoved||"Contacto eliminado");
+    setConfirmRemove(null);
+    setSelected(null);
     await load();
   };
 
@@ -929,6 +954,20 @@ function ContactsPage({myEmail,myToken,myStickers,onClose,t,lang}) {
                   )}
 
                   {!album&&<div style={{fontSize:12,color:"#6b7280",textAlign:"center",padding:"8px 0"}}>{email.split("@")[0]} {t.noAlbumYet}</div>}
+
+                  {confirmRemove===email ? (
+                    <div style={{marginTop:10,background:"#1e0a0a",border:"1px solid #ef4444",borderRadius:10,padding:12}}>
+                      <div style={{fontSize:12,color:"#fca5a5",marginBottom:8}}>{t.removeContactWarning||"¿Eliminar esta conexión? Dejará de ver tu álbum y tu WhatsApp, y tú el suyo."}</div>
+                      <div style={{display:"flex",gap:8}}>
+                        <button onClick={()=>setConfirmRemove(null)} style={{flex:1,padding:"8px",background:"transparent",border:"1px solid #374151",borderRadius:8,color:"#9ca3af",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.cancel}</button>
+                        <button onClick={()=>removeContact(email)} style={{flex:1,padding:"8px",background:"#ef4444",border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.removeContactConfirm||"Sí, eliminar"}</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={()=>setConfirmRemove(email)} style={{width:"100%",marginTop:10,padding:"8px",background:"transparent",border:"1px solid #374151",borderRadius:8,color:"#6b7280",fontWeight:700,fontSize:11,cursor:"pointer"}}>
+                      {t.removeContact||"🗑️ Eliminar contacto"}
+                    </button>
+                  )}
                 </div>
               );
             })}
