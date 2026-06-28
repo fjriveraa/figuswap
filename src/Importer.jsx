@@ -72,7 +72,7 @@ function expandRange(token) {
 }
 
 function parseList(text) {
-  const result = { missing: {}, repeated: {} };
+  const result = { missing: {}, repeated: {}, quantities: {} };
   const ignored = []; // líneas que no se pudieron interpretar
   const outOfRange = []; // números fuera del rango válido de su selección
   let currentSection = "missing"; // si no hay encabezado explícito, asume faltantes por defecto
@@ -95,13 +95,19 @@ function parseList(text) {
       continue;
     }
 
-    // Acepta: "MEX: 6, 18, 19" | "🇲🇽 MEX: 6, 18, 19" (emoji antes) | "MEX 8 15 16" (sin dos puntos) | "UZB-8" (guion) | "MEX: 8-12" (rango)
+    // Acepta: "MEX: 6, 18, 19" | "🇲🇽 MEX: 6, 18, 19" (emoji antes) | "MEX 8 15 16" (sin dos puntos)
+    // "UZB-8" (guion) | "MEX: 8-12" (rango) | "#MEX18 (x1)" (número PEGADO al código, sin separador)
     // Fix: sin la bandera "i" (insensible a mayúsculas) — los códigos reales de selección
     // siempre vienen en MAYÚSCULAS en cualquier formato que hemos visto. Con "i" activado,
     // la palabra "Usa" dentro del título del álbum ("Usa Méx Can 26") se confundía con el
     // código real "USA", generando una entrada falsa "USA: 26" marcada como fuera de rango.
     const validCodes = Object.keys(ALBUM).join("|");
-    const match = line.match(new RegExp(`\\b(${validCodes})\\b\\s*[:\\-–]?\\s*(.*)`));
+    // Fix: se quitó el \b de CIERRE después del código — un \b exige que lo siguiente sea un
+    // carácter "no-palabra", pero un dígito SÍ cuenta como "palabra" en regex. Por eso "MEX18"
+    // (número pegado sin espacio, como lo exportan varias apps) nunca hacía match: no hay límite
+    // de palabra real entre "X" y "1". El \b de apertura se conserva, para no matchear "XMEX"
+    // como si fuera el código MEX dentro de otra palabra más larga.
+    const match = line.match(new RegExp(`\\b(${validCodes})\\s*[:\\-–]?\\s*(.*)`));
     if (!match) {
       ignored.push(line);
       continue;
@@ -110,8 +116,20 @@ function parseList(text) {
     const code = match[1].toUpperCase();
     const team = ALBUM[code];
 
+    // Fix: "(x4)" / "x4" es la CANTIDAD de esa repetida, no una figurita distinta. Si no se
+    // separa antes de buscar números, "#RSA12 (x4)" generaba dos entradas falsas: la #12 real
+    // Y una #4 inventada (leída de la cantidad). Se extrae aparte y se quita de la línea antes
+    // de buscar el número real de la figurita.
+    let rest = match[2] || "";
+    let qty = 1;
+    const qtyMatch = rest.match(/\(?\s*x\s*(\d+)\s*\)?/i);
+    if (qtyMatch) {
+      qty = parseInt(qtyMatch[1]) || 1;
+      rest = rest.replace(qtyMatch[0], "");
+    }
+
     // Extrae números y rangos directamente del resto de la línea, sin importar el separador usado
-    const rawNums = match[2] || "";
+    const rawNums = rest;
     const tokens = rawNums.match(/\d+\s*[-–]\s*\d+|\d+/g) || [];
     const numbers = [];
     for (const token of tokens) {
@@ -134,6 +152,12 @@ function parseList(text) {
     if (validNumbers.length > 0) {
       if (!result[currentSection][code]) result[currentSection][code] = [];
       result[currentSection][code].push(...validNumbers);
+      // Guarda la cantidad real detectada (si la había) para aplicarla luego en buildAlbumFromParsed
+      // en vez de asumir siempre 1 — así "x4" se refleja como 4 disponibles, no solo "repetida".
+      if (qtyMatch) {
+        if (!result.quantities[code]) result.quantities[code] = {};
+        for (const n of validNumbers) result.quantities[code][n] = qty;
+      }
     }
   }
 
@@ -155,7 +179,10 @@ function buildAlbumFromParsed(parsed, baseAlbum) {
       const isMissing = parsed.missing[code]?.includes(i);
       const isRepeated = parsed.repeated[code]?.includes(i);
       if (isMissing || isRepeated) {
-        album[code][i] = { state: isMissing ? "missing" : "repeated", qty: 1, price: 0 };
+        // Fix: usa la cantidad real detectada en el texto ("x4" → 4 disponibles) cuando existe,
+        // en vez de asumir siempre 1 — antes esto se perdía aunque la lista sí la mencionara.
+        const realQty = isRepeated ? (parsed.quantities?.[code]?.[i] || 1) : 1;
+        album[code][i] = { state: isMissing ? "missing" : "repeated", qty: realQty, price: 0 };
       } else if (baseAlbum?.[code]?.[i]) {
         // Modo fusionar: lo no mencionado conserva el estado actual del usuario
         album[code][i] = baseAlbum[code][i];
