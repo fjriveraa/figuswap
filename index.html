@@ -9,7 +9,28 @@
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0a0f1e">
-    <title>FiguSwap ⚽</title>
+    <title>FiguSwitch ⚽</title>
+
+    <!-- Específico de Safari/iOS: el nombre que aparece bajo el ícono al "Agregar a inicio"
+         NO se toma del <title> de arriba, sino de esta etiqueta — por eso seguía saliendo
+         el nombre viejo aunque el título de la pestaña ya estuviera correcto. -->
+    <meta name="apple-mobile-web-app-title" content="FiguSwitch">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Open Graph: esto es lo que WhatsApp/Facebook leen para armar la vista previa del link
+         (imagen, título, descripción). Sin esto, al pegar el link no sale nada o sale genérico. -->
+    <meta property="og:title" content="FiguSwitch ⚽">
+    <meta property="og:description" content="Escanea con IA, encuentra matches reales y completa tu álbum del Mundial 2026.">
+    <meta property="og:image" content="https://figuswitch.com/icon-512.png">
+    <meta property="og:url" content="https://figuswitch.com">
+    <meta property="og:type" content="website">
+
+    <!-- Twitter/X usa sus propias etiquetas, similares pero no idénticas a Open Graph -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="FiguSwitch ⚽">
+    <meta name="twitter:description" content="Escanea con IA, encuentra matches reales y completa tu álbum del Mundial 2026.">
+    <meta name="twitter:image" content="https://figuswitch.com/icon-512.png">
   </head>
   <body>
     <div id="root"></div>
