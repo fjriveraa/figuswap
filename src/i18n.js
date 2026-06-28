@@ -2,6 +2,13 @@
 
 export const translations = {
   es: {
+    stageGroup: "Fase de grupos",
+    stageR32: "Dieciseisavos de final",
+    stageR16: "Octavos de final",
+    stageQF: "Cuartos de final",
+    stageSF: "Semifinales",
+    stageThird: "Partido por el tercer lugar",
+    stageFinal: "Final",
     deleteAccount: "🗑️ Eliminar mi cuenta",
     deleteGuestAlbum: "🗑️ Borrar mi álbum de invitado",
     deleteAccountWarning: "⚠️ Esta acción es permanente. Se eliminará tu cuenta, tu álbum y tus contactos. No se puede deshacer.",
@@ -295,6 +302,13 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Hola ${name}! 👋\n\nVi en FiguSwitch que podemos intercambiar:\n✅ Yo tengo ${iHave} que tú necesitas:\n${iHaveList}${iHaveMore > 0 ? `... y ${iHaveMore} más` : ""}\n\n🔁 Tú tienes ${theyHave} que yo necesito:\n${theyHaveList}${theyHaveMore > 0 ? `... y ${theyHaveMore} más` : ""}\n\n¿Coordinamos? ⚽🎴`,
   },
   en: {
+    stageGroup: "Group stage",
+    stageR32: "Round of 32",
+    stageR16: "Round of 16",
+    stageQF: "Quarter-finals",
+    stageSF: "Semi-finals",
+    stageThird: "Third place match",
+    stageFinal: "Final",
     deleteAccount: "🗑️ Delete my account",
     deleteGuestAlbum: "🗑️ Delete my guest album",
     deleteAccountWarning: "⚠️ This action is permanent. Your account, album, and contacts will be deleted. This cannot be undone.",
@@ -589,6 +603,13 @@ export const translations = {
   },
 
   it: {
+    stageGroup: "Fase a gironi",
+    stageR32: "Trentaduesimi di finale",
+    stageR16: "Ottavi di finale",
+    stageQF: "Quarti di finale",
+    stageSF: "Semifinali",
+    stageThird: "Finale per il terzo posto",
+    stageFinal: "Finale",
     deleteAccount: "🗑️ Elimina il mio account",
     deleteGuestAlbum: "🗑️ Elimina il mio album ospite",
     deleteAccountWarning: "⚠️ Questa azione è permanente. Il tuo account, album e contatti verranno eliminati. Non si può annullare.",
@@ -882,6 +903,13 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Ciao ${name}! 👋\n\nHo visto su FiguSwitch che possiamo scambiare:\n✅ Io ho ${iHave} che ti servono:\n${iHaveList}${iHaveMore > 0 ? `... e altre ${iHaveMore}` : ""}\n\n🔁 Tu hai ${theyHave} che mi servono:\n${theyHaveList}${theyHaveMore > 0 ? `... e altre ${theyHaveMore}` : ""}\n\nCi organizziamo? ⚽🎴`,
   },
   fr: {
+    stageGroup: "Phase de groupes",
+    stageR32: "Trente-deuxièmes de finale",
+    stageR16: "Huitièmes de finale",
+    stageQF: "Quarts de finale",
+    stageSF: "Demi-finales",
+    stageThird: "Match pour la troisième place",
+    stageFinal: "Finale",
     deleteAccount: "🗑️ Supprimer mon compte",
     deleteGuestAlbum: "🗑️ Supprimer mon album invité",
     deleteAccountWarning: "⚠️ Cette action est permanente. Ton compte, ton album et tes contacts seront supprimés. Impossible d'annuler.",
@@ -1175,6 +1203,13 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Salut ${name} ! 👋\n\nJ'ai vu sur FiguSwitch que nous pouvons échanger :\n✅ J'ai ${iHave} que tu cherches :\n${iHaveList}${iHaveMore > 0 ? `... et ${iHaveMore} de plus` : ""}\n\n🔁 Tu as ${theyHave} que je cherche :\n${theyHaveList}${theyHaveMore > 0 ? `... et ${theyHaveMore} de plus` : ""}\n\nOn organise ça ? ⚽🎴`,
   },
   pt: {
+    stageGroup: "Fase de grupos",
+    stageR32: "Trinta e dois avos de final",
+    stageR16: "Oitavas de final",
+    stageQF: "Quartas de final",
+    stageSF: "Semifinais",
+    stageThird: "Disputa pelo terceiro lugar",
+    stageFinal: "Final",
     deleteAccount: "🗑️ Excluir minha conta",
     deleteGuestAlbum: "🗑️ Excluir meu álbum de visitante",
     deleteAccountWarning: "⚠️ Esta ação é permanente. Sua conta, álbum e contatos serão excluídos. Não pode ser desfeita.",
@@ -1469,6 +1504,13 @@ export const translations = {
   },
 
   de: {
+    stageGroup: "Gruppenphase",
+    stageR32: "Sechzehntelfinale",
+    stageR16: "Achtelfinale",
+    stageQF: "Viertelfinale",
+    stageSF: "Halbfinale",
+    stageThird: "Spiel um Platz drei",
+    stageFinal: "Finale",
     deleteAccount: "🗑️ Mein Konto löschen",
     deleteGuestAlbum: "🗑️ Mein Gast-Album löschen",
     deleteAccountWarning: "⚠️ Diese Aktion ist endgültig. Dein Konto, Album und deine Kontakte werden gelöscht. Kann nicht rückgängig gemacht werden.",
@@ -1758,6 +1800,13 @@ export const translations = {
   },
 
   ar: {
+    stageGroup: "دور المجموعات",
+    stageR32: "دور الـ32",
+    stageR16: "دور الـ16",
+    stageQF: "ربع النهائي",
+    stageSF: "نصف النهائي",
+    stageThird: "مباراة تحديد المركز الثالث",
+    stageFinal: "النهائي",
     deleteAccount: "🗑️ حذف حسابي",
     deleteGuestAlbum: "🗑️ حذف ألبوم الزائر",
     deleteAccountWarning: "⚠️ هذا الإجراء نهائي. سيتم حذف حسابك وألبومك وجهات اتصالك. لا يمكن التراجع عنه.",
