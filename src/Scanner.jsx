@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getTeamName } from "./i18n";
 
 const ALBUM = {
   FWC:{name:"FIFA World Cup",emoji:"🏆",total:20},MEX:{name:"México",emoji:"🇲🇽",total:20},
@@ -27,6 +28,22 @@ const ALBUM = {
   PAN:{name:"Panama",emoji:"🇵🇦",total:20},CC:{name:"Coca-Cola",emoji:"🥤",total:14},
   ALG:{name:"Algeria",emoji:"🇩🇿",total:20},BRA:{name:"Brazil",emoji:"🇧🇷",total:20},
 };
+
+// Orden oficial real del álbum físico Panini (FWC/CC primero, luego grupos A→L) — el ALBUM
+// de arriba tiene algunas claves fuera de posición (CC, ALG, BRA al final), así que el orden
+// de páginas se define aparte en vez de confiar en Object.keys(ALBUM).
+const ALBUM_PAGE_ORDER = [
+  "FWC","CC","MEX","RSA","KOR","CZE","CAN","BIH","QAT","SUI","BRA","MAR","HAI","SCO",
+  "USA","PAR","AUS","TUR","GER","CUW","CIV","ECU","NED","JPN","SWE","TUN","BEL","EGY",
+  "IRN","NZL","ESP","CPV","KSA","URU","FRA","SEN","IRQ","NOR","ARG","ALG","AUT","JOR",
+  "POR","COD","UZB","COL","ENG","CRO","GHA","PAN",
+];
+// Ordena por página del álbum primero, y dentro de la misma selección por número ascendente
+// — así, después de escanear, las figuritas quedan en el mismo orden en que las vas a pegar.
+function byAlbumPage(a, b) {
+  const diff = ALBUM_PAGE_ORDER.indexOf(a.code) - ALBUM_PAGE_ORDER.indexOf(b.code);
+  return diff !== 0 ? diff : a.num - b.num;
+}
 
 const TRADEABLE_STATES = ["repeated","sell","trade","auction"];
 
@@ -355,7 +372,7 @@ export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum, l
           <div style={{fontSize:12,color:"#6b7280",marginBottom:10}}>
             {t?.removeFromStockHelp || "Esto resta del stock que tenías registrado como disponible (repetida/venta/cambio/subasta)."}
           </div>
-          {detected.map((s,i)=>{
+          {[...detected].sort(byAlbumPage).map((s,i)=>{
             const team=ALBUM[s.code];
             const key=`${s.code}-${s.num}`;
             const done=applied[key];
@@ -365,7 +382,7 @@ export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum, l
                 <span style={{fontSize:24}}>{team?.emoji||"🃏"}</span>
                 <div style={{flex:1}}>
                   <div style={{fontWeight:800,color:"#e8eaf6"}}>
-                    {team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span>
+                    {getTeamName(s.code,lang)||s.code} <span style={{fontSize:11,fontWeight:700,color:"#6b7280"}}>{s.code}</span> <span style={{color:"#ffd700"}}>#{s.num}</span>
                     {s.quantity>1&&<span style={{marginLeft:8,fontSize:11,background:"#ef4444",color:"#fff",padding:"2px 8px",borderRadius:10,fontWeight:700}}>x{s.quantity} {t?.scanned || "escaneadas"}</span>}
                   </div>
                   {s.availableQty>0
@@ -394,7 +411,7 @@ export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum, l
               {t?.scannerPasteAll || "📌 Pegar todas"}
             </button>
           </div>
-          {needed.map((s,i)=>{
+          {[...needed].sort(byAlbumPage).map((s,i)=>{
             const team=ALBUM[s.code];
             const key=`${s.code}-${s.num}`;
             const done=applied[key];
@@ -403,7 +420,7 @@ export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum, l
                 <span style={{fontSize:26}}>{team?.emoji||"🃏"}</span>
                 <div style={{flex:1}}>
                   <div style={{fontWeight:800,color:"#86efac"}}>
-                    {team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span>
+                    {getTeamName(s.code,lang)||s.code} <span style={{fontSize:11,fontWeight:700,color:"#6b7280"}}>{s.code}</span> <span style={{color:"#ffd700"}}>#{s.num}</span>
                     {s.quantity>1&&<span style={{marginLeft:8,fontSize:11,background:"#22c55e",color:"#0a0f1e",padding:"2px 8px",borderRadius:10,fontWeight:700}}>x{s.quantity}</span>}
                   </div>
                   <div style={{fontSize:12,color:"#4ade80"}}>{t?.detectedAsMissing || "¡Estaba en tu lista de faltantes!"}</div>
@@ -428,7 +445,7 @@ export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum, l
               {t?.sendAll || "🔁 Enviar todas"}
             </button>
           </div>
-          {repeated.map((s,i)=>{
+          {[...repeated].sort(byAlbumPage).map((s,i)=>{
             const team=ALBUM[s.code];
             const key=`${s.code}-${s.num}`;
             const done=applied[key];
@@ -440,7 +457,7 @@ export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum, l
                   <span style={{fontSize:24}}>{team?.emoji||"🃏"}</span>
                   <div style={{flex:1}}>
                     <div style={{fontWeight:800,color:"#e8eaf6"}}>
-                      {team?.name||s.code} <span style={{color:"#ffd700"}}>#{s.num}</span>
+                      {getTeamName(s.code,lang)||s.code} <span style={{fontSize:11,fontWeight:700,color:"#6b7280"}}>{s.code}</span> <span style={{color:"#ffd700"}}>#{s.num}</span>
                       {s.quantity>1&&<span style={{marginLeft:8,fontSize:11,background:"#f97316",color:"#fff",padding:"2px 8px",borderRadius:10,fontWeight:700}}>x{s.quantity}</span>}
                     </div>
                     {/* Valor estimado se deja como referencia informativa — venta/subasta en stand-by por ahora */}
