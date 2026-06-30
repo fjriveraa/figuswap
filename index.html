@@ -31,6 +31,26 @@
     <meta name="twitter:title" content="FiguSwitch ⚽">
     <meta name="twitter:description" content="Escanea con IA, encuentra matches reales y completa tu álbum del Mundial 2026.">
     <meta name="twitter:image" content="https://figuswitch.com/icon-512.png">
+
+    <!-- Fix: sin esto, el margen/fondo blanco POR DEFECTO del navegador se asoma en los bordes
+         (normalmente unos 8px alrededor de toda la página) — se veía como un borde blanco en
+         los costados y arriba, tanto al abrir la app como ya navegando dentro. overscroll-behavior
+         evita además que el "rebote" elástico al hacer scroll en iOS/Android revele ese mismo
+         blanco por un instante al llegar al final de una lista. -->
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100%;
+        background-color: #0a0f1e;
+        overscroll-behavior: none;
+      }
+      #root {
+        min-height: 100vh;
+        background-color: #0a0f1e;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
