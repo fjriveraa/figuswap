@@ -82,8 +82,26 @@ function unwrap(json, key) {
   return [];
 }
 
+// Fix (conv. 3): la API no siempre manda el tipo de ronda con el mismo texto exacto —
+// se han visto variantes como "quarter-final", "QF", "quarterfinal". Esto las normaliza
+// todas a las claves internas (group/r32/r16/qf/sf/third/final) antes de usarlas.
+function normalizeType(raw) {
+  const s = String(raw || "").toLowerCase().replace(/[\s_-]/g, "");
+  if (!s || s.includes("group")) return "group";
+  if (s === "r32" || s.includes("32")) return "r32";
+  if (s === "r16" || s.includes("16") || s.includes("octavos")) return "r16";
+  if (s === "qf" || s.includes("quarter") || s.includes("cuartos")) return "qf";
+  if (s === "sf" || s.includes("semi")) return "sf";
+  if (s.includes("third") || s.includes("tercer")) return "third";
+  if (s.includes("final")) return "final"; // después de semi/third para no capturarlas
+  return "group";
+}
+
 function fetchWorldcup(type, signal) {
-  return fetch(`/api/worldcup?type=${type}`, { signal }).then(async (r) => {
+  // Fix (conv. 3): cache-busting — algunos navegadores/CDN cachean la respuesta del proxy
+  // más de la cuenta; el timestamp fuerza que cada consulta sea única. La caché real de 30s
+  // sigue viviendo en el servidor (api/worldcup.js), así que esto no aumenta el costo.
+  return fetch(`/api/worldcup?type=${type}&t=${Date.now()}`, { signal }).then(async (r) => {
     const json = await r.json().catch(() => null);
     if (!r.ok || !json) throw new Error(json?.error || "Error al cargar datos del Mundial");
     return json;
@@ -105,24 +123,49 @@ function Flag({ team }) {
 // "FALSE" es un string no vacío, así que `if(match.finished)` lo trataba como verdadero —
 // eso hacía que TODOS los partidos contaran como finalizados, inflando "PJ" en la tabla.
 // Tampoco existe un campo "status": el indicador real de en vivo/no-empezado es time_elapsed.
+// Fix (conv. 3): la API manda el mismo jugador escrito distinto según el partido
+// ("K. Mbappé" en uno, "Kylian Mbappé" en otro) — agrupar por nombre exacto lo duplicaba.
+// La clave normaliza: sin acentos, minúsculas, APELLIDO + INICIAL del nombre + equipo.
+// Así "K. Mbappé" y "Kylian Mbappé" (mismo equipo) colapsan en una sola entrada.
+function scorerKey(name, team) {
+  const clean = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\./g, "").trim();
+  const parts = clean.split(/\s+/);
+  if (parts.length === 0) return clean + "|" + (team || "");
+  const last = parts[parts.length - 1];
+  const initial = parts[0][0] || "";
+  return `${last}|${initial}|${team || ""}`;
+}
+
+// Fix (conv. 3): la API a veces manda nombres corruptos (ej. "Dnil Mvnvz" — sin vocales).
+// Heurística: si alguna palabra de 4+ letras no tiene NINGUNA vocal, el nombre es basura.
+function isCorruptedName(name) {
+  const words = name.split(/\s+/).filter(w => w.length >= 4);
+  return words.some(w => !/[aeiouáéíóúàèìòùäëïöü]/i.test(w));
+}
+
 // Suma goles por jugador a partir de home_scorers/away_scorers de todos los partidos.
 // Cada entrada del array es un gol individual (si alguien anotó 2, aparece 2 veces en la lista).
 function computeTopScorers(games) {
-  const counts = {}; // nombre -> { goals, team }
+  const counts = {}; // scorerKey -> { name, goals, team }
   (games || []).forEach((g) => {
     const homeTeam = g.home_team_name_en;
     const awayTeam = g.away_team_name_en;
     parsePgArray(g.home_scorers).forEach((entry) => {
       const name = parseScorerName(entry);
-      if (!name) return;
-      if (!counts[name]) counts[name] = { name, goals: 0, team: homeTeam };
-      counts[name].goals++;
+      if (!name || isCorruptedName(name)) return;
+      const key = scorerKey(name, homeTeam);
+      if (!counts[key]) counts[key] = { name, goals: 0, team: homeTeam };
+      // Preferir la variante más larga del nombre como display ("Kylian Mbappé" > "K. Mbappé")
+      if (name.length > counts[key].name.length) counts[key].name = name;
+      counts[key].goals++;
     });
     parsePgArray(g.away_scorers).forEach((entry) => {
       const name = parseScorerName(entry);
-      if (!name) return;
-      if (!counts[name]) counts[name] = { name, goals: 0, team: awayTeam };
-      counts[name].goals++;
+      if (!name || isCorruptedName(name)) return;
+      const key = scorerKey(name, awayTeam);
+      if (!counts[key]) counts[key] = { name, goals: 0, team: awayTeam };
+      if (name.length > counts[key].name.length) counts[key].name = name;
+      counts[key].goals++;
     });
   });
   return Object.values(counts).sort((a, b) => b.goals - a.goals);
@@ -323,9 +366,10 @@ export default function WorldCup({ lang="es", t }) {
     // Apenas cambia la etapa respecto al partido anterior (en orden cronológico real), se marca
     // esa fecha como el punto donde debe aparecer el encabezado nuevo — así el calendario va
     // mostrando solo, sin configuración manual, en qué momento se pasa de grupos a eliminatorias.
-    if (g.type && g.type !== lastStage) {
-      stageChangeAt[key] = STAGE_LABELS[g.type] || null;
-      lastStage = g.type;
+    const stage = normalizeType(g.type);
+    if (stage !== lastStage) {
+      stageChangeAt[key] = STAGE_LABELS[stage] || null;
+      lastStage = stage;
     }
   });
 
@@ -387,11 +431,55 @@ export default function WorldCup({ lang="es", t }) {
             </>
           )}
 
-          {subTab === "table" && [...groups]
-            .sort((a, b) => getGroupLetter(a, teamsById).localeCompare(getGroupLetter(b, teamsById)))
-            .map((g, i) => (
-              <GroupTable key={g.group || g.teams?.[0]?.team_id || i} group={g} teamsById={teamsById} games={games} t={t} lang={lang} />
-            ))}
+          {subTab === "table" && (() => {
+            // Partidos de eliminatorias (todo lo que no es fase de grupos), agrupados por
+            // ronda real — reutiliza MatchRow y STAGE_LABELS, así se ve y se traduce igual
+            // que en Partidos, sin duplicar lógica ni estilos.
+            const knockoutOrder = ["r32", "r16", "qf", "sf", "third", "final"];
+            const knockoutByType = {};
+            games.forEach((g) => {
+              const stage = normalizeType(g.type);
+              if (stage !== "group") {
+                if (!knockoutByType[stage]) knockoutByType[stage] = [];
+                knockoutByType[stage].push(g);
+              }
+            });
+            // Fix (conv. 3): dentro de cada ronda, los partidos van en orden cronológico real
+            // (por fecha/hora del estadio), no en el orden arbitrario en que la API los liste.
+            Object.values(knockoutByType).forEach(list => list.sort((a, b) => {
+              const da = stadiumTimeToDate(a.local_date, a.stadium_id);
+              const db = stadiumTimeToDate(b.local_date, b.stadium_id);
+              if (!da || !db) return 0;
+              return da - db;
+            }));
+            const hasKnockouts = Object.keys(knockoutByType).length > 0;
+
+            return (
+              <>
+                {hasKnockouts && (
+                  <div style={{ marginBottom: 24 }}>
+                    {knockoutOrder.filter(type => knockoutByType[type]?.length).map(type => (
+                      <div key={type} style={{ marginBottom: 18 }}>
+                        <div style={{ fontSize: 14, fontWeight: 900, color: "#ffd700", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                          <span>{STAGE_LABELS[type]?.emoji}</span>
+                          <span>{t?.[STAGE_LABELS[type]?.key] || STAGE_LABELS[type]?.fallback}</span>
+                        </div>
+                        {knockoutByType[type].map(m => <MatchRow key={m.id} match={m} teamsById={teamsById} lang={lang} t={t} />)}
+                      </div>
+                    ))}
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", margin: "20px 0 10px", paddingTop: 12, borderTop: "1px solid #1e2a3a", textTransform: "uppercase" }}>
+                      {t?.stageGroup || "Fase de grupos"} — {t?.finalStandings || "resultados finales"}
+                    </div>
+                  </div>
+                )}
+                {[...groups]
+                  .sort((a, b) => getGroupLetter(a, teamsById).localeCompare(getGroupLetter(b, teamsById)))
+                  .map((g, i) => (
+                    <GroupTable key={g.group || g.teams?.[0]?.team_id || i} group={g} teamsById={teamsById} games={games} t={t} lang={lang} />
+                  ))}
+              </>
+            );
+          })()}
 
           {subTab === "scorers" && (() => {
             const scorers = computeTopScorers(games).slice(0, 25);
