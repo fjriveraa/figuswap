@@ -389,6 +389,9 @@ export default function WorldCup({ lang="es", t }) {
   // Mismo patrón para el calendario: días ya jugados por completo arrancan colapsados,
   // el día en curso y los futuros arrancan abiertos. Un toque en la fecha alterna cada uno.
   const [expandedDays, setExpandedDays] = useState({});
+  // null = automático (solo la última etapa —la actual— abierta, las anteriores colapsadas);
+  // en cuanto el usuario toca alguna, pasa a control manual, igual que en Posiciones.
+  const [expandedCalendarStages, setExpandedCalendarStages] = useState(null);
   // Mejora de velocidad: si hay una respuesta guardada de una visita anterior, se muestra
   // de inmediato (sin pantalla de "Cargando...") mientras la actualización real viaja detrás.
   const cached = typeof window !== "undefined" ? loadLocalCache() : null;
@@ -470,7 +473,9 @@ export default function WorldCup({ lang="es", t }) {
   });
   const gamesByDate = {};
   const dateLabels = {};
-  const stageChangeAt = {}; // dayKey -> info de la etapa, solo en la fecha donde empieza
+  // Agrupa los días DENTRO de cada etapa (en vez de solo marcar dónde cambia) — así cada
+  // etapa se puede colapsar/expandir como sección completa, no solo día por día.
+  const stageSections = []; // [{ stage, label, dayKeys: [...] }]
   let lastStage = null;
   sortedGames.forEach((g) => {
     const viewerDate = stadiumTimeToDate(g.local_date, g.stadium_id);
@@ -481,13 +486,13 @@ export default function WorldCup({ lang="es", t }) {
     if (!gamesByDate[key]) gamesByDate[key] = [];
     gamesByDate[key].push(g);
     if (viewerTime) dateLabels[key] = viewerTime.dayLabel;
-    // Apenas cambia la etapa respecto al partido anterior (en orden cronológico real), se marca
-    // esa fecha como el punto donde debe aparecer el encabezado nuevo — así el calendario va
-    // mostrando solo, sin configuración manual, en qué momento se pasa de grupos a eliminatorias.
     const stage = normalizeType(g.type);
     if (stage !== lastStage) {
-      stageChangeAt[key] = STAGE_LABELS[stage] || null;
+      stageSections.push({ stage, label: STAGE_LABELS[stage], dayKeys: [key] });
       lastStage = stage;
+    } else {
+      const current = stageSections[stageSections.length - 1];
+      if (!current.dayKeys.includes(key)) current.dayKeys.push(key);
     }
   });
 
@@ -527,45 +532,68 @@ export default function WorldCup({ lang="es", t }) {
             </div>
           )}
 
-          {subTab === "calendar" && (
-            <>
-              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 12 }}>
-                🕐 {t?.viewerTimeNotice || "Los horarios ya están convertidos a la hora de tu dispositivo."}
-              </div>
-              {Object.entries(gamesByDate).map(([date, matches]) => {
-                const allFinished = matches.every(m => matchStatus(m) === "finished");
-                const hasLive = matches.some(m => matchStatus(m) === "live");
-                // Default: días 100% jugados colapsados; el resto (hoy/futuro/en vivo) abiertos.
-                // Si el usuario ya tocó ese día, su elección manual manda sobre el default.
-                const isOpen = expandedDays[date] !== undefined ? expandedDays[date] : !allFinished;
-                const toggleDay = () => setExpandedDays({ ...expandedDays, [date]: !isOpen });
-                return (
-                  <div key={date}>
-                    {stageChangeAt[date] && (
-                      <div style={{ fontSize: 15, fontWeight: 900, color: "#ffd700", margin: "20px 0 10px", paddingTop: 12, borderTop: "1px solid #1e2a3a", display: "flex", alignItems: "center", gap: 8 }}>
-                        <span>{stageChangeAt[date].emoji}</span>
-                        <span>{t?.[stageChangeAt[date].key] || stageChangeAt[date].fallback}</span>
-                      </div>
-                    )}
-                    <div style={{ marginBottom: 10, background: "#0d1117", border: `1px solid ${hasLive ? "#f97316" : isOpen ? "#2a3a52" : "#1e2a3a"}`, borderRadius: 12, overflow: "hidden" }}>
-                      <button onClick={toggleDay} style={{ width: "100%", padding: "11px 14px", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ flex: 1, textAlign: "left", fontSize: 12, fontWeight: 800, color: hasLive ? "#f97316" : "#9ca3af", textTransform: "uppercase" }}>
-                          {dateLabels[date] || date}{hasLive ? " · 🔴" : ""}
+          {subTab === "calendar" && (() => {
+            // Por defecto solo la ÚLTIMA etapa (la más avanzada, la que está en juego) queda
+            // abierta; las etapas ya completas (ej. Fase de grupos, una vez arrancan los
+            // Dieciseisavos) arrancan colapsadas como sección completa.
+            const autoOpen = stageSections.length ? { [stageSections.length - 1]: true } : {};
+            const openStages = expandedCalendarStages || autoOpen;
+            const toggleStage = (idx) => setExpandedCalendarStages({ ...openStages, [idx]: !openStages[idx] });
+
+            return (
+              <>
+                <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 12 }}>
+                  🕐 {t?.viewerTimeNotice || "Los horarios ya están convertidos a la hora de tu dispositivo."}
+                </div>
+                {stageSections.map((section, idx) => {
+                  const isStageOpen = !!openStages[idx];
+                  const allDayMatches = section.dayKeys.flatMap(k => gamesByDate[k] || []);
+                  const played = allDayMatches.filter(m => matchStatus(m) === "finished").length;
+                  const hasLiveInStage = allDayMatches.some(m => matchStatus(m) === "live");
+                  return (
+                    <div key={idx} style={{ marginBottom: 12, background: "#0d1117", border: `1px solid ${hasLiveInStage ? "#f97316" : isStageOpen ? "#ffd700" : "#1e2a3a"}`, borderRadius: 14, overflow: "hidden" }}>
+                      <button onClick={() => toggleStage(idx)} style={{ width: "100%", padding: "13px 16px", background: isStageOpen ? "#1a1500" : "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 18 }}>{section.label?.emoji}</span>
+                        <span style={{ flex: 1, textAlign: "left", fontWeight: 900, fontSize: 14, color: hasLiveInStage ? "#f97316" : "#ffd700" }}>
+                          {t?.[section.label?.key] || section.label?.fallback}{hasLiveInStage ? " · 🔴" : ""}
                         </span>
-                        <span style={{ fontSize: 11, color: "#4a5568", fontWeight: 700 }}>{matches.length}</span>
-                        <span style={{ color: "#4a5568", fontSize: 11 }}>{isOpen ? "▲" : "▼"}</span>
+                        <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 700 }}>{played}/{allDayMatches.length}</span>
+                        <span style={{ color: "#4a5568", fontSize: 12 }}>{isStageOpen ? "▲" : "▼"}</span>
                       </button>
-                      {isOpen && (
-                        <div style={{ padding: "0 14px 8px" }}>
-                          {matches.map((m) => <MatchRow key={m.id} match={m} teamsById={teamsById} lang={lang} t={t} />)}
+                      {isStageOpen && (
+                        <div style={{ padding: "0 16px 10px" }}>
+                          {section.dayKeys.map((date) => {
+                            const matches = gamesByDate[date] || [];
+                            const allFinished = matches.every(m => matchStatus(m) === "finished");
+                            const hasLive = matches.some(m => matchStatus(m) === "live");
+                            // Default: días 100% jugados colapsados; el resto (hoy/futuro/en vivo) abiertos.
+                            const isOpen = expandedDays[date] !== undefined ? expandedDays[date] : !allFinished;
+                            const toggleDay = () => setExpandedDays({ ...expandedDays, [date]: !isOpen });
+                            return (
+                              <div key={date} style={{ marginTop: 10, background: "#111827", border: `1px solid ${hasLive ? "#f97316" : isOpen ? "#2a3a52" : "#1e2a3a"}`, borderRadius: 12, overflow: "hidden" }}>
+                                <button onClick={toggleDay} style={{ width: "100%", padding: "11px 14px", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ flex: 1, textAlign: "left", fontSize: 12, fontWeight: 800, color: hasLive ? "#f97316" : "#9ca3af", textTransform: "uppercase" }}>
+                                    {dateLabels[date] || date}{hasLive ? " · 🔴" : ""}
+                                  </span>
+                                  <span style={{ fontSize: 11, color: "#4a5568", fontWeight: 700 }}>{matches.length}</span>
+                                  <span style={{ color: "#4a5568", fontSize: 11 }}>{isOpen ? "▲" : "▼"}</span>
+                                </button>
+                                {isOpen && (
+                                  <div style={{ padding: "0 14px 8px" }}>
+                                    {matches.map((m) => <MatchRow key={m.id} match={m} teamsById={teamsById} lang={lang} t={t} />)}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
-                  </div>
-                );
-              })}
-            </>
-          )}
+                  );
+                })}
+              </>
+            );
+          })()}
 
           {subTab === "table" && (() => {
             // Partidos de eliminatorias (todo lo que no es fase de grupos), agrupados por
