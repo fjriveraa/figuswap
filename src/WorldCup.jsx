@@ -294,6 +294,9 @@ function GroupTable({ group, teamsById, games, t, lang }) {
 
 export default function WorldCup({ lang="es", t }) {
   const [subTab, setSubTab] = useState("calendar"); // calendar | table
+  // null = automático (la fase más reciente abierta, las anteriores colapsadas);
+  // una vez que el usuario toca alguna, se vuelve control manual completo.
+  const [expandedStages, setExpandedStages] = useState(null);
   const [teams, setTeams] = useState([]);
   const [groups, setGroups] = useState([]);
   const [games, setGames] = useState([]);
@@ -453,20 +456,39 @@ export default function WorldCup({ lang="es", t }) {
               return da - db;
             }));
             const hasKnockouts = Object.keys(knockoutByType).length > 0;
+            const stagesWithGames = knockoutOrder.filter(type => knockoutByType[type]?.length);
+            // Por defecto: solo la fase MÁS AVANZADA queda abierta (la que está en juego ahora);
+            // las anteriores, ya jugadas, arrancan colapsadas — un toque las abre.
+            const autoExpanded = stagesWithGames.length ? { [stagesWithGames[stagesWithGames.length - 1]]: true } : {};
+            const openStages = expandedStages || autoExpanded;
+            const toggleStage = (type) => setExpandedStages({ ...openStages, [type]: !openStages[type] });
 
             return (
               <>
                 {hasKnockouts && (
                   <div style={{ marginBottom: 24 }}>
-                    {knockoutOrder.filter(type => knockoutByType[type]?.length).map(type => (
-                      <div key={type} style={{ marginBottom: 18 }}>
-                        <div style={{ fontSize: 14, fontWeight: 900, color: "#ffd700", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                          <span>{STAGE_LABELS[type]?.emoji}</span>
-                          <span>{t?.[STAGE_LABELS[type]?.key] || STAGE_LABELS[type]?.fallback}</span>
+                    {stagesWithGames.map(type => {
+                      const isOpen = !!openStages[type];
+                      const matches = knockoutByType[type];
+                      const played = matches.filter(m => matchStatus(m) === "finished").length;
+                      return (
+                        <div key={type} style={{ marginBottom: 10, background: "#0d1117", border: `1px solid ${isOpen ? "#ffd700" : "#1e2a3a"}`, borderRadius: 14, overflow: "hidden" }}>
+                          <button onClick={() => toggleStage(type)} style={{ width: "100%", padding: "13px 16px", background: isOpen ? "#1a1500" : "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{ fontSize: 18 }}>{STAGE_LABELS[type]?.emoji}</span>
+                            <span style={{ flex: 1, textAlign: "left", fontWeight: 900, fontSize: 14, color: "#ffd700" }}>
+                              {t?.[STAGE_LABELS[type]?.key] || STAGE_LABELS[type]?.fallback}
+                            </span>
+                            <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 700 }}>{played}/{matches.length}</span>
+                            <span style={{ color: "#4a5568", fontSize: 12 }}>{isOpen ? "▲" : "▼"}</span>
+                          </button>
+                          {isOpen && (
+                            <div style={{ padding: "0 16px 10px" }}>
+                              {matches.map(m => <MatchRow key={m.id} match={m} teamsById={teamsById} lang={lang} t={t} />)}
+                            </div>
+                          )}
                         </div>
-                        {knockoutByType[type].map(m => <MatchRow key={m.id} match={m} teamsById={teamsById} lang={lang} t={t} />)}
-                      </div>
-                    ))}
+                      );
+                    })}
                     <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", margin: "20px 0 10px", paddingTop: 12, borderTop: "1px solid #1e2a3a", textTransform: "uppercase" }}>
                       {t?.stageGroup || "Fase de grupos"} — {t?.finalStandings || "resultados finales"}
                     </div>
