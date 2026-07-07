@@ -165,6 +165,48 @@ function isCorruptedName(name) {
   return words.some(w => !/[aeiouáéíóúàèìòùäëïöü]/i.test(w));
 }
 
+// ============================================================================
+// CORRECCIÓN TEMPORAL — nombres corruptos EN LA FUENTE (worldcup26.ir)
+// Verificado contra el JSON crudo del endpoint: los nombres YA llegan así de
+// la API (ej. juego 35 trae "Kvdi Khakpv" junto a "Brian Brobbey" correcto).
+// La API es de origen iraní y algunos nombres pasan por una transliteración
+// persa de ida y vuelta que destroza las vocales (en persa "و" es v/o/u:
+// "Cody Gakpo" → "Kvdi Khakpv"). Es inconsistente incluso para el mismo
+// jugador: el juego 22 trae "H. Kane" correcto y el 67 trae "Hri Kin".
+// Este diccionario corrige los casos identificados ANTES del filtro de
+// corruptos (si no, el filtro oculta goles reales, ej. "Nvnv Mndz").
+// Fácil de eliminar cuando el proveedor corrija: borrar este bloque y las
+// 2 líneas fixScorerName() en computeTopScorers.
+// ============================================================================
+const SCORER_NAME_FIXES = {
+  // Confirmados por Fernando:
+  "Kvdi Khakpv": "Cody Gakpo",
+  "Jvlian Kviinvnz": "Julián Quiñones",
+  "Jvlian Kviiivnvz": "Julián Quiñones", // variante vista en pantalla
+  "Jvd Blingham": "Jude Bellingham",
+  "Hri Kin": "Harry Kane",
+  "Jvhan Mnzambi": "Johan Manzambi",
+  // Identificados sin ambigüedad en el JSON (nombre corrupto + selección coinciden con un solo jugador real):
+  "Rvbn Vargas": "Rubén Vargas",           // Suiza — llega correcto en el juego 54 y corrupto en el 26
+  "Aldvr Shvmvrvdvf": "Eldor Shomurodov",  // Uzbekistán — el filtro le ocultaba el gol
+  "Jivani Lv Slsv": "Giovani Lo Celso",    // Argentina
+  "Dnil Mvnvz": "Daniel Muñoz",            // Colombia
+  "Lviiz Diaz": "Luis Díaz",               // Colombia
+  "Nvnv Mndz": "Nuno Mendes",              // Portugal — el filtro le ocultaba el gol
+  "Dniz Avndav": "Deniz Undav",            // Alemania
+  "Nikvlas Ph Ph": "Nicolas Pépé",         // Costa de Marfil
+  "Paph Gviih": "Pape Gueye",              // Senegal
+  "Mvsi Altmari": "Musa Al-Taamari",       // Jordania
+  "Hazm Mstvri": "Hazem Mastouri",         // Túnez
+  "Fistvn Mail": "Fiston Mayele",          // RD Congo
+  "Rvmanv Ashmid": "Romano Schmid",        // Austria
+  "Gvnzalv Plata": "Gonzalo Plata",        // Ecuador
+  "Nilsvn Angvlv": "Nilson Angulo",        // Ecuador
+};
+function fixScorerName(name) {
+  return SCORER_NAME_FIXES[name] || name;
+}
+
 // Suma goles por jugador a partir de home_scorers/away_scorers de todos los partidos.
 // Cada entrada del array es un gol individual (si alguien anotó 2, aparece 2 veces en la lista).
 function computeTopScorers(games) {
@@ -173,7 +215,9 @@ function computeTopScorers(games) {
     const homeTeam = g.home_team_name_en;
     const awayTeam = g.away_team_name_en;
     parsePgArray(g.home_scorers).forEach((entry) => {
-      const name = parseScorerName(entry);
+      // El orden importa: corregir PRIMERO (diccionario), filtrar DESPUÉS —
+      // al revés, el filtro descartaría goles reales de nombres corregibles.
+      const name = fixScorerName(parseScorerName(entry));
       if (!name || isCorruptedName(name)) return;
       const key = scorerKey(name, homeTeam);
       if (!counts[key]) counts[key] = { name, goals: 0, team: homeTeam };
@@ -182,7 +226,7 @@ function computeTopScorers(games) {
       counts[key].goals++;
     });
     parsePgArray(g.away_scorers).forEach((entry) => {
-      const name = parseScorerName(entry);
+      const name = fixScorerName(parseScorerName(entry));
       if (!name || isCorruptedName(name)) return;
       const key = scorerKey(name, awayTeam);
       if (!counts[key]) counts[key] = { name, goals: 0, team: awayTeam };
