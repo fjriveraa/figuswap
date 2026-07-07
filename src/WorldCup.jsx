@@ -533,10 +533,17 @@ export default function WorldCup({ lang="es", t }) {
           )}
 
           {subTab === "calendar" && (() => {
-            // Por defecto solo la ÚLTIMA etapa (la más avanzada, la que está en juego) queda
-            // abierta; las etapas ya completas (ej. Fase de grupos, una vez arrancan los
-            // Dieciseisavos) arrancan colapsadas como sección completa.
-            const autoOpen = stageSections.length ? { [stageSections.length - 1]: true } : {};
+            // Por defecto: cada etapa se abre sola si TODAVÍA tiene partidos sin jugar —
+            // sin importar su posición cronológica. Antes se abría solo "la última etapa"
+            // por índice, lo cual abría la Final aunque no se hubiera jugado nada de las
+            // rondas anteriores. Una etapa se colapsa sola únicamente cuando ya se completó
+            // por entero (todos sus partidos con marcador final).
+            const autoOpen = {};
+            stageSections.forEach((section, idx) => {
+              const matches = section.dayKeys.flatMap(k => gamesByDate[k] || []);
+              const allFinished = matches.length > 0 && matches.every(m => matchStatus(m) === "finished");
+              autoOpen[idx] = !allFinished;
+            });
             const openStages = expandedCalendarStages || autoOpen;
             const toggleStage = (idx) => setExpandedCalendarStages({ ...openStages, [idx]: !openStages[idx] });
 
@@ -618,9 +625,15 @@ export default function WorldCup({ lang="es", t }) {
             }));
             const hasKnockouts = Object.keys(knockoutByType).length > 0;
             const stagesWithGames = knockoutOrder.filter(type => knockoutByType[type]?.length);
-            // Por defecto: solo la fase MÁS AVANZADA queda abierta (la que está en juego ahora);
-            // las anteriores, ya jugadas, arrancan colapsadas — un toque las abre.
-            const autoExpanded = stagesWithGames.length ? { [stagesWithGames[stagesWithGames.length - 1]]: true } : {};
+            // Por defecto: cada fase se abre sola si TODAVÍA tiene partidos sin jugar — sin
+            // importar su posición en el orden del torneo (mismo criterio que en Partidos).
+            // Se colapsa sola únicamente cuando ya se completó por entero.
+            const autoExpanded = {};
+            stagesWithGames.forEach(type => {
+              const matches = knockoutByType[type];
+              const allFinished = matches.every(m => matchStatus(m) === "finished");
+              autoExpanded[type] = !allFinished;
+            });
             const openStages = expandedStages || autoExpanded;
             const toggleStage = (type) => setExpandedStages({ ...openStages, [type]: !openStages[type] });
 
