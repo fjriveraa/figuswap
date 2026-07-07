@@ -61,9 +61,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // Cache breve en el edge: 30s "fresco", hasta 2min servido viejo mientras revalida.
-    // Suficiente para sentirse "en vivo" sin perforar la API gratuita en cada visita.
-    res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=120");
+    // Mejora de velocidad: caché ampliada de 30s a 90s "fresco", hasta 5min servido viejo
+    // mientras revalida. El marcador de un partido no cambia cada 30s en la práctica —
+    // esto reduce cuántas veces se golpea el servidor externo (lento, gratuito, no oficial)
+    // sin que el usuario note diferencia real de "qué tan en vivo" se siente.
+    res.setHeader("Cache-Control", "s-maxage=90, stale-while-revalidate=300");
     return res.status(200).json(data);
   } catch (err) {
     return res.status(502).json({ error: "No se pudo conectar con la API del Mundial. Intenta más tarde.", data: [] });
