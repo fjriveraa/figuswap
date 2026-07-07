@@ -297,6 +297,9 @@ export default function WorldCup({ lang="es", t }) {
   // null = automático (la fase más reciente abierta, las anteriores colapsadas);
   // una vez que el usuario toca alguna, se vuelve control manual completo.
   const [expandedStages, setExpandedStages] = useState(null);
+  // Mismo patrón para el calendario: días ya jugados por completo arrancan colapsados,
+  // el día en curso y los futuros arrancan abiertos. Un toque en la fecha alterna cada uno.
+  const [expandedDays, setExpandedDays] = useState({});
   const [teams, setTeams] = useState([]);
   const [groups, setGroups] = useState([]);
   const [games, setGames] = useState([]);
@@ -417,20 +420,38 @@ export default function WorldCup({ lang="es", t }) {
               <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 12 }}>
                 🕐 {t?.viewerTimeNotice || "Los horarios ya están convertidos a la hora de tu dispositivo."}
               </div>
-              {Object.entries(gamesByDate).map(([date, matches]) => (
-                <div key={date}>
-                  {stageChangeAt[date] && (
-                    <div style={{ fontSize: 15, fontWeight: 900, color: "#ffd700", margin: "20px 0 10px", paddingTop: 12, borderTop: "1px solid #1e2a3a", display: "flex", alignItems: "center", gap: 8 }}>
-                      <span>{stageChangeAt[date].emoji}</span>
-                      <span>{t?.[stageChangeAt[date].key] || stageChangeAt[date].fallback}</span>
+              {Object.entries(gamesByDate).map(([date, matches]) => {
+                const allFinished = matches.every(m => matchStatus(m) === "finished");
+                const hasLive = matches.some(m => matchStatus(m) === "live");
+                // Default: días 100% jugados colapsados; el resto (hoy/futuro/en vivo) abiertos.
+                // Si el usuario ya tocó ese día, su elección manual manda sobre el default.
+                const isOpen = expandedDays[date] !== undefined ? expandedDays[date] : !allFinished;
+                const toggleDay = () => setExpandedDays({ ...expandedDays, [date]: !isOpen });
+                return (
+                  <div key={date}>
+                    {stageChangeAt[date] && (
+                      <div style={{ fontSize: 15, fontWeight: 900, color: "#ffd700", margin: "20px 0 10px", paddingTop: 12, borderTop: "1px solid #1e2a3a", display: "flex", alignItems: "center", gap: 8 }}>
+                        <span>{stageChangeAt[date].emoji}</span>
+                        <span>{t?.[stageChangeAt[date].key] || stageChangeAt[date].fallback}</span>
+                      </div>
+                    )}
+                    <div style={{ marginBottom: 10, background: "#0d1117", border: `1px solid ${hasLive ? "#f97316" : isOpen ? "#2a3a52" : "#1e2a3a"}`, borderRadius: 12, overflow: "hidden" }}>
+                      <button onClick={toggleDay} style={{ width: "100%", padding: "11px 14px", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ flex: 1, textAlign: "left", fontSize: 12, fontWeight: 800, color: hasLive ? "#f97316" : "#9ca3af", textTransform: "uppercase" }}>
+                          {dateLabels[date] || date}{hasLive ? " · 🔴" : ""}
+                        </span>
+                        <span style={{ fontSize: 11, color: "#4a5568", fontWeight: 700 }}>{matches.length}</span>
+                        <span style={{ color: "#4a5568", fontSize: 11 }}>{isOpen ? "▲" : "▼"}</span>
+                      </button>
+                      {isOpen && (
+                        <div style={{ padding: "0 14px 8px" }}>
+                          {matches.map((m) => <MatchRow key={m.id} match={m} teamsById={teamsById} lang={lang} t={t} />)}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", marginBottom: 4, textTransform: "uppercase" }}>{dateLabels[date] || date}</div>
-                    {matches.map((m) => <MatchRow key={m.id} match={m} teamsById={teamsById} lang={lang} t={t} />)}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </>
           )}
 
