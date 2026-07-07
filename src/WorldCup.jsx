@@ -25,6 +25,28 @@ const STADIUM_TIMEZONES = {
   "16": "America/Los_Angeles",  // SoFi Stadium, Los Ángeles
 };
 
+// Nombre, ciudad y país de los 16 estadios — datos fijos del torneo (mismos IDs que
+// STADIUM_TIMEZONES). Tabla local a propósito: evita una llamada extra a la API en cada
+// carga y funciona aunque la API de estadios esté caída.
+const STADIUM_INFO = {
+  "1":  { name: "Estadio Azteca", city: "Ciudad de México", country: "México" },
+  "2":  { name: "Estadio Akron", city: "Guadalajara", country: "México" },
+  "3":  { name: "Estadio BBVA", city: "Monterrey", country: "México" },
+  "4":  { name: "AT&T Stadium", city: "Dallas", country: "EE. UU." },
+  "5":  { name: "NRG Stadium", city: "Houston", country: "EE. UU." },
+  "6":  { name: "Arrowhead Stadium", city: "Kansas City", country: "EE. UU." },
+  "7":  { name: "Mercedes-Benz Stadium", city: "Atlanta", country: "EE. UU." },
+  "8":  { name: "Hard Rock Stadium", city: "Miami", country: "EE. UU." },
+  "9":  { name: "Gillette Stadium", city: "Boston", country: "EE. UU." },
+  "10": { name: "Lincoln Financial Field", city: "Filadelfia", country: "EE. UU." },
+  "11": { name: "MetLife Stadium", city: "Nueva York/Nueva Jersey", country: "EE. UU." },
+  "12": { name: "BMO Field", city: "Toronto", country: "Canadá" },
+  "13": { name: "BC Place", city: "Vancouver", country: "Canadá" },
+  "14": { name: "Lumen Field", city: "Seattle", country: "EE. UU." },
+  "15": { name: "Levi's Stadium", city: "San Francisco", country: "EE. UU." },
+  "16": { name: "SoFi Stadium", city: "Los Ángeles", country: "EE. UU." },
+};
+
 // Calcula el offset (en minutos) de una zona horaria respecto a UTC, para una fecha concreta —
 // "para una fecha concreta" es la parte importante: el mismo lugar puede tener offsets distintos
 // en junio (verano) vs. diciembre (invierno), y esto lo resuelve solo, usando Intl del navegador.
@@ -214,9 +236,11 @@ function MatchRow({ match, teamsById, lang, t }) {
   const toScore = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
   const viewerDate = stadiumTimeToDate(match.local_date, match.stadium_id);
   const viewerTime = formatViewerDateTime(viewerDate, lang);
+  const stadium = STADIUM_INFO[String(match.stadium_id)];
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 4px", borderBottom: "1px solid #1e2a3a" }}>
+    <div style={{ padding: "12px 4px 8px", borderBottom: "1px solid #1e2a3a" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
         <Flag team={home} />
         <span style={{ fontSize: 13, color: "#e8eaf6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -249,6 +273,12 @@ function MatchRow({ match, teamsById, lang, t }) {
         </span>
         <Flag team={away} />
       </div>
+      </div>
+      {stadium && (
+        <div style={{ fontSize: 9, color: "#4a5568", textAlign: "center", marginTop: 6 }}>
+          🏟️ {stadium.name} · {stadium.city}, {stadium.country}
+        </div>
+      )}
     </div>
   );
 }
