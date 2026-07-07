@@ -119,11 +119,26 @@ function normalizeType(raw) {
   return "group";
 }
 
+const LOCAL_CACHE_KEY = "figuswitch_worldcup_cache_v1";
+
+function loadLocalCache() {
+  try {
+    const raw = localStorage.getItem(LOCAL_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function saveLocalCache(data) {
+  try { localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(data)); } catch { /* localStorage lleno o bloqueado: no es crítico, se sigue sin caché */ }
+}
+
 function fetchWorldcup(type, signal) {
   // Fix (conv. 3): cache-busting — algunos navegadores/CDN cachean la respuesta del proxy
   // más de la cuenta; el timestamp fuerza que cada consulta sea única. La caché real de 30s
   // sigue viviendo en el servidor (api/worldcup.js), así que esto no aumenta el costo.
-  return fetch(`/api/worldcup?type=${type}&t=${Date.now()}`, { signal }).then(async (r) => {
+  // El cache-bust usa una ventana de 90s (igual a s-maxage del servidor) en vez de
+  // Date.now() puro — así el navegador SÍ puede reusar la respuesta cacheada del edge
+  // dentro de esa ventana, en lugar de forzar una llamada nueva cada vez sin necesidad.
+  return fetch(`/api/worldcup?type=${type}&t=${Math.floor(Date.now()/90000)}`, { signal }).then(async (r) => {
     const json = await r.json().catch(() => null);
     if (!r.ok || !json) throw new Error(json?.error || "Error al cargar datos del Mundial");
     return json;
@@ -374,28 +389,51 @@ export default function WorldCup({ lang="es", t }) {
   // Mismo patrón para el calendario: días ya jugados por completo arrancan colapsados,
   // el día en curso y los futuros arrancan abiertos. Un toque en la fecha alterna cada uno.
   const [expandedDays, setExpandedDays] = useState({});
-  const [teams, setTeams] = useState([]);
-  const [groups, setGroups] = useState([]);
-  const [games, setGames] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Mejora de velocidad: si hay una respuesta guardada de una visita anterior, se muestra
+  // de inmediato (sin pantalla de "Cargando...") mientras la actualización real viaja detrás.
+  const cached = typeof window !== "undefined" ? loadLocalCache() : null;
+  const [teams, setTeams] = useState(cached?.teams || []);
+  const [groups, setGroups] = useState(cached?.groups || []);
+  const [games, setGames] = useState(cached?.games || []);
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState(null);
 
   const load = useCallback((signal) => {
     setError(null);
-    Promise.all([fetchWorldcup("teams",signal), fetchWorldcup("groups",signal), fetchWorldcup("games",signal)])
-      .then(([teamsJson, groupsJson, gamesJson]) => {
-        setTeams(unwrap(teamsJson, "teams"));
-        setGroups(unwrap(groupsJson, "groups"));
-        setGames(unwrap(gamesJson, "games"));
-      })
-      .catch((err) => {
-        // Fix: si la petición se canceló (cambiaste de pestaña, o llegó la siguiente carga
-        // antes de que terminara la anterior), no es un error real — no hay que mostrar
-        // "API caída" ni tocar el estado de un componente que quizás ya no esté en pantalla.
-        if (err?.name === "AbortError") return;
-        setError(t?.worldcupError || "No se pudo actualizar la información del Mundial. Puede que la API esté caída temporalmente.");
-      })
-      .finally(() => { if (!signal?.aborted) setLoading(false); });
+    // Mejora de velocidad: antes se esperaba Promise.all() de las 3 llamadas juntas — si
+    // "teams" tardaba, "games" (lo que la gente realmente quiere ver primero) esperaba con
+    // ella aunque ya hubiera llegado. Ahora cada endpoint actualiza su estado apenas responde,
+    // de forma independiente — Partidos puede aparecer sin esperar a Equipos ni Grupos.
+    let pending = 3;
+    let anyError = false;
+    const done = () => { pending--; if (pending === 0 && !signal?.aborted) setLoading(false); };
+    const onFail = (err) => {
+      if (err?.name === "AbortError") return;
+      anyError = true;
+      setError(t?.worldcupError || "No se pudo actualizar la información del Mundial. Puede que la API esté caída temporalmente.");
+      done();
+    };
+
+    fetchWorldcup("games", signal).then(json => {
+      const parsed = unwrap(json, "games");
+      setGames(parsed);
+      if (!anyError) saveLocalCache({ ...loadLocalCache(), games: parsed });
+      done();
+    }).catch(onFail);
+
+    fetchWorldcup("groups", signal).then(json => {
+      const parsed = unwrap(json, "groups");
+      setGroups(parsed);
+      if (!anyError) saveLocalCache({ ...loadLocalCache(), groups: parsed });
+      done();
+    }).catch(onFail);
+
+    fetchWorldcup("teams", signal).then(json => {
+      const parsed = unwrap(json, "teams");
+      setTeams(parsed);
+      if (!anyError) saveLocalCache({ ...loadLocalCache(), teams: parsed });
+      done();
+    }).catch(onFail);
   }, []);
 
   useEffect(() => {
