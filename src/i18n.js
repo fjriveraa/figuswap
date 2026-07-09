@@ -2,6 +2,11 @@
 
 export const translations = {
   es: {
+    lockAlbum: "Bloquear álbum",
+    unlockAlbum: "Desbloquear álbum",
+    albumLockedNotice: "Álbum bloqueado — los toques no marcarán ni desmarcarán figuritas.",
+    albumLockedMsg: "🔒 Álbum bloqueado. Desbloquéalo para hacer cambios.",
+    finalStandings: "resultados finales",
     removeContact: "🗑️ Eliminar contacto",
     removeContactWarning: "¿Eliminar esta conexión? Dejará de ver tu álbum y tu WhatsApp, y tú el suyo.",
     removeContactConfirm: "Sí, eliminar",
@@ -306,6 +311,11 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Hola ${name}! 👋\n\nVi en FiguSwitch que podemos intercambiar:\n✅ Yo tengo ${iHave} que tú necesitas:\n${iHaveList}${iHaveMore > 0 ? `... y ${iHaveMore} más` : ""}\n\n🔁 Tú tienes ${theyHave} que yo necesito:\n${theyHaveList}${theyHaveMore > 0 ? `... y ${theyHaveMore} más` : ""}\n\n¿Coordinamos? ⚽🎴`,
   },
   en: {
+    lockAlbum: "Lock album",
+    unlockAlbum: "Unlock album",
+    albumLockedNotice: "Album locked — taps won't mark or unmark stickers.",
+    albumLockedMsg: "🔒 Album is locked. Unlock it to make changes.",
+    finalStandings: "final results",
     removeContact: "🗑️ Remove contact",
     removeContactWarning: "Remove this connection? They'll stop seeing your album and WhatsApp, and you theirs.",
     removeContactConfirm: "Yes, remove",
@@ -611,6 +621,11 @@ export const translations = {
   },
 
   it: {
+    lockAlbum: "Blocca album",
+    unlockAlbum: "Sblocca album",
+    albumLockedNotice: "Album bloccato — i tocchi non modificheranno le figurine.",
+    albumLockedMsg: "🔒 Album bloccato. Sbloccalo per apportare modifiche.",
+    finalStandings: "risultati finali",
     removeContact: "🗑️ Rimuovi contatto",
     removeContactWarning: "Rimuovere questa connessione? Non vedrà più il tuo album e WhatsApp, e tu il suo.",
     removeContactConfirm: "Sì, rimuovi",
@@ -915,6 +930,11 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Ciao ${name}! 👋\n\nHo visto su FiguSwitch che possiamo scambiare:\n✅ Io ho ${iHave} che ti servono:\n${iHaveList}${iHaveMore > 0 ? `... e altre ${iHaveMore}` : ""}\n\n🔁 Tu hai ${theyHave} che mi servono:\n${theyHaveList}${theyHaveMore > 0 ? `... e altre ${theyHaveMore}` : ""}\n\nCi organizziamo? ⚽🎴`,
   },
   fr: {
+    lockAlbum: "Verrouiller l'album",
+    unlockAlbum: "Déverrouiller l'album",
+    albumLockedNotice: "Album verrouillé — les appuis ne modifieront pas les vignettes.",
+    albumLockedMsg: "🔒 Album verrouillé. Déverrouille-le pour faire des changements.",
+    finalStandings: "résultats finaux",
     removeContact: "🗑️ Retirer le contact",
     removeContactWarning: "Retirer cette connexion ? Il/elle ne verra plus ton album ni ton WhatsApp, et toi non plus le sien.",
     removeContactConfirm: "Oui, retirer",
@@ -1219,6 +1239,11 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Salut ${name} ! 👋\n\nJ'ai vu sur FiguSwitch que nous pouvons échanger :\n✅ J'ai ${iHave} que tu cherches :\n${iHaveList}${iHaveMore > 0 ? `... et ${iHaveMore} de plus` : ""}\n\n🔁 Tu as ${theyHave} que je cherche :\n${theyHaveList}${theyHaveMore > 0 ? `... et ${theyHaveMore} de plus` : ""}\n\nOn organise ça ? ⚽🎴`,
   },
   pt: {
+    lockAlbum: "Bloquear álbum",
+    unlockAlbum: "Desbloquear álbum",
+    albumLockedNotice: "Álbum bloqueado — os toques não vão marcar nem desmarcar figurinhas.",
+    albumLockedMsg: "🔒 Álbum bloqueado. Desbloqueie para fazer alterações.",
+    finalStandings: "resultados finais",
     removeContact: "🗑️ Remover contato",
     removeContactWarning: "Remover esta conexão? Ele(a) deixará de ver seu álbum e WhatsApp, e você o dele(a).",
     removeContactConfirm: "Sim, remover",
@@ -1524,6 +1549,11 @@ export const translations = {
   },
 
   de: {
+    lockAlbum: "Album sperren",
+    unlockAlbum: "Album entsperren",
+    albumLockedNotice: "Album gesperrt — Tippen markiert oder entfernt keine Sticker.",
+    albumLockedMsg: "🔒 Album ist gesperrt. Zum Ändern entsperren.",
+    finalStandings: "Endergebnisse",
     removeContact: "🗑️ Kontakt entfernen",
     removeContactWarning: "Diese Verbindung entfernen? Die Person sieht dann dein Album und WhatsApp nicht mehr, und du ihre/seine nicht.",
     removeContactConfirm: "Ja, entfernen",
@@ -1824,6 +1854,11 @@ export const translations = {
   },
 
   ar: {
+    lockAlbum: "قفل الألبوم",
+    unlockAlbum: "فتح الألبوم",
+    albumLockedNotice: "الألبوم مقفل — لن تؤدي اللمسات إلى تحديد أو إلغاء تحديد الملصقات.",
+    albumLockedMsg: "🔒 الألبوم مقفل. قم بإلغاء القفل لإجراء تغييرات.",
+    finalStandings: "النتائج النهائية",
     removeContact: "🗑️ إزالة جهة الاتصال",
     removeContactWarning: "إزالة هذا الاتصال؟ لن يتمكن من رؤية ألبومك وواتساب بعد الآن، ولن تتمكن من رؤية ألبومه.",
     removeContactConfirm: "نعم، إزالة",
