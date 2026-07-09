@@ -102,7 +102,7 @@ function resizeImageToDataURL(file) {
   });
 }
 
-export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum, lang="es", t }) {
+export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum, lang="es", t, scanToken }) {
   const [step,setStep]=useState("upload");
   const [mode,setMode]=useState("entrada"); // "entrada" = registrar lo que tengo | "salida" = dar de baja lo que entregué en un cambio
   const [image,setImage]=useState(null);
@@ -132,13 +132,21 @@ export default function Scanner({ userNeeded={}, myStickers={}, onUpdateAlbum, l
 
   const scan=async()=>{
     if(!imageBase64)return;
+    if(!scanToken){
+      setError(t?.scanNoSession||"No se pudo verificar tu sesión. Intenta de nuevo en unos segundos.");
+      return;
+    }
     setLoading(true);setError(null);
     try{
       const res=await fetch("/api/scan",{
         method:"POST",
-        headers:{"Content-Type":"application/json"},
+        headers:{"Content-Type":"application/json",Authorization:`Bearer ${scanToken}`},
         body:JSON.stringify({image:imageBase64,mediaType})
       });
+      if(res.status===429){
+        const data=await res.json().catch(()=>({}));
+        throw new Error(data.error||t?.scanRateLimited||"Alcanzaste el límite de escaneos por hora. Intenta más tarde.");
+      }
       if(!res.ok)throw new Error(`Error ${res.status}`);
       const data=await res.json();
       const codes=data.stickers||[];
