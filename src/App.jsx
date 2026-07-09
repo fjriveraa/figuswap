@@ -439,7 +439,32 @@ const sbAuth = {
   },
   getStoredSession() { try{const s=localStorage.getItem("figuswap_session");return s?JSON.parse(s):null;}catch{return null;} },
   storeSession(s) { try{localStorage.setItem("figuswap_session",JSON.stringify(s));}catch{} },
-  clearSession() { try{localStorage.removeItem("figuswap_session");}catch{} }
+  clearSession() { try{localStorage.removeItem("figuswap_session");}catch{} },
+  // Sesión anónima de Supabase — invisible para el invitado, sin pedirle correo ni
+  // contraseña. Sirve únicamente para tener un token válido que api/scan.js pueda
+  // verificar y usar como límite de velocidad; el invitado NO se convierte en cuenta
+  // registrada por esto, sigue siendo invitado en todo lo demás.
+  // Requiere: en Supabase, Authentication → Settings → activar "Allow anonymous sign-ins".
+  async ensureGuestScanToken() {
+    try {
+      const cached = localStorage.getItem("figuswap_guest_scan_session");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.access_token) return parsed.access_token;
+      }
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (data?.access_token) {
+        localStorage.setItem("figuswap_guest_scan_session", JSON.stringify(data));
+        return data.access_token;
+      }
+      return null;
+    } catch { return null; }
+  }
 };
 
 // ─── AUTH PAGE ────────────────────────────────────────────────────────────────
@@ -1035,6 +1060,15 @@ function FiguSwapInner() {
   // pedir nada al inicio. Solo cuando intenta algo que de verdad requiere identidad (Red,
   // guardar para siempre) se le muestra el login, mediante showAuthOverlay.
   const [isGuest,setIsGuest]=useState(false);
+  // Token de sesión anónima de Supabase, solo para invitados — usado únicamente para
+  // autenticar llamadas al Escáner sin pedirles registrarse. Se obtiene una sola vez
+  // y se reutiliza mientras dure la sesión del navegador.
+  const [guestScanToken,setGuestScanToken]=useState(null);
+  useEffect(()=>{
+    if(isGuest && !guestScanToken){
+      sbAuth.ensureGuestScanToken().then(t=>{ if(t) setGuestScanToken(t); });
+    }
+  },[isGuest,guestScanToken]);
   // "Agregar a pantalla de inicio": Android/Chrome sí permite activar el instalador nativo
   // por código (capturando beforeinstallprompt); iOS/Safari NUNCA lo permite — Apple no expone
   // esa API — así que ahí solo podemos mostrar instrucciones paso a paso, no un botón mágico.
@@ -1484,7 +1518,7 @@ function FiguSwapInner() {
             <button onClick={()=>setShowAuthOverlay(true)} style={{padding:"12px 24px",background:"linear-gradient(90deg,#ffd700,#f59e0b)",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,cursor:"pointer"}}>{t.createAccount}</button>
           </div>
         ):(
-          <Scanner lang={lang} t={t} userNeeded={userNeeded} myStickers={stickers} onUpdateAlbum={(code,num,state,qty,price,customToast)=>{
+          <Scanner lang={lang} t={t} userNeeded={userNeeded} myStickers={stickers} scanToken={isGuest?guestScanToken:session?.token} onUpdateAlbum={(code,num,state,qty,price,customToast)=>{
             // Cada figurita confirmada por el Escáner cuenta hacia el límite de invitado — no
             // cuenta fotos, cuenta resultados aplicados, que es lo que realmente cuesta (la
             // llamada a la IA ya se hizo antes de esto, pero este es el momento estable para contar).
