@@ -1053,6 +1053,19 @@ function FiguSwapInner() {
   const [page,setPage]=useState("album");
   const [albumTab,setAlbumTab]=useState("all");
   const [stickers,setStickers]=useState(buildEmpty);
+  // Bloqueo del álbum: evita marcar/desmarcar figuritas por toques accidentales (muy común
+  // en el bolsillo o al pasar el teléfono a alguien). Persiste en localStorage para que no
+  // se "olvide" el bloqueo al cerrar y reabrir la app.
+  const [albumLocked,setAlbumLocked]=useState(()=>{
+    try { return localStorage.getItem("figuswap_album_locked")==="1"; } catch { return false; }
+  });
+  const toggleAlbumLock=()=>{
+    setAlbumLocked(prev=>{
+      const next=!prev;
+      try { localStorage.setItem("figuswap_album_locked", next?"1":"0"); } catch {}
+      return next;
+    });
+  };
   const [search,setSearch]=useState("");
   const [toast,setToast]=useState(null);
   const [showOnboarding,setShowOnboarding]=useState(false);
@@ -1261,6 +1274,10 @@ function FiguSwapInner() {
   };
 
   const handleAction=(code,num,state,qty,price,customToast)=>{
+    if(albumLocked){
+      showToastMsg(t.albumLockedMsg||"🔒 Álbum bloqueado. Desbloquéalo para hacer cambios.");
+      return;
+    }
     if(!ALBUM[code]||!stateMap[state]){
       showToastMsg(t.unknownTeamOrState);
       return;
@@ -1403,9 +1420,23 @@ function FiguSwapInner() {
           <>
             <div style={{background:"#0d1117",border:"1px solid #1e2a3a",borderRadius:14,padding:14,marginBottom:12}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                <span style={{fontWeight:800,color:"#e8eaf6",fontSize:14}}>{t.myAlbum}</span>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontWeight:800,color:"#e8eaf6",fontSize:14}}>{t.myAlbum}</span>
+                  <button
+                    onClick={toggleAlbumLock}
+                    title={albumLocked?(t.unlockAlbum||"Desbloquear álbum"):(t.lockAlbum||"Bloquear álbum")}
+                    style={{background:albumLocked?"#3a2a0a":"transparent",border:albumLocked?"1px solid #f59e0b":"1px solid #374151",borderRadius:8,padding:"3px 7px",cursor:"pointer",fontSize:12,lineHeight:1}}
+                  >
+                    {albumLocked?"🔒":"🔓"}
+                  </button>
+                </div>
                 <span style={{fontWeight:900,color:"#ffd700",fontSize:16}}>{albumStats.pct}%</span>
               </div>
+              {albumLocked && (
+                <div style={{fontSize:11,color:"#fbbf24",background:"#1e1500",border:"1px solid #92400e",borderRadius:8,padding:"6px 10px",marginBottom:10}}>
+                  🔒 {t.albumLockedNotice||"Álbum bloqueado — los toques no marcarán ni desmarcarán figuritas."}
+                </div>
+              )}
               <div style={{height:6,background:"#1e2a3a",borderRadius:3,overflow:"hidden",marginBottom:10}}>
                 <div style={{height:"100%",width:`${albumStats.pct}%`,background:"linear-gradient(90deg,#ffd700,#f59e0b)",borderRadius:3}}/>
               </div>
