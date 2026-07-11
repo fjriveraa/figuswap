@@ -2,6 +2,9 @@
 
 export const translations = {
   es: {
+    guestBannerTitleShort: "Modo invitado",
+    guestBannerSub: "Tu álbum se puede perder si cambias de teléfono",
+    importBannerSubShort: "No la escribas de nuevo — impórtala en segundos",
     importBannerTitleShort: "¿Tienes tu lista?",
     importBannerCtaShort: "Importar",
     importBannerTitle: "¿Ya tienes tu lista armada?",
@@ -327,6 +330,9 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Hola ${name}! 👋\n\nVi en FiguSwitch que podemos intercambiar:\n✅ Yo tengo ${iHave} que tú necesitas:\n${iHaveList}${iHaveMore > 0 ? `... y ${iHaveMore} más` : ""}\n\n🔁 Tú tienes ${theyHave} que yo necesito:\n${theyHaveList}${theyHaveMore > 0 ? `... y ${theyHaveMore} más` : ""}\n\n¿Coordinamos? ⚽🎴`,
   },
   en: {
+    guestBannerTitleShort: "Guest mode",
+    guestBannerSub: "Your album could be lost if you switch phones",
+    importBannerSubShort: "Don't type it again — import it in seconds",
     importBannerTitleShort: "Have your list?",
     importBannerCtaShort: "Import",
     importBannerTitle: "Already have your list ready?",
@@ -653,6 +659,9 @@ export const translations = {
   },
 
   it: {
+    guestBannerTitleShort: "Modalità ospite",
+    guestBannerSub: "Il tuo album potrebbe perdersi se cambi telefono",
+    importBannerSubShort: "Non riscriverla — importala in pochi secondi",
     importBannerTitleShort: "Hai la tua lista?",
     importBannerCtaShort: "Importa",
     importBannerTitle: "Hai già la tua lista pronta?",
@@ -978,6 +987,9 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Ciao ${name}! 👋\n\nHo visto su FiguSwitch che possiamo scambiare:\n✅ Io ho ${iHave} che ti servono:\n${iHaveList}${iHaveMore > 0 ? `... e altre ${iHaveMore}` : ""}\n\n🔁 Tu hai ${theyHave} che mi servono:\n${theyHaveList}${theyHaveMore > 0 ? `... e altre ${theyHaveMore}` : ""}\n\nCi organizziamo? ⚽🎴`,
   },
   fr: {
+    guestBannerTitleShort: "Mode invité",
+    guestBannerSub: "Ton album pourrait être perdu si tu changes de téléphone",
+    importBannerSubShort: "Ne la retape pas — importe-la en quelques secondes",
     importBannerTitleShort: "Tu as ta liste ?",
     importBannerCtaShort: "Importer",
     importBannerTitle: "Tu as déjà ta liste prête ?",
@@ -1303,6 +1315,9 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Salut ${name} ! 👋\n\nJ'ai vu sur FiguSwitch que nous pouvons échanger :\n✅ J'ai ${iHave} que tu cherches :\n${iHaveList}${iHaveMore > 0 ? `... et ${iHaveMore} de plus` : ""}\n\n🔁 Tu as ${theyHave} que je cherche :\n${theyHaveList}${theyHaveMore > 0 ? `... et ${theyHaveMore} de plus` : ""}\n\nOn organise ça ? ⚽🎴`,
   },
   pt: {
+    guestBannerTitleShort: "Modo convidado",
+    guestBannerSub: "Seu álbum pode se perder se você trocar de celular",
+    importBannerSubShort: "Não digite de novo — importe em segundos",
     importBannerTitleShort: "Tem sua lista?",
     importBannerCtaShort: "Importar",
     importBannerTitle: "Já tem sua lista pronta?",
@@ -1629,6 +1644,9 @@ export const translations = {
   },
 
   de: {
+    guestBannerTitleShort: "Gastmodus",
+    guestBannerSub: "Dein Album könnte verloren gehen, wenn du das Handy wechselst",
+    importBannerSubShort: "Nicht neu eintippen — in Sekunden importieren",
     importBannerTitleShort: "Hast du deine Liste?",
     importBannerCtaShort: "Importieren",
     importBannerTitle: "Hast du deine Liste schon fertig?",
@@ -1950,6 +1968,9 @@ export const translations = {
   },
 
   ar: {
+    guestBannerTitleShort: "وضع الضيف",
+    guestBannerSub: "قد يُفقد ألبومك إذا غيّرت هاتفك",
+    importBannerSubShort: "لا تكتبها من جديد — استوردها خلال ثوانٍ",
     importBannerTitleShort: "هل لديك قائمتك؟",
     importBannerCtaShort: "استيراد",
     importBannerTitle: "هل قائمتك جاهزة بالفعل؟",
