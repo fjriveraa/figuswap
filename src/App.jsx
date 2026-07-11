@@ -1536,7 +1536,7 @@ function FiguSwapInner() {
           }}/>
         ))}
 
-        {page==="worldcup"&&<WorldCup lang={lang} t={t} onShowToast={showToastMsg}/>}
+        {page==="worldcup"&&<WorldCup lang={lang} t={t} onShowToast={showToastMsg} myAlbum={stickers}/>}
 
         {page==="contacts"&&(isGuest?(
           <div style={{padding:"60px 24px",textAlign:"center"}}>
