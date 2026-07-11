@@ -1109,6 +1109,10 @@ function FiguSwapInner() {
   const [toast,setToast]=useState(null);
   const [showOnboarding,setShowOnboarding]=useState(false);
   const [showImporter,setShowImporter]=useState(false);
+  // Banner de invitación a importar: se cierra solo apenas el álbum deja de estar vacío,
+  // y también se puede cerrar a mano (respeta a quien prefiere empezar manual) — una vez
+  // cerrado a mano, no vuelve a insistir en esta sesión del navegador.
+  const [importBannerDismissed,setImportBannerDismissed]=useState(false);
   const [showShare,setShowShare]=useState(false);
   const [showQR,setShowQR]=useState(false);
   const [whatsappNumber,setWhatsappNumber]=useState("");
@@ -1457,6 +1461,25 @@ function FiguSwapInner() {
       <div style={{maxWidth:720,margin:"0 auto",padding:16}}>
         {page==="album"&&(
           <>
+            {albumStats.have+albumStats.repeated+albumStats.sell+albumStats.trade+albumStats.auction===0 && !importBannerDismissed && (
+              // Reducción de esfuerzo percibido: el mensaje apunta al dolor real (reescribir
+              // a mano), no a "importar" en abstracto. El número concreto ("10 segundos")
+              // genera más credibilidad que "rápido y fácil". Salida clara y fácil para
+              // quien prefiere empezar manual — nunca bloquea, solo invita.
+              <div style={{background:"linear-gradient(135deg,#1a1500,#0d1117)",border:"1px solid #f59e0b",borderRadius:14,padding:"14px 16px",marginBottom:12,position:"relative"}}>
+                <button onClick={()=>setImportBannerDismissed(true)} style={{position:"absolute",top:10,right:10,background:"none",border:"none",color:"#6b7280",fontSize:16,cursor:"pointer",lineHeight:1,padding:4}}>✕</button>
+                <div style={{display:"flex",alignItems:"flex-start",gap:10,paddingRight:20}}>
+                  <span style={{fontSize:24}}>📋</span>
+                  <div>
+                    <div style={{fontWeight:800,color:"#e8eaf6",fontSize:14,marginBottom:3}}>{t.importBannerTitle||"¿Ya tienes tu lista armada?"}</div>
+                    <div style={{fontSize:12,color:"#9ca3af",marginBottom:10}}>{t.importBannerSub||"No la escribas de nuevo — impórtala en 10 segundos"}</div>
+                    <button onClick={()=>setShowImporter(true)} style={{padding:"9px 16px",background:"#ffd700",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,fontSize:13,cursor:"pointer"}}>
+                      {t.importBannerCta||"Importar mi lista"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             <div style={{background:"#0d1117",border:"1px solid #1e2a3a",borderRadius:14,padding:14,marginBottom:12}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
