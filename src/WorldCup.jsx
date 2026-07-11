@@ -351,7 +351,7 @@ function MatchRow({ match, teamsById, lang, t }) {
   );
 }
 
-function GroupTable({ group, teamsById, games, t, lang }) {
+function GroupTable({ group, teamsById, games, t, lang, favorites, onToggleFavorite }) {
   // Misma API, mismo patrón: los números pueden llegar como texto, incluido el string "null".
   const toNum = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
   const rows = (group.teams || []).map((gt) => {
@@ -371,11 +371,18 @@ function GroupTable({ group, teamsById, games, t, lang }) {
       <div style={{ fontWeight: 800, color: "#ffd700", fontSize: 13, marginBottom: 6 }}>
         {t?.group || "Grupo"} {getGroupLetter(group, teamsById)}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 28px 28px 28px 28px 32px", gap: 4, fontSize: 10, color: "#4a5568", padding: "0 4px", marginBottom: 4 }}>
-        <span>{t?.team || "Equipo"}</span><span style={{ textAlign: "center" }}>{t?.played || "PJ"}</span><span style={{ textAlign: "center" }}>{t?.goalsFor || "GF"}</span><span style={{ textAlign: "center" }}>{t?.goalsAgainst || "GC"}</span><span style={{ textAlign: "center" }}>{t?.goalDifference || "DG"}</span><span style={{ textAlign: "center" }}>{t?.points || "Pts"}</span>
+      <div style={{ display: "grid", gridTemplateColumns: "22px 1fr 28px 28px 28px 28px 32px", gap: 4, fontSize: 10, color: "#4a5568", padding: "0 4px", marginBottom: 4 }}>
+        <span></span><span>{t?.team || "Equipo"}</span><span style={{ textAlign: "center" }}>{t?.played || "PJ"}</span><span style={{ textAlign: "center" }}>{t?.goalsFor || "GF"}</span><span style={{ textAlign: "center" }}>{t?.goalsAgainst || "GC"}</span><span style={{ textAlign: "center" }}>{t?.goalDifference || "DG"}</span><span style={{ textAlign: "center" }}>{t?.points || "Pts"}</span>
       </div>
       {rows.map((r, i) => (
-        <div key={r.team_id} style={{ display: "grid", gridTemplateColumns: "1fr 28px 28px 28px 28px 32px", gap: 4, alignItems: "center", padding: "6px 4px", background: i < 2 ? "#0a1a0a" : "transparent", borderRadius: 6 }}>
+        <div key={r.team_id} style={{ display: "grid", gridTemplateColumns: "22px 1fr 28px 28px 28px 28px 32px", gap: 4, alignItems: "center", padding: "6px 4px", background: i < 2 ? "#0a1a0a" : "transparent", borderRadius: 6 }}>
+          <button
+            onClick={() => onToggleFavorite?.(String(r.team_id), (r.team?.fifa_code&&getTeamName(r.team.fifa_code,lang)) || r.team?.name_en)}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1 }}
+            title={t?.favoriteToggle || "Marcar/quitar como favorito"}
+          >
+            {favorites?.includes(String(r.team_id)) ? "⭐" : "☆"}
+          </button>
           <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#e8eaf6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             <Flag team={r.team} />{(r.team?.fifa_code&&getTeamName(r.team.fifa_code,lang)) || r.team?.name_en || r.team?.fifa_code || "—"}
           </span>
@@ -392,6 +399,33 @@ function GroupTable({ group, teamsById, games, t, lang }) {
 
 export default function WorldCup({ lang="es", t }) {
   const [subTab, setSubTab] = useState("calendar"); // calendar | table
+  const FAVORITES_KEY = "figuswitch_favorite_teams";
+  const MAX_FAVORITES = 3;
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      const raw = localStorage.getItem(FAVORITES_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  });
+  const [favoriteMsg, setFavoriteMsg] = useState(null);
+  const toggleFavorite = (teamId, teamName) => {
+    setFavorites(prev => {
+      let next;
+      if (prev.includes(teamId)) {
+        next = prev.filter(id => id !== teamId);
+      } else {
+        if (prev.length >= MAX_FAVORITES) {
+          setFavoriteMsg(t?.favoriteMaxReached || `Ya tienes ${MAX_FAVORITES} favoritos — quita uno primero.`);
+          setTimeout(() => setFavoriteMsg(null), 3000);
+          return prev; // sin cambios: no se agrega el 4to
+        }
+        next = [...prev, teamId];
+      }
+      try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(next)); } catch { /* localStorage bloqueado: se pierde al recargar, no es crítico */ }
+      return next;
+    });
+  };
   // null = automático (la fase más reciente abierta, las anteriores colapsadas);
   // una vez que el usuario toca alguna, se vuelve control manual completo.
   // Nota: expandedStages (para la llave eliminatoria en Posiciones) se quitó junto con
@@ -509,7 +543,7 @@ export default function WorldCup({ lang="es", t }) {
   return (
     <div>
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-        {[["calendar", t?.matches || "📅 Partidos"], ["table", t?.standings || "📊 Posiciones"], ["scorers", t?.topScorers || "⚽ Goleadores"]].map(([key, label]) => (
+        {[["calendar", t?.matches || "📅 Partidos"], ["table", t?.favoriteTab || "⭐ Favorito"], ["scorers", t?.topScorers || "⚽ Goleadores"]].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setSubTab(key)}
@@ -617,14 +651,97 @@ export default function WorldCup({ lang="es", t }) {
             // porque duplicaba exactamente lo que ya vive en la pestaña "Partidos" — no
             // aportaba nada nuevo, solo el mismo MatchRow repetido en 2 lugares. Esta
             // pestaña ahora se enfoca únicamente en lo que SÍ es único: la tabla de puntos
-            // por grupo. El espacio liberado queda preparado para agregar estadísticas del
-            // equipo favorito una vez exista el selector de favoritos.
+            // por grupo, más las estadísticas personalizadas de tus equipos favoritos arriba.
+
+            // Para cada favorito: encuentra su fila calculada dentro de su grupo (posición,
+            // PJ/GF/GA/Pts) y su próximo partido programado, si existe. No se afirma
+            // "eliminado" en ningún caso — la estructura de la llave con etiquetas tipo
+            // "3rd Group D/E/I/J/L" es ambigua de resolver con certeza, así que si no hay
+            // próximo partido visible todavía, se muestra un mensaje neutral en vez de
+            // arriesgar una afirmación incorrecta.
+            const favoriteCards = favorites.map(teamId => {
+              const team = teamsById[teamId];
+              if (!team) return null;
+              let groupInfo = null;
+              for (const g of groups) {
+                const gt = (g.teams || []).find(x => String(x.team_id) === teamId);
+                if (gt) {
+                  const toNum = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+                  const rows = (g.teams || []).map(x => {
+                    const gf = toNum(x.gf), ga = toNum(x.ga);
+                    return { team_id: String(x.team_id), gf, ga, gd: gf - ga, pts: toNum(x.pts) };
+                  });
+                  rows.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+                  const position = rows.findIndex(r => r.team_id === teamId) + 1;
+                  const row = rows.find(r => r.team_id === teamId);
+                  groupInfo = { letter: getGroupLetter(g, teamsById), position, ...row };
+                  break;
+                }
+              }
+              const upcoming = games
+                .filter(g => (String(g.home_team_id) === teamId || String(g.away_team_id) === teamId) && matchStatus(g) !== "finished")
+                .sort((a, b) => {
+                  const da = stadiumTimeToDate(a.local_date, a.stadium_id);
+                  const db = stadiumTimeToDate(b.local_date, b.stadium_id);
+                  if (!da || !db) return 0;
+                  return da - db;
+                })[0] || null;
+              return { teamId, team, groupInfo, upcoming };
+            }).filter(Boolean);
+
             return (
               <>
+                <div style={{ marginBottom: 20 }}>
+                  {favoriteMsg && (
+                    <div style={{ fontSize: 12, color: "#fbbf24", background: "#1e1500", border: "1px solid #92400e", borderRadius: 10, padding: "8px 12px", marginBottom: 10 }}>
+                      ⚠️ {favoriteMsg}
+                    </div>
+                  )}
+                  {favoriteCards.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "20px 16px", background: "#0d1117", border: "1px dashed #374151", borderRadius: 14 }}>
+                      <div style={{ fontSize: 26, marginBottom: 6 }}>⭐</div>
+                      <div style={{ fontWeight: 800, color: "#e8eaf6", fontSize: 14, marginBottom: 4 }}>{t?.selectFavoriteTitle || "Selecciona tu favorito"}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>{t?.selectFavoriteSub || "Toca la estrella junto a tu selección para ver sus estadísticas aquí"}</div>
+                    </div>
+                  ) : (
+                    favoriteCards.map(({ teamId, team, groupInfo, upcoming }) => {
+                      const teamLabel = (team?.fifa_code && getTeamName(team.fifa_code, lang)) || team?.name_en || "—";
+                      const isLive = upcoming && matchStatus(upcoming) === "live";
+                      return (
+                        <div key={teamId} style={{ marginBottom: 10, background: "#0d1117", border: `1px solid ${isLive ? "#f97316" : "#ffd700"}`, borderRadius: 14, padding: "14px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                            <Flag team={team} />
+                            <span style={{ fontWeight: 900, fontSize: 15, color: "#e8eaf6", flex: 1 }}>{teamLabel}</span>
+                            <button onClick={() => toggleFavorite(teamId)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16 }}>⭐</button>
+                          </div>
+                          {groupInfo && (
+                            <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 4 }}>
+                              {groupInfo.position}° {t?.group || "Grupo"} {groupInfo.letter} · {groupInfo.pts} {t?.points || "Pts"} · {groupInfo.gf}-{groupInfo.ga}
+                            </div>
+                          )}
+                          {upcoming ? (
+                            <div style={{ fontSize: 12, color: isLive ? "#f97316" : "#6b7280", fontWeight: isLive ? 800 : 400 }}>
+                              {isLive ? "🔴 " : ""}{t?.favoriteNextMatch || "Próximo partido"}: {(() => {
+                                const home = teamsById[upcoming.home_team_id];
+                                const away = teamsById[upcoming.away_team_id];
+                                const opponent = String(upcoming.home_team_id) === teamId ? away : home;
+                                const oppLabel = (opponent?.fifa_code && getTeamName(opponent.fifa_code, lang)) || opponent?.name_en || upcoming.home_team_label || upcoming.away_team_label || "—";
+                                const viewerTime = formatViewerDateTime(stadiumTimeToDate(upcoming.local_date, upcoming.stadium_id), lang);
+                                return `vs ${oppLabel}${viewerTime ? ` · ${viewerTime.dayLabel} ${viewerTime.timeLabel}` : ""}`;
+                              })()}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 12, color: "#4a5568" }}>{t?.favoriteNoMatch || "Sin próximo partido programado por ahora"}</div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
                 {[...groups]
                   .sort((a, b) => getGroupLetter(a, teamsById).localeCompare(getGroupLetter(b, teamsById)))
                   .map((g, i) => (
-                    <GroupTable key={g.group || g.teams?.[0]?.team_id || i} group={g} teamsById={teamsById} games={games} t={t} lang={lang} />
+                    <GroupTable key={g.group || g.teams?.[0]?.team_id || i} group={g} teamsById={teamsById} games={games} t={t} lang={lang} favorites={favorites} onToggleFavorite={toggleFavorite} />
                   ))}
               </>
             );
