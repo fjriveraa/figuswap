@@ -1449,7 +1449,7 @@ function FiguSwapInner() {
         </div>
       </div>
 
-      {isGuest&&(
+      {isGuest&&!(page==="album"&&albumStats.pct===0)&&(
         <div style={{maxWidth:720,margin:"0 auto",padding:"10px 16px 0"}}>
           <div style={{display:"flex",alignItems:"center",gap:10,background:"#1a1500",border:"1px solid #92400e",borderRadius:10,padding:"10px 12px"}}>
             <span style={{fontSize:12,color:"#fbbf24",flex:1}}>{t.guestBannerText}</span>
@@ -1461,7 +1461,26 @@ function FiguSwapInner() {
       <div style={{maxWidth:720,margin:"0 auto",padding:16}}>
         {page==="album"&&(
           <>
-            {albumStats.have+albumStats.repeated+albumStats.sell+albumStats.trade+albumStats.auction===0 && !importBannerDismissed && (
+            {albumStats.pct===0 && !importBannerDismissed && isGuest && (
+              // Combinación de las 2 invitaciones en tarjetas semi-cuadradas lado a lado —
+              // en vez de 2 franjas horizontales apiladas, se ven como un solo bloque de
+              // decisión con 2 caminos claros, ahorra espacio vertical y no se siente como
+              // "la app insistiendo dos veces seguidas" con el mismo tono repetido.
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                <div style={{background:"#1a1500",border:"1px solid #92400e",borderRadius:14,padding:"14px 12px",textAlign:"center"}}>
+                  <div style={{fontSize:22,marginBottom:6}}>👤</div>
+                  <div style={{fontWeight:800,color:"#e8eaf6",fontSize:13,marginBottom:8}}>{t.guestBannerText}</div>
+                  <button onClick={()=>setShowAuthOverlay(true)} style={{width:"100%",padding:"9px 8px",background:"#ffd700",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,fontSize:12,cursor:"pointer"}}>{t.guestBannerCta}</button>
+                </div>
+                <div style={{background:"linear-gradient(135deg,#1a1500,#0d1117)",border:"1px solid #f59e0b",borderRadius:14,padding:"14px 12px",textAlign:"center",position:"relative"}}>
+                  <button onClick={()=>setImportBannerDismissed(true)} style={{position:"absolute",top:6,right:8,background:"none",border:"none",color:"#6b7280",fontSize:14,cursor:"pointer",lineHeight:1,padding:2}}>✕</button>
+                  <div style={{fontSize:22,marginBottom:6}}>📋</div>
+                  <div style={{fontWeight:800,color:"#e8eaf6",fontSize:13,marginBottom:8}}>{t.importBannerTitleShort||"¿Tienes tu lista?"}</div>
+                  <button onClick={()=>setShowImporter(true)} style={{width:"100%",padding:"9px 8px",background:"#ffd700",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,fontSize:12,cursor:"pointer"}}>{t.importBannerCtaShort||"Importar"}</button>
+                </div>
+              </div>
+            )}
+            {albumStats.pct===0 && !importBannerDismissed && !isGuest && (
               // Reducción de esfuerzo percibido: el mensaje apunta al dolor real (reescribir
               // a mano), no a "importar" en abstracto. El número concreto ("10 segundos")
               // genera más credibilidad que "rápido y fácil". Salida clara y fácil para
