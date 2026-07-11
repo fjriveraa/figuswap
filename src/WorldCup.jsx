@@ -397,7 +397,7 @@ function GroupTable({ group, teamsById, games, t, lang, favorites, onToggleFavor
   );
 }
 
-export default function WorldCup({ lang="es", t, onShowToast, myAlbum }) {
+export default function WorldCup({ lang="es", t, onShowToast, myAlbum, stickerNames }) {
   const [subTab, setSubTab] = useState("calendar"); // calendar | table
   const FAVORITES_KEY = "figuswitch_favorite_teams";
   const MAX_FAVORITES = 3;
@@ -722,10 +722,16 @@ export default function WorldCup({ lang="es", t, onShowToast, myAlbum }) {
               let albumProgress = null;
               const code = team.fifa_code;
               if (myAlbum && code && myAlbum[code]) {
-                const entries = Object.values(myAlbum[code]);
+                const entries = Object.entries(myAlbum[code]); // [ [num, {state,...}], ... ]
                 const total = entries.length;
-                const have = entries.filter(s => s.state !== "missing").length;
-                if (total > 0) albumProgress = { have, total };
+                const have = entries.filter(([, s]) => s.state !== "missing").length;
+                // Si falta exactamente 1, se muestra cuál es (con nombre real si existe en
+                // el catálogo); con 2+ faltantes no se elige una al azar para no confundir.
+                const missing = entries.filter(([, s]) => s.state === "missing").map(([num]) => num);
+                const nextMissing = missing.length === 1
+                  ? { num: missing[0], name: stickerNames?.[code]?.[missing[0]] || null }
+                  : null;
+                if (total > 0) albumProgress = { have, total, nextMissing };
               }
 
               return { teamId, team, groupInfo, upcoming, topScorer, recentForm, albumProgress };
@@ -785,8 +791,19 @@ export default function WorldCup({ lang="es", t, onShowToast, myAlbum }) {
                             </div>
                           )}
                           {albumProgress && (
-                            <div style={{ fontSize: 12, color: "#ffd700", fontWeight: 700 }}>
-                              📖 {t?.favoriteAlbumProgress || "Tu álbum"}: {albumProgress.have}/{albumProgress.total}
+                            <div style={{ marginTop: 4 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
+                                <span style={{ fontSize: 11, color: "#ffd700", fontWeight: 800 }}>📖 {t?.favoriteAlbumProgress || "Tu álbum"}</span>
+                                <span style={{ fontSize: 11, color: "#9ca3af" }}>{albumProgress.have}/{albumProgress.total}</span>
+                              </div>
+                              <div style={{ width: "100%", height: 6, background: "#1e2a3a", borderRadius: 4, overflow: "hidden" }}>
+                                <div style={{ width: `${Math.round((albumProgress.have / albumProgress.total) * 100)}%`, height: "100%", background: "linear-gradient(90deg, #f59e0b, #ffd700)", borderRadius: 4 }} />
+                              </div>
+                              {albumProgress.nextMissing && (
+                                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
+                                  {t?.favoriteOnlyMissing || "Solo te falta"}: {albumProgress.nextMissing.name || `#${albumProgress.nextMissing.num}`}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
