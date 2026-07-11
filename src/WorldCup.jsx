@@ -397,7 +397,7 @@ function GroupTable({ group, teamsById, games, t, lang, favorites, onToggleFavor
   );
 }
 
-export default function WorldCup({ lang="es", t, onShowToast }) {
+export default function WorldCup({ lang="es", t, onShowToast, myAlbum }) {
   const [subTab, setSubTab] = useState("calendar"); // calendar | table
   const FAVORITES_KEY = "figuswitch_favorite_teams";
   const MAX_FAVORITES = 3;
@@ -688,7 +688,47 @@ export default function WorldCup({ lang="es", t, onShowToast }) {
                   if (!da || !db) return 0;
                   return da - db;
                 })[0] || null;
-              return { teamId, team, groupInfo, upcoming };
+
+              // Goleador del equipo: reutiliza computeTopScorers (ya deduplicado y con nombres
+              // corregidos) y filtra por el nombre real del equipo — sin recalcular nada nuevo.
+              const teamScorers = computeTopScorers(games).filter(s => s.team === team.name_en);
+              const topScorer = teamScorers[0] || null;
+
+              // Racha reciente: últimos partidos ya jugados de este equipo, más recientes primero.
+              const recentForm = games
+                .filter(g => (String(g.home_team_id) === teamId || String(g.away_team_id) === teamId) && matchStatus(g) === "finished")
+                .sort((a, b) => {
+                  const da = stadiumTimeToDate(a.local_date, a.stadium_id);
+                  const db = stadiumTimeToDate(b.local_date, b.stadium_id);
+                  if (!da || !db) return 0;
+                  return db - da; // más reciente primero
+                })
+                .slice(0, 5)
+                .map(g => {
+                  const isHome = String(g.home_team_id) === teamId;
+                  const ourScore = Number(isHome ? g.home_score : g.away_score) || 0;
+                  const theirScore = Number(isHome ? g.away_score : g.home_score) || 0;
+                  if (ourScore > theirScore) return "W";
+                  if (ourScore < theirScore) return "L";
+                  return "D";
+                })
+                .reverse(); // mostrar en orden cronológico (más viejo -> más reciente)
+
+              // Progreso de álbum: cuenta cuántas figuritas de este equipo ya tiene el usuario.
+              // Se usa el fifa_code (código de 3 letras) como llave hacia el álbum — mismo
+              // código que ya usa el resto de la app (Escáner, Importador). Si myAlbum no
+              // llegó todavía (invitado sin sesión, o cargando), simplemente no se muestra
+              // esta parte de la tarjeta, en vez de mostrar un dato falso de "0/0".
+              let albumProgress = null;
+              const code = team.fifa_code;
+              if (myAlbum && code && myAlbum[code]) {
+                const entries = Object.values(myAlbum[code]);
+                const total = entries.length;
+                const have = entries.filter(s => s.state !== "missing").length;
+                if (total > 0) albumProgress = { have, total };
+              }
+
+              return { teamId, team, groupInfo, upcoming, topScorer, recentForm, albumProgress };
             }).filter(Boolean);
 
             return (
@@ -701,9 +741,10 @@ export default function WorldCup({ lang="es", t, onShowToast }) {
                       <div style={{ fontSize: 12, color: "#6b7280" }}>{t?.selectFavoriteSub || "Toca la estrella junto a tu selección para ver sus estadísticas aquí"}</div>
                     </div>
                   ) : (
-                    favoriteCards.map(({ teamId, team, groupInfo, upcoming }) => {
+                    favoriteCards.map(({ teamId, team, groupInfo, upcoming, topScorer, recentForm, albumProgress }) => {
                       const teamLabel = (team?.fifa_code && getTeamName(team.fifa_code, lang)) || team?.name_en || "—";
                       const isLive = upcoming && matchStatus(upcoming) === "live";
+                      const formColors = { W: "#22c55e", D: "#6b7280", L: "#ef4444" };
                       return (
                         <div key={teamId} style={{ marginBottom: 10, background: "#0d1117", border: `1px solid ${isLive ? "#f97316" : "#ffd700"}`, borderRadius: 14, padding: "14px 16px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -717,7 +758,7 @@ export default function WorldCup({ lang="es", t, onShowToast }) {
                             </div>
                           )}
                           {upcoming ? (
-                            <div style={{ fontSize: 12, color: isLive ? "#f97316" : "#6b7280", fontWeight: isLive ? 800 : 400 }}>
+                            <div style={{ fontSize: 12, color: isLive ? "#f97316" : "#6b7280", fontWeight: isLive ? 800 : 400, marginBottom: 6 }}>
                               {isLive ? "🔴 " : ""}{t?.favoriteNextMatch || "Próximo partido"}: {(() => {
                                 const home = teamsById[upcoming.home_team_id];
                                 const away = teamsById[upcoming.away_team_id];
@@ -728,7 +769,25 @@ export default function WorldCup({ lang="es", t, onShowToast }) {
                               })()}
                             </div>
                           ) : (
-                            <div style={{ fontSize: 12, color: "#4a5568" }}>{t?.favoriteNoMatch || "Sin próximo partido programado por ahora"}</div>
+                            <div style={{ fontSize: 12, color: "#4a5568", marginBottom: 6 }}>{t?.favoriteNoMatch || "Sin próximo partido programado por ahora"}</div>
+                          )}
+                          {topScorer && (
+                            <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 4 }}>
+                              ⚽ {t?.favoriteTopScorer || "Máximo goleador"}: {topScorer.name} ({topScorer.goals})
+                            </div>
+                          )}
+                          {recentForm.length > 0 && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: albumProgress ? 6 : 0 }}>
+                              <span style={{ fontSize: 11, color: "#6b7280", marginRight: 2 }}>{t?.favoriteForm || "Racha"}:</span>
+                              {recentForm.map((r, i) => (
+                                <span key={i} style={{ width: 16, height: 16, borderRadius: "50%", background: formColors[r], color: "#0a0f1e", fontSize: 9, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center" }}>{r}</span>
+                              ))}
+                            </div>
+                          )}
+                          {albumProgress && (
+                            <div style={{ fontSize: 12, color: "#ffd700", fontWeight: 700 }}>
+                              📖 {t?.favoriteAlbumProgress || "Tu álbum"}: {albumProgress.have}/{albumProgress.total}
+                            </div>
                           )}
                         </div>
                       );
