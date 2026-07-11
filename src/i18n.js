@@ -2,6 +2,13 @@
 
 export const translations = {
   es: {
+    favoriteTab: "⭐ Favorito",
+    favoriteToggle: "Marcar/quitar como favorito",
+    favoriteMaxReached: "Ya tienes 3 favoritos — quita uno primero.",
+    selectFavoriteTitle: "Selecciona tu favorito",
+    selectFavoriteSub: "Toca la estrella junto a tu selección para ver sus estadísticas aquí",
+    favoriteNextMatch: "Próximo partido",
+    favoriteNoMatch: "Sin próximo partido programado por ahora",
     lockAlbum: "Bloquear álbum",
     unlockAlbum: "Desbloquear álbum",
     albumLockedNotice: "Álbum bloqueado — los toques no marcarán ni desmarcarán figuritas.",
@@ -311,6 +318,13 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Hola ${name}! 👋\n\nVi en FiguSwitch que podemos intercambiar:\n✅ Yo tengo ${iHave} que tú necesitas:\n${iHaveList}${iHaveMore > 0 ? `... y ${iHaveMore} más` : ""}\n\n🔁 Tú tienes ${theyHave} que yo necesito:\n${theyHaveList}${theyHaveMore > 0 ? `... y ${theyHaveMore} más` : ""}\n\n¿Coordinamos? ⚽🎴`,
   },
   en: {
+    favoriteTab: "⭐ Favorite",
+    favoriteToggle: "Mark/unmark as favorite",
+    favoriteMaxReached: "You already have 3 favorites — remove one first.",
+    selectFavoriteTitle: "Select your favorite",
+    selectFavoriteSub: "Tap the star next to your team to see their stats here",
+    favoriteNextMatch: "Next match",
+    favoriteNoMatch: "No upcoming match scheduled yet",
     lockAlbum: "Lock album",
     unlockAlbum: "Unlock album",
     albumLockedNotice: "Album locked — taps won't mark or unmark stickers.",
@@ -621,6 +635,13 @@ export const translations = {
   },
 
   it: {
+    favoriteTab: "⭐ Preferita",
+    favoriteToggle: "Segna/rimuovi come preferita",
+    favoriteMaxReached: "Hai già 3 preferite — rimuovine una prima.",
+    selectFavoriteTitle: "Seleziona la tua preferita",
+    selectFavoriteSub: "Tocca la stella accanto alla tua squadra per vedere qui le statistiche",
+    favoriteNextMatch: "Prossima partita",
+    favoriteNoMatch: "Nessuna partita in programma per ora",
     lockAlbum: "Blocca album",
     unlockAlbum: "Sblocca album",
     albumLockedNotice: "Album bloccato — i tocchi non modificheranno le figurine.",
@@ -930,6 +951,13 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Ciao ${name}! 👋\n\nHo visto su FiguSwitch che possiamo scambiare:\n✅ Io ho ${iHave} che ti servono:\n${iHaveList}${iHaveMore > 0 ? `... e altre ${iHaveMore}` : ""}\n\n🔁 Tu hai ${theyHave} che mi servono:\n${theyHaveList}${theyHaveMore > 0 ? `... e altre ${theyHaveMore}` : ""}\n\nCi organizziamo? ⚽🎴`,
   },
   fr: {
+    favoriteTab: "⭐ Favori",
+    favoriteToggle: "Marquer/retirer comme favori",
+    favoriteMaxReached: "Tu as déjà 3 favoris — retires-en un d'abord.",
+    selectFavoriteTitle: "Sélectionne ton favori",
+    selectFavoriteSub: "Touche l'étoile à côté de ton équipe pour voir ses stats ici",
+    favoriteNextMatch: "Prochain match",
+    favoriteNoMatch: "Aucun match programmé pour le moment",
     lockAlbum: "Verrouiller l'album",
     unlockAlbum: "Déverrouiller l'album",
     albumLockedNotice: "Album verrouillé — les appuis ne modifieront pas les vignettes.",
@@ -1239,6 +1267,13 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Salut ${name} ! 👋\n\nJ'ai vu sur FiguSwitch que nous pouvons échanger :\n✅ J'ai ${iHave} que tu cherches :\n${iHaveList}${iHaveMore > 0 ? `... et ${iHaveMore} de plus` : ""}\n\n🔁 Tu as ${theyHave} que je cherche :\n${theyHaveList}${theyHaveMore > 0 ? `... et ${theyHaveMore} de plus` : ""}\n\nOn organise ça ? ⚽🎴`,
   },
   pt: {
+    favoriteTab: "⭐ Favorito",
+    favoriteToggle: "Marcar/remover como favorito",
+    favoriteMaxReached: "Você já tem 3 favoritos — remova um primeiro.",
+    selectFavoriteTitle: "Selecione seu favorito",
+    selectFavoriteSub: "Toque na estrela ao lado da sua seleção para ver as estatísticas aqui",
+    favoriteNextMatch: "Próximo jogo",
+    favoriteNoMatch: "Nenhum próximo jogo programado por enquanto",
     lockAlbum: "Bloquear álbum",
     unlockAlbum: "Desbloquear álbum",
     albumLockedNotice: "Álbum bloqueado — os toques não vão marcar nem desmarcar figurinhas.",
@@ -1549,6 +1584,13 @@ export const translations = {
   },
 
   de: {
+    favoriteTab: "⭐ Favorit",
+    favoriteToggle: "Als Favorit markieren/entfernen",
+    favoriteMaxReached: "Du hast bereits 3 Favoriten — entferne zuerst einen.",
+    selectFavoriteTitle: "Wähle deinen Favoriten",
+    selectFavoriteSub: "Tippe auf den Stern neben deiner Mannschaft, um hier die Statistiken zu sehen",
+    favoriteNextMatch: "Nächstes Spiel",
+    favoriteNoMatch: "Noch kein nächstes Spiel geplant",
     lockAlbum: "Album sperren",
     unlockAlbum: "Album entsperren",
     albumLockedNotice: "Album gesperrt — Tippen markiert oder entfernt keine Sticker.",
@@ -1854,6 +1896,13 @@ export const translations = {
   },
 
   ar: {
+    favoriteTab: "⭐ المفضل",
+    favoriteToggle: "إضافة/إزالة كمفضل",
+    favoriteMaxReached: "لديك بالفعل 3 مفضلات — أزل واحدة أولاً.",
+    selectFavoriteTitle: "اختر فريقك المفضل",
+    selectFavoriteSub: "اضغط على النجمة بجانب منتخبك لرؤية إحصائياته هنا",
+    favoriteNextMatch: "المباراة القادمة",
+    favoriteNoMatch: "لا توجد مباراة قادمة مجدولة حتى الآن",
     lockAlbum: "قفل الألبوم",
     unlockAlbum: "فتح الألبوم",
     albumLockedNotice: "الألبوم مقفل — لن تؤدي اللمسات إلى تحديد أو إلغاء تحديد الملصقات.",
