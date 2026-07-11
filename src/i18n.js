@@ -2,6 +2,8 @@
 
 export const translations = {
   es: {
+    importBannerTitleShort: "¿Tienes tu lista?",
+    importBannerCtaShort: "Importar",
     importBannerTitle: "¿Ya tienes tu lista armada?",
     importBannerSub: "No la escribas de nuevo — impórtala en 10 segundos",
     importBannerCta: "Importar mi lista",
@@ -325,6 +327,8 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Hola ${name}! 👋\n\nVi en FiguSwitch que podemos intercambiar:\n✅ Yo tengo ${iHave} que tú necesitas:\n${iHaveList}${iHaveMore > 0 ? `... y ${iHaveMore} más` : ""}\n\n🔁 Tú tienes ${theyHave} que yo necesito:\n${theyHaveList}${theyHaveMore > 0 ? `... y ${theyHaveMore} más` : ""}\n\n¿Coordinamos? ⚽🎴`,
   },
   en: {
+    importBannerTitleShort: "Have your list?",
+    importBannerCtaShort: "Import",
     importBannerTitle: "Already have your list ready?",
     importBannerSub: "Don't type it again — import it in 10 seconds",
     importBannerCta: "Import my list",
@@ -649,6 +653,8 @@ export const translations = {
   },
 
   it: {
+    importBannerTitleShort: "Hai la tua lista?",
+    importBannerCtaShort: "Importa",
     importBannerTitle: "Hai già la tua lista pronta?",
     importBannerSub: "Non riscriverla — importala in 10 secondi",
     importBannerCta: "Importa la mia lista",
@@ -972,6 +978,8 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Ciao ${name}! 👋\n\nHo visto su FiguSwitch che possiamo scambiare:\n✅ Io ho ${iHave} che ti servono:\n${iHaveList}${iHaveMore > 0 ? `... e altre ${iHaveMore}` : ""}\n\n🔁 Tu hai ${theyHave} che mi servono:\n${theyHaveList}${theyHaveMore > 0 ? `... e altre ${theyHaveMore}` : ""}\n\nCi organizziamo? ⚽🎴`,
   },
   fr: {
+    importBannerTitleShort: "Tu as ta liste ?",
+    importBannerCtaShort: "Importer",
     importBannerTitle: "Tu as déjà ta liste prête ?",
     importBannerSub: "Ne la retape pas — importe-la en 10 secondes",
     importBannerCta: "Importer ma liste",
@@ -1295,6 +1303,8 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Salut ${name} ! 👋\n\nJ'ai vu sur FiguSwitch que nous pouvons échanger :\n✅ J'ai ${iHave} que tu cherches :\n${iHaveList}${iHaveMore > 0 ? `... et ${iHaveMore} de plus` : ""}\n\n🔁 Tu as ${theyHave} que je cherche :\n${theyHaveList}${theyHaveMore > 0 ? `... et ${theyHaveMore} de plus` : ""}\n\nOn organise ça ? ⚽🎴`,
   },
   pt: {
+    importBannerTitleShort: "Tem sua lista?",
+    importBannerCtaShort: "Importar",
     importBannerTitle: "Já tem sua lista pronta?",
     importBannerSub: "Não digite de novo — importe em 10 segundos",
     importBannerCta: "Importar minha lista",
@@ -1619,6 +1629,8 @@ export const translations = {
   },
 
   de: {
+    importBannerTitleShort: "Hast du deine Liste?",
+    importBannerCtaShort: "Importieren",
     importBannerTitle: "Hast du deine Liste schon fertig?",
     importBannerSub: "Nicht neu eintippen — in 10 Sekunden importieren",
     importBannerCta: "Meine Liste importieren",
@@ -1938,6 +1950,8 @@ export const translations = {
   },
 
   ar: {
+    importBannerTitleShort: "هل لديك قائمتك؟",
+    importBannerCtaShort: "استيراد",
     importBannerTitle: "هل قائمتك جاهزة بالفعل؟",
     importBannerSub: "لا تكتبها من جديد — استوردها خلال 10 ثوانٍ",
     importBannerCta: "استيراد قائمتي",
