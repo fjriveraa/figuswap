@@ -2,6 +2,9 @@
 
 export const translations = {
   es: {
+    favoriteTopScorer: "Máximo goleador",
+    favoriteForm: "Racha",
+    favoriteAlbumProgress: "Tu álbum",
     favoriteTab: "⭐ Favorito",
     favoriteToggle: "Marcar/quitar como favorito",
     favoriteMaxReached: "Ya tienes 3 favoritos — quita uno primero.",
@@ -318,6 +321,9 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Hola ${name}! 👋\n\nVi en FiguSwitch que podemos intercambiar:\n✅ Yo tengo ${iHave} que tú necesitas:\n${iHaveList}${iHaveMore > 0 ? `... y ${iHaveMore} más` : ""}\n\n🔁 Tú tienes ${theyHave} que yo necesito:\n${theyHaveList}${theyHaveMore > 0 ? `... y ${theyHaveMore} más` : ""}\n\n¿Coordinamos? ⚽🎴`,
   },
   en: {
+    favoriteTopScorer: "Top scorer",
+    favoriteForm: "Form",
+    favoriteAlbumProgress: "Your album",
     favoriteTab: "⭐ Favorite",
     favoriteToggle: "Mark/unmark as favorite",
     favoriteMaxReached: "You already have 3 favorites — remove one first.",
@@ -635,6 +641,9 @@ export const translations = {
   },
 
   it: {
+    favoriteTopScorer: "Miglior marcatore",
+    favoriteForm: "Serie",
+    favoriteAlbumProgress: "Il tuo album",
     favoriteTab: "⭐ Preferita",
     favoriteToggle: "Segna/rimuovi come preferita",
     favoriteMaxReached: "Hai già 3 preferite — rimuovine una prima.",
@@ -951,6 +960,9 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Ciao ${name}! 👋\n\nHo visto su FiguSwitch che possiamo scambiare:\n✅ Io ho ${iHave} che ti servono:\n${iHaveList}${iHaveMore > 0 ? `... e altre ${iHaveMore}` : ""}\n\n🔁 Tu hai ${theyHave} che mi servono:\n${theyHaveList}${theyHaveMore > 0 ? `... e altre ${theyHaveMore}` : ""}\n\nCi organizziamo? ⚽🎴`,
   },
   fr: {
+    favoriteTopScorer: "Meilleur buteur",
+    favoriteForm: "Forme",
+    favoriteAlbumProgress: "Ton album",
     favoriteTab: "⭐ Favori",
     favoriteToggle: "Marquer/retirer comme favori",
     favoriteMaxReached: "Tu as déjà 3 favoris — retires-en un d'abord.",
@@ -1267,6 +1279,9 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Salut ${name} ! 👋\n\nJ'ai vu sur FiguSwitch que nous pouvons échanger :\n✅ J'ai ${iHave} que tu cherches :\n${iHaveList}${iHaveMore > 0 ? `... et ${iHaveMore} de plus` : ""}\n\n🔁 Tu as ${theyHave} que je cherche :\n${theyHaveList}${theyHaveMore > 0 ? `... et ${theyHaveMore} de plus` : ""}\n\nOn organise ça ? ⚽🎴`,
   },
   pt: {
+    favoriteTopScorer: "Artilheiro",
+    favoriteForm: "Sequência",
+    favoriteAlbumProgress: "Seu álbum",
     favoriteTab: "⭐ Favorito",
     favoriteToggle: "Marcar/remover como favorito",
     favoriteMaxReached: "Você já tem 3 favoritos — remova um primeiro.",
@@ -1584,6 +1599,9 @@ export const translations = {
   },
 
   de: {
+    favoriteTopScorer: "Torschützenkönig",
+    favoriteForm: "Form",
+    favoriteAlbumProgress: "Dein Album",
     favoriteTab: "⭐ Favorit",
     favoriteToggle: "Als Favorit markieren/entfernen",
     favoriteMaxReached: "Du hast bereits 3 Favoriten — entferne zuerst einen.",
@@ -1896,6 +1914,9 @@ export const translations = {
   },
 
   ar: {
+    favoriteTopScorer: "الهداف",
+    favoriteForm: "الأداء",
+    favoriteAlbumProgress: "ألبومك",
     favoriteTab: "⭐ المفضل",
     favoriteToggle: "إضافة/إزالة كمفضل",
     favoriteMaxReached: "لديك بالفعل 3 مفضلات — أزل واحدة أولاً.",
