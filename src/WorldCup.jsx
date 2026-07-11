@@ -257,6 +257,15 @@ function matchStatus(match) {
   const finished = String(match.finished || "").toUpperCase() === "TRUE";
   if (finished || elapsed === "finished" || elapsed === "ft") return "finished";
   if (elapsed === "notstarted" || elapsed === "") return "scheduled";
+  // Fix: salvaguarda contra la API marcando un partido como "live" horas antes de su hora
+  // real de inicio (confirmado con Noruega-Inglaterra del 11 de julio: la API decía "live"
+  // con el kickoff real todavía a 9 horas de distancia). Si la hora de inicio calculada
+  // (ya convertida correctamente a hora del estadio) todavía no llega -con 10 min de
+  // margen por si acaso-, no se le cree ciegamente a la API y se muestra como programado.
+  const kickoff = stadiumTimeToDate(match.local_date, match.stadium_id);
+  if (kickoff && (kickoff.getTime() - Date.now()) > 10 * 60000) {
+    return "scheduled";
+  }
   return "live"; // cualquier otro valor de time_elapsed (ej. "45'", "ht") = en curso
 }
 
