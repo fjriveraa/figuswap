@@ -2,6 +2,7 @@
 
 export const translations = {
   es: {
+    favoriteOnlyMissing: "Solo te falta",
     favoriteTopScorer: "Máximo goleador",
     favoriteForm: "Racha",
     favoriteAlbumProgress: "Tu álbum",
@@ -321,6 +322,7 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Hola ${name}! 👋\n\nVi en FiguSwitch que podemos intercambiar:\n✅ Yo tengo ${iHave} que tú necesitas:\n${iHaveList}${iHaveMore > 0 ? `... y ${iHaveMore} más` : ""}\n\n🔁 Tú tienes ${theyHave} que yo necesito:\n${theyHaveList}${theyHaveMore > 0 ? `... y ${theyHaveMore} más` : ""}\n\n¿Coordinamos? ⚽🎴`,
   },
   en: {
+    favoriteOnlyMissing: "Only missing",
     favoriteTopScorer: "Top scorer",
     favoriteForm: "Form",
     favoriteAlbumProgress: "Your album",
@@ -641,6 +643,7 @@ export const translations = {
   },
 
   it: {
+    favoriteOnlyMissing: "Ti manca solo",
     favoriteTopScorer: "Miglior marcatore",
     favoriteForm: "Serie",
     favoriteAlbumProgress: "Il tuo album",
@@ -960,6 +963,7 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Ciao ${name}! 👋\n\nHo visto su FiguSwitch che possiamo scambiare:\n✅ Io ho ${iHave} che ti servono:\n${iHaveList}${iHaveMore > 0 ? `... e altre ${iHaveMore}` : ""}\n\n🔁 Tu hai ${theyHave} che mi servono:\n${theyHaveList}${theyHaveMore > 0 ? `... e altre ${theyHaveMore}` : ""}\n\nCi organizziamo? ⚽🎴`,
   },
   fr: {
+    favoriteOnlyMissing: "Il ne te manque que",
     favoriteTopScorer: "Meilleur buteur",
     favoriteForm: "Forme",
     favoriteAlbumProgress: "Ton album",
@@ -1279,6 +1283,7 @@ export const translations = {
     tradeWhatsappMessage: (name, iHave, theyHave, iHaveList, theyHaveList, iHaveMore, theyHaveMore) => `Salut ${name} ! 👋\n\nJ'ai vu sur FiguSwitch que nous pouvons échanger :\n✅ J'ai ${iHave} que tu cherches :\n${iHaveList}${iHaveMore > 0 ? `... et ${iHaveMore} de plus` : ""}\n\n🔁 Tu as ${theyHave} que je cherche :\n${theyHaveList}${theyHaveMore > 0 ? `... et ${theyHaveMore} de plus` : ""}\n\nOn organise ça ? ⚽🎴`,
   },
   pt: {
+    favoriteOnlyMissing: "Falta apenas",
     favoriteTopScorer: "Artilheiro",
     favoriteForm: "Sequência",
     favoriteAlbumProgress: "Seu álbum",
@@ -1599,6 +1604,7 @@ export const translations = {
   },
 
   de: {
+    favoriteOnlyMissing: "Dir fehlt nur",
     favoriteTopScorer: "Torschützenkönig",
     favoriteForm: "Form",
     favoriteAlbumProgress: "Dein Album",
@@ -1914,6 +1920,7 @@ export const translations = {
   },
 
   ar: {
+    favoriteOnlyMissing: "ينقصك فقط",
     favoriteTopScorer: "الهداف",
     favoriteForm: "الأداء",
     favoriteAlbumProgress: "ألبومك",
