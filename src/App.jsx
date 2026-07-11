@@ -1474,7 +1474,7 @@ function FiguSwapInner() {
                   <button onClick={()=>setShowAuthOverlay(true)} style={{width:"100%",padding:"9px 8px",background:"#ffd700",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,fontSize:12,cursor:"pointer"}}>{t.guestBannerCta}</button>
                 </div>
                 <div style={{background:"linear-gradient(135deg,#1a1500,#0d1117)",border:"1px solid #f59e0b",borderRadius:14,padding:"14px 12px",textAlign:"center",position:"relative",display:"flex",flexDirection:"column"}}>
-                  <button onClick={()=>setImportBannerDismissed(true)} style={{position:"absolute",top:6,right:8,background:"none",border:"none",color:"#6b7280",fontSize:14,cursor:"pointer",lineHeight:1,padding:2}}>✕</button>
+                  <button onClick={()=>setImportBannerDismissed(true)} style={{position:"absolute",top:6,...(lang==="ar"?{left:8}:{right:8}),background:"none",border:"none",color:"#6b7280",fontSize:14,cursor:"pointer",lineHeight:1,padding:2}}>✕</button>
                   <div style={{fontSize:22,marginBottom:6}}>📋</div>
                   <div style={{fontWeight:800,color:"#e8eaf6",fontSize:13,marginBottom:4}}>{t.importBannerTitleShort||"¿Tienes tu lista?"}</div>
                   <div style={{fontSize:11,color:"#9ca3af",marginBottom:10,flex:1}}>{t.importBannerSubShort||"No la escribas de nuevo — impórtala en segundos"}</div>
@@ -1488,8 +1488,8 @@ function FiguSwapInner() {
               // genera más credibilidad que "rápido y fácil". Salida clara y fácil para
               // quien prefiere empezar manual — nunca bloquea, solo invita.
               <div style={{background:"linear-gradient(135deg,#1a1500,#0d1117)",border:"1px solid #f59e0b",borderRadius:14,padding:"14px 16px",marginBottom:12,position:"relative"}}>
-                <button onClick={()=>setImportBannerDismissed(true)} style={{position:"absolute",top:10,right:10,background:"none",border:"none",color:"#6b7280",fontSize:16,cursor:"pointer",lineHeight:1,padding:4}}>✕</button>
-                <div style={{display:"flex",alignItems:"flex-start",gap:10,paddingRight:20}}>
+                <button onClick={()=>setImportBannerDismissed(true)} style={{position:"absolute",top:10,...(lang==="ar"?{left:10}:{right:10}),background:"none",border:"none",color:"#6b7280",fontSize:16,cursor:"pointer",lineHeight:1,padding:4}}>✕</button>
+                <div style={{display:"flex",alignItems:"flex-start",gap:10,...(lang==="ar"?{paddingLeft:20}:{paddingRight:20})}}>
                   <span style={{fontSize:24}}>📋</span>
                   <div>
                     <div style={{fontWeight:800,color:"#e8eaf6",fontSize:14,marginBottom:3}}>{t.importBannerTitle||"¿Ya tienes tu lista armada?"}</div>
