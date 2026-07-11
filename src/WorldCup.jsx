@@ -751,57 +751,77 @@ export default function WorldCup({ lang="es", t, onShowToast, myAlbum, stickerNa
                       const teamLabel = (team?.fifa_code && getTeamName(team.fifa_code, lang)) || team?.name_en || "—";
                       const isLive = upcoming && matchStatus(upcoming) === "live";
                       const formColors = { W: "#22c55e", D: "#6b7280", L: "#ef4444" };
+                      const divider = { borderTop: "1px solid #1e2a3a", marginTop: 10, paddingTop: 10 };
                       return (
                         <div key={teamId} style={{ marginBottom: 10, background: "#0d1117", border: `1px solid ${isLive ? "#f97316" : "#ffd700"}`, borderRadius: 14, padding: "14px 16px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                          {/* Encabezado: bandera + nombre + estrella */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                             <Flag team={team} />
                             <span style={{ fontWeight: 900, fontSize: 15, color: "#e8eaf6", flex: 1 }}>{teamLabel}</span>
                             <button onClick={() => toggleFavorite(teamId)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16 }}>⭐</button>
                           </div>
+
+                          {/* Chip de posición en el grupo — dato corto, formato de etiqueta en vez de línea de texto suelta */}
                           {groupInfo && (
-                            <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 4 }}>
-                              {groupInfo.position}° {t?.group || "Grupo"} {groupInfo.letter} · {groupInfo.pts} {t?.points || "Pts"} · {groupInfo.gf}-{groupInfo.ga}
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#1a1500", border: "1px solid #92400e", borderRadius: 20, padding: "3px 10px", fontSize: 11, color: "#fbbf24", fontWeight: 700, marginBottom: 10 }}>
+                              {groupInfo.position === 1 ? "🥇" : groupInfo.position === 2 ? "🥈" : "📍"} {groupInfo.position}° {t?.group || "Grupo"} {groupInfo.letter} · {groupInfo.pts} {t?.points || "Pts"}
                             </div>
                           )}
-                          {upcoming ? (
-                            <div style={{ fontSize: 12, color: isLive ? "#f97316" : "#6b7280", fontWeight: isLive ? 800 : 400, marginBottom: 6 }}>
-                              {isLive ? "🔴 " : ""}{t?.favoriteNextMatch || "Próximo partido"}: {(() => {
-                                const home = teamsById[upcoming.home_team_id];
-                                const away = teamsById[upcoming.away_team_id];
-                                const opponent = String(upcoming.home_team_id) === teamId ? away : home;
-                                const oppLabel = (opponent?.fifa_code && getTeamName(opponent.fifa_code, lang)) || opponent?.name_en || upcoming.home_team_label || upcoming.away_team_label || "—";
-                                const viewerTime = formatViewerDateTime(stadiumTimeToDate(upcoming.local_date, upcoming.stadium_id), lang);
-                                return `vs ${oppLabel}${viewerTime ? ` · ${viewerTime.dayLabel} ${viewerTime.timeLabel}` : ""}`;
-                              })()}
-                            </div>
-                          ) : (
-                            <div style={{ fontSize: 12, color: "#4a5568", marginBottom: 6 }}>{t?.favoriteNoMatch || "Sin próximo partido programado por ahora"}</div>
-                          )}
-                          {topScorer && (
-                            <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 4 }}>
-                              ⚽ {t?.favoriteTopScorer || "Máximo goleador"}: {topScorer.name} ({topScorer.goals})
-                            </div>
-                          )}
-                          {recentForm.length > 0 && (
-                            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: albumProgress ? 6 : 0 }}>
-                              <span style={{ fontSize: 11, color: "#6b7280", marginRight: 2 }}>{t?.favoriteForm || "Racha"}:</span>
-                              {recentForm.map((r, i) => (
-                                <span key={i} style={{ width: 16, height: 16, borderRadius: "50%", background: formColors[r], color: "#0a0f1e", fontSize: 9, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center" }}>{r}</span>
-                              ))}
-                            </div>
-                          )}
+
+                          {/* Progreso del álbum — el dato que más importa para que la persona vuelva, va primero y destacado */}
                           {albumProgress && (
-                            <div style={{ marginTop: 4 }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
-                                <span style={{ fontSize: 11, color: "#ffd700", fontWeight: 800 }}>📖 {t?.favoriteAlbumProgress || "Tu álbum"}</span>
-                                <span style={{ fontSize: 11, color: "#9ca3af" }}>{albumProgress.have}/{albumProgress.total}</span>
+                            <div>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                                <span style={{ fontSize: 12, color: "#ffd700", fontWeight: 800 }}>📖 {t?.favoriteAlbumProgress || "Tu álbum"}</span>
+                                <span style={{ fontSize: 12, color: "#e8eaf6", fontWeight: 700 }}>{albumProgress.have}/{albumProgress.total}</span>
                               </div>
-                              <div style={{ width: "100%", height: 6, background: "#1e2a3a", borderRadius: 4, overflow: "hidden" }}>
+                              <div style={{ width: "100%", height: 7, background: "#1e2a3a", borderRadius: 4, overflow: "hidden" }}>
                                 <div style={{ width: `${Math.round((albumProgress.have / albumProgress.total) * 100)}%`, height: "100%", background: "linear-gradient(90deg, #f59e0b, #ffd700)", borderRadius: 4 }} />
                               </div>
                               {albumProgress.nextMissing && (
-                                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
-                                  {t?.favoriteOnlyMissing || "Solo te falta"}: {albumProgress.nextMissing.name || `#${albumProgress.nextMissing.num}`}
+                                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 5 }}>
+                                  {t?.favoriteOnlyMissing || "Solo te falta"}: <span style={{ color: "#9ca3af", fontWeight: 700 }}>{albumProgress.nextMissing.name || `#${albumProgress.nextMissing.num}`}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Próximo partido — sección propia, separada visualmente */}
+                          <div style={divider}>
+                            {upcoming ? (
+                              <div style={{ fontSize: 12, color: isLive ? "#f97316" : "#9ca3af", fontWeight: isLive ? 800 : 400 }}>
+                                <span style={{ color: "#6b7280", fontWeight: 700 }}>{isLive ? "🔴 " : "⚽ "}{t?.favoriteNextMatch || "Próximo partido"}</span><br />
+                                {(() => {
+                                  const home = teamsById[upcoming.home_team_id];
+                                  const away = teamsById[upcoming.away_team_id];
+                                  const opponent = String(upcoming.home_team_id) === teamId ? away : home;
+                                  const oppLabel = (opponent?.fifa_code && getTeamName(opponent.fifa_code, lang)) || opponent?.name_en || upcoming.home_team_label || upcoming.away_team_label || "—";
+                                  const viewerTime = formatViewerDateTime(stadiumTimeToDate(upcoming.local_date, upcoming.stadium_id), lang);
+                                  return `vs ${oppLabel}${viewerTime ? ` · ${viewerTime.dayLabel} ${viewerTime.timeLabel}` : ""}`;
+                                })()}
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: 12, color: "#4a5568" }}>{t?.favoriteNoMatch || "Sin próximo partido programado por ahora"}</div>
+                            )}
+                          </div>
+
+                          {/* Goleador + racha — datos secundarios, agrupados en una fila compacta al final */}
+                          {(topScorer || recentForm.length > 0) && (
+                            <div style={{ ...divider, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                              {topScorer && (
+                                <div style={{ fontSize: 11, color: "#9ca3af" }}>
+                                  <span style={{ color: "#6b7280" }}>👟 {t?.favoriteTopScorer || "Goleador"}</span><br />
+                                  <span style={{ fontWeight: 700, color: "#e8eaf6" }}>{topScorer.name}</span> ({topScorer.goals})
+                                </div>
+                              )}
+                              {recentForm.length > 0 && (
+                                <div style={{ textAlign: "right" }}>
+                                  <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 3 }}>{t?.favoriteForm || "Racha"}</div>
+                                  <div style={{ display: "flex", gap: 3, justifyContent: "flex-end" }}>
+                                    {recentForm.map((r, i) => (
+                                      <span key={i} style={{ width: 16, height: 16, borderRadius: "50%", background: formColors[r], color: "#0a0f1e", fontSize: 9, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center" }}>{r}</span>
+                                    ))}
+                                  </div>
                                 </div>
                               )}
                             </div>
