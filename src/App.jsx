@@ -374,7 +374,12 @@ const db = {
     if(!headers) return [];
     try {
       const emails = contacts.map(e=>`"${e}"`).join(",");
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums?user_email=in.(${emails})&select=user_email,username,stickers,updated_at,whatsapp_number`, {headers});
+      // Fix de privacidad: antes esto leía directo de la tabla "albums", cuyo RLS
+      // revela el WhatsApp incluso con una solicitud todavía pendiente sin aceptar
+      // — inconsistente con la política de privacidad publicada. La vista
+      // "albums_public" oculta esa columna hasta que la conexión esté aceptada,
+      // sin afectar en nada la visibilidad del álbum (stickers) en sí.
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/albums_public?user_email=in.(${emails})&select=user_email,username,stickers,updated_at,whatsapp_number`, {headers});
       return await res.json()||[];
     } catch { return []; }
   },
