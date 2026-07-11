@@ -1467,15 +1467,17 @@ function FiguSwapInner() {
               // decisión con 2 caminos claros, ahorra espacio vertical y no se siente como
               // "la app insistiendo dos veces seguidas" con el mismo tono repetido.
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-                <div style={{background:"#1a1500",border:"1px solid #92400e",borderRadius:14,padding:"14px 12px",textAlign:"center"}}>
+                <div style={{background:"#1a1500",border:"1px solid #92400e",borderRadius:14,padding:"14px 12px",textAlign:"center",display:"flex",flexDirection:"column"}}>
                   <div style={{fontSize:22,marginBottom:6}}>👤</div>
-                  <div style={{fontWeight:800,color:"#e8eaf6",fontSize:13,marginBottom:8}}>{t.guestBannerText}</div>
+                  <div style={{fontWeight:800,color:"#e8eaf6",fontSize:13,marginBottom:4}}>{t.guestBannerTitleShort||"Modo invitado"}</div>
+                  <div style={{fontSize:11,color:"#9ca3af",marginBottom:10,flex:1}}>{t.guestBannerSub||"Tu álbum se puede perder si cambias de teléfono"}</div>
                   <button onClick={()=>setShowAuthOverlay(true)} style={{width:"100%",padding:"9px 8px",background:"#ffd700",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,fontSize:12,cursor:"pointer"}}>{t.guestBannerCta}</button>
                 </div>
-                <div style={{background:"linear-gradient(135deg,#1a1500,#0d1117)",border:"1px solid #f59e0b",borderRadius:14,padding:"14px 12px",textAlign:"center",position:"relative"}}>
+                <div style={{background:"linear-gradient(135deg,#1a1500,#0d1117)",border:"1px solid #f59e0b",borderRadius:14,padding:"14px 12px",textAlign:"center",position:"relative",display:"flex",flexDirection:"column"}}>
                   <button onClick={()=>setImportBannerDismissed(true)} style={{position:"absolute",top:6,right:8,background:"none",border:"none",color:"#6b7280",fontSize:14,cursor:"pointer",lineHeight:1,padding:2}}>✕</button>
                   <div style={{fontSize:22,marginBottom:6}}>📋</div>
-                  <div style={{fontWeight:800,color:"#e8eaf6",fontSize:13,marginBottom:8}}>{t.importBannerTitleShort||"¿Tienes tu lista?"}</div>
+                  <div style={{fontWeight:800,color:"#e8eaf6",fontSize:13,marginBottom:4}}>{t.importBannerTitleShort||"¿Tienes tu lista?"}</div>
+                  <div style={{fontSize:11,color:"#9ca3af",marginBottom:10,flex:1}}>{t.importBannerSubShort||"No la escribas de nuevo — impórtala en segundos"}</div>
                   <button onClick={()=>setShowImporter(true)} style={{width:"100%",padding:"9px 8px",background:"#ffd700",border:"none",borderRadius:10,color:"#0a0f1e",fontWeight:800,fontSize:12,cursor:"pointer"}}>{t.importBannerCtaShort||"Importar"}</button>
                 </div>
               </div>
