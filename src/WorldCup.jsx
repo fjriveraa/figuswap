@@ -394,7 +394,8 @@ export default function WorldCup({ lang="es", t }) {
   const [subTab, setSubTab] = useState("calendar"); // calendar | table
   // null = automático (la fase más reciente abierta, las anteriores colapsadas);
   // una vez que el usuario toca alguna, se vuelve control manual completo.
-  const [expandedStages, setExpandedStages] = useState(null);
+  // Nota: expandedStages (para la llave eliminatoria en Posiciones) se quitó junto con
+  // esa sección, que ahora vive únicamente en Partidos — ya no hace falta este estado aquí.
   // Mismo patrón para el calendario: días ya jugados por completo arrancan colapsados,
   // el día en curso y los futuros arrancan abiertos. Un toque en la fecha alterna cada uno.
   const [expandedDays, setExpandedDays] = useState({});
@@ -612,71 +613,14 @@ export default function WorldCup({ lang="es", t }) {
           })()}
 
           {subTab === "table" && (() => {
-            // Partidos de eliminatorias (todo lo que no es fase de grupos), agrupados por
-            // ronda real — reutiliza MatchRow y STAGE_LABELS, así se ve y se traduce igual
-            // que en Partidos, sin duplicar lógica ni estilos.
-            const knockoutOrder = ["r32", "r16", "qf", "sf", "third", "final"];
-            const knockoutByType = {};
-            games.forEach((g) => {
-              const stage = normalizeType(g.type);
-              if (stage !== "group") {
-                if (!knockoutByType[stage]) knockoutByType[stage] = [];
-                knockoutByType[stage].push(g);
-              }
-            });
-            // Fix (conv. 3): dentro de cada ronda, los partidos van en orden cronológico real
-            // (por fecha/hora del estadio), no en el orden arbitrario en que la API los liste.
-            Object.values(knockoutByType).forEach(list => list.sort((a, b) => {
-              const da = stadiumTimeToDate(a.local_date, a.stadium_id);
-              const db = stadiumTimeToDate(b.local_date, b.stadium_id);
-              if (!da || !db) return 0;
-              return da - db;
-            }));
-            const hasKnockouts = Object.keys(knockoutByType).length > 0;
-            const stagesWithGames = knockoutOrder.filter(type => knockoutByType[type]?.length);
-            // Por defecto: cada fase se abre sola si TODAVÍA tiene partidos sin jugar — sin
-            // importar su posición en el orden del torneo (mismo criterio que en Partidos).
-            // Se colapsa sola únicamente cuando ya se completó por entero.
-            const autoExpanded = {};
-            stagesWithGames.forEach(type => {
-              const matches = knockoutByType[type];
-              const allFinished = matches.every(m => matchStatus(m) === "finished");
-              autoExpanded[type] = !allFinished;
-            });
-            const openStages = expandedStages || autoExpanded;
-            const toggleStage = (type) => setExpandedStages({ ...openStages, [type]: !openStages[type] });
-
+            // Fix: se retiró de aquí la llave eliminatoria (Dieciseisavos, Octavos, etc.)
+            // porque duplicaba exactamente lo que ya vive en la pestaña "Partidos" — no
+            // aportaba nada nuevo, solo el mismo MatchRow repetido en 2 lugares. Esta
+            // pestaña ahora se enfoca únicamente en lo que SÍ es único: la tabla de puntos
+            // por grupo. El espacio liberado queda preparado para agregar estadísticas del
+            // equipo favorito una vez exista el selector de favoritos.
             return (
               <>
-                {hasKnockouts && (
-                  <div style={{ marginBottom: 24 }}>
-                    {stagesWithGames.map(type => {
-                      const isOpen = !!openStages[type];
-                      const matches = knockoutByType[type];
-                      const played = matches.filter(m => matchStatus(m) === "finished").length;
-                      return (
-                        <div key={type} style={{ marginBottom: 10, background: "#0d1117", border: `1px solid ${isOpen ? "#ffd700" : "#1e2a3a"}`, borderRadius: 14, overflow: "hidden" }}>
-                          <button onClick={() => toggleStage(type)} style={{ width: "100%", padding: "13px 16px", background: isOpen ? "#1a1500" : "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
-                            <span style={{ fontSize: 18 }}>{STAGE_LABELS[type]?.emoji}</span>
-                            <span style={{ flex: 1, textAlign: "left", fontWeight: 900, fontSize: 14, color: "#ffd700" }}>
-                              {t?.[STAGE_LABELS[type]?.key] || STAGE_LABELS[type]?.fallback}
-                            </span>
-                            <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 700 }}>{played}/{matches.length}</span>
-                            <span style={{ color: "#4a5568", fontSize: 12 }}>{isOpen ? "▲" : "▼"}</span>
-                          </button>
-                          {isOpen && (
-                            <div style={{ padding: "0 16px 10px" }}>
-                              {matches.map(m => <MatchRow key={m.id} match={m} teamsById={teamsById} lang={lang} t={t} />)}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", margin: "20px 0 10px", paddingTop: 12, borderTop: "1px solid #1e2a3a", textTransform: "uppercase" }}>
-                      {t?.stageGroup || "Fase de grupos"} — {t?.finalStandings || "resultados finales"}
-                    </div>
-                  </div>
-                )}
                 {[...groups]
                   .sort((a, b) => getGroupLetter(a, teamsById).localeCompare(getGroupLetter(b, teamsById)))
                   .map((g, i) => (
