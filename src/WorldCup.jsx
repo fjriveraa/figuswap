@@ -397,7 +397,7 @@ function GroupTable({ group, teamsById, games, t, lang, favorites, onToggleFavor
   );
 }
 
-export default function WorldCup({ lang="es", t }) {
+export default function WorldCup({ lang="es", t, onShowToast }) {
   const [subTab, setSubTab] = useState("calendar"); // calendar | table
   const FAVORITES_KEY = "figuswitch_favorite_teams";
   const MAX_FAVORITES = 3;
@@ -408,7 +408,6 @@ export default function WorldCup({ lang="es", t }) {
       return Array.isArray(parsed) ? parsed : [];
     } catch { return []; }
   });
-  const [favoriteMsg, setFavoriteMsg] = useState(null);
   const toggleFavorite = (teamId, teamName) => {
     setFavorites(prev => {
       let next;
@@ -416,8 +415,11 @@ export default function WorldCup({ lang="es", t }) {
         next = prev.filter(id => id !== teamId);
       } else {
         if (prev.length >= MAX_FAVORITES) {
-          setFavoriteMsg(t?.favoriteMaxReached || `Ya tienes ${MAX_FAVORITES} favoritos — quita uno primero.`);
-          setTimeout(() => setFavoriteMsg(null), 3000);
+          // Aviso flotante reutilizando el toast global de App.jsx (ya posicionado justo
+          // arriba del menú inferior — Álbum/Escanear/Mundial/Red/Perfil) en vez de un
+          // banner metido dentro de la pestaña, para que se vea igual que el resto de
+          // avisos de la app (ej. "contacto eliminado", bloqueo de álbum).
+          onShowToast?.(t?.favoriteMaxReached || `Ya tienes ${MAX_FAVORITES} favoritos — quita uno primero.`);
           return prev; // sin cambios: no se agrega el 4to
         }
         next = [...prev, teamId];
@@ -692,11 +694,6 @@ export default function WorldCup({ lang="es", t }) {
             return (
               <>
                 <div style={{ marginBottom: 20 }}>
-                  {favoriteMsg && (
-                    <div style={{ fontSize: 12, color: "#fbbf24", background: "#1e1500", border: "1px solid #92400e", borderRadius: 10, padding: "8px 12px", marginBottom: 10 }}>
-                      ⚠️ {favoriteMsg}
-                    </div>
-                  )}
                   {favoriteCards.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "20px 16px", background: "#0d1117", border: "1px dashed #374151", borderRadius: 14 }}>
                       <div style={{ fontSize: 26, marginBottom: 6 }}>⭐</div>
