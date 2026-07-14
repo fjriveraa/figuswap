@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FiguSwitch — Acceso anticipado</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+  :root{
+    --ink:#0a0f1e;
+    --panel:#0d1420;
+    --line:#22304a;
+    --gold:#ffd700;
+    --gold-dim:#b8960a;
+    --paper:#f2ede2;
+    --paper-dim:#c9c2b0;
+    --green:#3ddc84;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Space Grotesk',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  /* textura de fondo tipo "papel de estadio" sutil */
+  body::before{
+    content:"";
+    position:fixed;inset:0;
+    background-image:
+      radial-gradient(circle at 15% 20%, rgba(255,215,0,0.05), transparent 40%),
+      radial-gradient(circle at 85% 75%, rgba(255,215,0,0.04), transparent 45%);
+    pointer-events:none;
+    z-index:0;
+  }
+
+  .wrap{max-width:480px;margin:0 auto;padding:0 20px;position:relative;z-index:1;}
+
+  /* ===== HEADER TICKET ===== */
+  .ticket{
+    margin-top:28px;
+    border:1px solid var(--line);
+    border-radius:20px;
+    background:linear-gradient(160deg,#111b2e,#0a0f1e 70%);
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.6);
+  }
+  .ticket::after{
+    content:"";
+    position:absolute;top:0;left:0;right:0;height:3px;
+    background:repeating-linear-gradient(90deg,var(--gold) 0 10px,transparent 10px 18px);
+    opacity:.5;
+  }
+  .ticket-top{padding:28px 26px 20px;}
+  .eyebrow{
+    display:flex;align-items:center;gap:8px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:18px;
+  }
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 1.8s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  h1{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:52px;
+    line-height:.92;
+    letter-spacing:.01em;
+    background:linear-gradient(180deg,#fff,var(--gold) 120%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    margin-bottom:10px;
+  }
+  h1 span{display:block;color:var(--paper);-webkit-text-fill-color:var(--paper);font-size:.42em;letter-spacing:.08em;font-family:'Space Grotesk',sans-serif;font-weight:600;margin-top:8px;}
+
+  .sub{
+    color:var(--paper-dim);
+    font-size:15px;
+    line-height:1.55;
+    margin-top:14px;
+    max-width:38ch;
+  }
+
+  .perforation{
+    height:0;border-top:2px dashed var(--line);position:relative;margin:0 -1px;
+  }
+  .perforation::before,.perforation::after{
+    content:"";position:absolute;top:-13px;width:26px;height:26px;border-radius:50%;background:var(--ink);
+  }
+  .perforation::before{left:-33px;}
+  .perforation::after{right:-33px;}
+
+  .ticket-bottom{padding:20px 26px 26px;display:flex;justify-content:space-between;align-items:center;}
+  .code-label{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--paper-dim);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;}
+  .code{font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--gold);font-weight:700;letter-spacing:.03em;}
+  .seats{text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--paper-dim);}
+  .seats b{color:var(--paper);font-size:20px;font-family:'Space Grotesk',sans-serif;}
+
+  /* ===== CTA ===== */
+  .cta-zone{margin:30px 0 6px;}
+  .cta{
+    display:block;text-align:center;text-decoration:none;
+    background:var(--gold);
+    color:var(--ink);
+    font-weight:700;
+    font-size:16px;
+    padding:18px;
+    border-radius:14px;
+    box-shadow:0 12px 28px -8px rgba(255,215,0,0.45);
+    transition:transform .15s ease;
+  }
+  .cta:active{transform:scale(.98);}
+  .cta small{display:block;font-weight:500;font-size:12px;margin-top:3px;opacity:.75;}
+  .fineprint{
+    text-align:center;font-size:12px;color:var(--paper-dim);margin-top:12px;
+    font-family:'JetBrains Mono',monospace;
+  }
+
+  /* ===== URGENCY ===== */
+  .urgency{
+    margin:26px 0 6px;
+    background:linear-gradient(160deg,#1a1500,#0d1117 75%);
+    border:1px solid #4d3b06;
+    border-radius:16px;
+    padding:20px;
+  }
+  .urgency-head{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:16px;
+  }
+  .urgency-item{display:flex;gap:12px;font-size:13px;line-height:1.5;color:var(--paper-dim);margin-bottom:14px;}
+  .urgency-item:last-child{margin-bottom:0;}
+  .urgency-item b{color:var(--paper);}
+  .uic{font-size:17px;flex-shrink:0;line-height:1.4;}
+
+  /* ===== STEPS ===== */
+  .steps{margin:46px 0 10px;}
+  .steps-head{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--gold-dim);
+    margin-bottom:20px;
+    display:flex;align-items:center;gap:12px;
+  }
+  .steps-head::after{content:"";flex:1;height:1px;background:var(--line);}
+
+  .step{
+    display:flex;gap:16px;
+    padding:18px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .step:last-child{border-bottom:none;}
+  .step-num{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:34px;
+    color:transparent;
+    -webkit-text-stroke:1.4px var(--gold-dim);
+    line-height:1;
+    flex-shrink:0;
+    width:34px;
+  }
+  .step-body h3{font-size:15px;font-weight:600;margin-bottom:5px;color:var(--paper);}
+  .step-body p{font-size:13.5px;color:var(--paper-dim);line-height:1.5;}
+  .step-body code{
+    font-family:'JetBrains Mono',monospace;
+    background:#1a2436;border:1px solid var(--line);
+    padding:1px 6px;border-radius:5px;font-size:12px;color:var(--gold);
+  }
+
+  /* ===== WHAT YOU GET ===== */
+  .perks{
+    margin:40px 0;
+    display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  }
+  .perk{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:16px 14px;
+  }
+  .perk .ic{font-size:20px;margin-bottom:8px;display:block;}
+  .perk h4{font-size:13px;font-weight:600;margin-bottom:4px;}
+  .perk p{font-size:12px;color:var(--paper-dim);line-height:1.45;}
+
+  /* ===== FOOTER ===== */
+  footer{
+    margin:50px 0 40px;
+    text-align:center;
+  }
+  footer .logo{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:20px;
+    letter-spacing:.03em;
+    color:var(--paper-dim);
+    margin-bottom:8px;
+  }
+  footer .logo b{color:var(--gold);}
+  footer p{font-size:11.5px;color:#4a5568;line-height:1.6;}
+  footer a{color:var(--paper-dim);text-decoration:underline;}
+
+  @media (max-width:380px){
+    h1{font-size:44px;}
+    .ticket-top{padding:24px 20px 18px;}
+    .perforation::before{left:-27px;}
+    .perforation::after{right:-27px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="ticket">
+    <div class="ticket-top">
+      <div class="eyebrow"><span class="dot"></span> Semifinales mañana · Final en 6 días</div>
+      <h1>El Mundial<br>se acaba<span>¿y tu álbum?</span></h1>
+      <p class="sub">Mañana juega la primera semifinal. En 6 días se corona el campeón. Ahora es cuando más coleccionistas están activos armando su álbum — y necesitamos que tú seas de los primeros en probar FiguSwitch antes de que termine la fiesta.</p>
+    </div>
+    <div class="perforation"></div>
+    <div class="ticket-bottom">
+      <div>
+        <div class="code-label">Programa</div>
+        <div class="code">PRUEBA-CERRADA</div>
+      </div>
+      <div class="seats">
+        <b>6</b><br>días para la final
+      </div>
+    </div>
+  </div>
+
+  <div class="cta-zone">
+    <a href="https://play.google.com/apps/testing/org.figuswap.app" class="cta">
+      Quiero entrar ahora
+      <small>Se abre en Google Play — toma 30 segundos</small>
+    </a>
+    <div class="fineprint">Necesitas una cuenta de Gmail para entrar</div>
+  </div>
+
+  <div class="urgency">
+    <div class="urgency-head">Por qué justo esta semana</div>
+    <div class="urgency-item">
+      <span class="uic">🔥</span>
+      <div><b>Es el momento de más actividad.</b> Con las semifinales encima, hay más gente escaneando figuritas y buscando intercambio que en cualquier otro momento del torneo.</div>
+    </div>
+    <div class="urgency-item">
+      <span class="uic">📉</span>
+      <div><b>Después de la final, baja el ritmo.</b> Terminado el Mundial, mucha gente deja de coleccionar activamente — los intercambios se vuelven más lentos.</div>
+    </div>
+    <div class="urgency-item">
+      <span class="uic">🥇</span>
+      <div><b>Ya casi se define todo.</b> Semifinales mañana y pasado, tercer lugar el 18, final el 19 — quedan pocos días de partidos en vivo para disfrutar la app en su mejor momento.</div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="steps-head">Cómo entrar</div>
+
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-body">
+        <h3>Toca el botón de arriba</h3>
+        <p>Te lleva a la página oficial de pruebas de Google Play para FiguSwitch.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-body">
+        <h3>Pulsa <code>Convertirme en probador</code></h3>
+        <p>Google te agrega al programa al instante. No hay formularios ni esperas.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-body">
+        <h3>Instala desde el Play Store</h3>
+        <p>Una vez dentro, el mismo botón te manda directo a instalar la app en tu teléfono.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-body">
+        <h3>Usa la app y cuéntame</h3>
+        <p>Escanea unas figuritas, revisa el Mundial en vivo. Cualquier bug o idea, mándamela directo.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="perks">
+    <div class="perk">
+      <span class="ic">⚽</span>
+      <h4>Mundial en vivo</h4>
+      <p>Resultados y posiciones en tiempo real, ya en tu hora.</p>
+    </div>
+    <div class="perk">
+      <span class="ic">📸</span>
+      <h4>Escáner con IA</h4>
+      <p>Le tomas foto a tu álbum y reconoce las figuritas solo.</p>
+    </div>
+    <div class="perk">
+      <span class="ic">🔁</span>
+      <h4>Intercambios</h4>
+      <p>Encuentra quién tiene lo que te falta, y viceversa.</p>
+    </div>
+    <div class="perk">
+      <span class="ic">🌍</span>
+      <h4>7 idiomas</h4>
+      <p>Español, inglés, portugués, francés, italiano, alemán, árabe.</p>
+    </div>
+  </div>
+
+  <footer>
+    <div class="logo">Figu<b>Switch</b></div>
+    <p>¿Dudas o algo no te funcionó?<br>
+    Escríbeme a <a href="mailto:soporte@figuswitch.com">soporte@figuswitch.com</a></p>
+  </footer>
+
+</div>
+
+</body>
+</html>
